@@ -1,1 +1,48 @@
-{"compilerOptions":{"target":"ES2022","lib":["dom","dom.iterable","ES2022"],"allowJs":false,"skipLibCheck":true,"strict":true,"noEmit":true,"esModuleInterop":true,"module":"ESNext","moduleResolution":"Bundler","resolveJsonModule":true,"isolatedModules":true,"jsx":"preserve","incremental":true,"baseUrl":".","paths":{"@ksp/domain/*":["packages/domain/src/*"],"@ksp/validation/*":["packages/validation/src/*"],"@ksp/config/*":["packages/config/src/*"],"@ksp/ui/*":["packages/ui/src/*"]}},"include":["next-env.d.ts","apps/**/*.ts","apps/**/*.tsx","packages/**/*.ts","packages/**/*.tsx","*.config.*"],"exclude":["node_modules"]}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "ES2022"
+    ],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ksp/domain/*": [
+        "packages/domain/src/*"
+      ],
+      "@ksp/validation/*": [
+        "packages/validation/src/*"
+      ],
+      "@ksp/config/*": [
+        "packages/config/src/*"
+      ],
+      "@ksp/ui/*": [
+        "packages/ui/src/*"
+      ]
+    },
+    "ignoreDeprecations": "6.0"
+  },
+  "include": [
+    "next-env.d.ts",
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "*.config.*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
