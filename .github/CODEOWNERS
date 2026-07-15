@@ -1,0 +1,12 @@
+# Temporary ownership uses the confirmed repository owner until additional GitHub identities are verified.
+* @kauanszpaiva
+/supabase/migrations/ @kauanszpaiva
+/supabase/tests/ @kauanszpaiva
+/packages/auth/ @kauanszpaiva
+/packages/permissions/ @kauanszpaiva
+/packages/finance/ @kauanszpaiva
+/packages/database/ @kauanszpaiva
+/apps/command/ @kauanszpaiva
+/apps/portal/ @kauanszpaiva
+/docs/deployment/ @kauanszpaiva
+/.github/workflows/ @kauanszpaiva

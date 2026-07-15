@@ -14,11 +14,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm install
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm test:db
+      - run: pnpm test:rls
+      - run: pnpm test:migrations
+      - run: pnpm test:e2e
+      - run: pnpm security:secrets
+      - run: pnpm build:command
+      - run: pnpm build:portal
       - run: pnpm test:rls
       - run: pnpm test:migrations
       - run: pnpm security:secrets
@@ -29,6 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
         continue-on-error: true
         with:
           fail-on-severity: high

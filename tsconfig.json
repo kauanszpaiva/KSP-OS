@@ -19,6 +19,53 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
+      "@ksp/domain": [
+        "packages/domain/src/index.ts"
+      ],
+      "@ksp/domain/*": [
+        "packages/domain/src/*"
+      ],
+      "@ksp/auth": [
+        "packages/auth/src/index.ts"
+      ],
+      "@ksp/auth/*": [
+        "packages/auth/src/*"
+      ],
+      "@ksp/permissions": [
+        "packages/permissions/src/index.ts"
+      ],
+      "@ksp/permissions/*": [
+        "packages/permissions/src/*"
+      ],
+      "@ksp/validation": [
+        "packages/validation/src/index.ts"
+      ],
+      "@ksp/validation/*": [
+        "packages/validation/src/*"
+      ],
+      "@ksp/ui": [
+        "packages/ui/src/index.tsx"
+      ],
+      "@ksp/config": [
+        "packages/config/src/index.ts"
+      ],
+      "@ksp/database": [
+        "packages/database/src/index.ts"
+      ],
+      "@ksp/finance": [
+        "packages/finance/src/index.ts"
+      ],
+      "@ksp/integrations": [
+        "packages/integrations/src/index.ts"
+      ],
+      "@ksp/notifications": [
+        "packages/notifications/src/index.ts"
+      ],
+      "@ksp/observability": [
+        "packages/observability/src/index.ts"
+      ],
+      "@ksp/testing": [
+        "packages/testing/src/index.ts"
       "@ksp/domain/*": [
         "packages/domain/src/*"
       ],
@@ -40,6 +87,8 @@
     "apps/**/*.tsx",
     "packages/**/*.ts",
     "packages/**/*.tsx",
+    "*.config.*",
+    "tooling/**/*.ts"
     "*.config.*"
   ],
   "exclude": [
