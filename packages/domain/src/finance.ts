@@ -1,0 +1,7 @@
+export interface Money { amountMinor:number; currency:string; }
+export interface JournalLine { accountId:string; debitMinor:number; creditMinor:number; currency:string; }
+export interface JournalEntry { status:'draft'|'posted'|'reversed'; lines:JournalLine[]; postedAt?:Date; }
+export function assertCurrency(m: Money): void { if (!/^[A-Z]{3}$/.test(m.currency)) throw new Error('currency_must_be_iso_4217'); if (!Number.isInteger(m.amountMinor)) throw new Error('money_must_use_minor_units'); }
+export function journalBalances(lines: JournalLine[]): boolean { const currency = lines[0]?.currency; if (!currency || lines.some(l => l.currency !== currency)) return false; const debit = lines.reduce((s,l)=>s+l.debitMinor,0); const credit = lines.reduce((s,l)=>s+l.creditMinor,0); return debit > 0 && debit === credit; }
+export function postJournal(entry: JournalEntry): JournalEntry { if (entry.status !== 'draft') throw new Error('only_draft_entries_can_be_posted'); if (!journalBalances(entry.lines)) throw new Error('journal_entry_must_balance'); return { ...entry, status:'posted', postedAt:new Date() }; }
+export function reverseJournal(entry: JournalEntry): JournalEntry { if (entry.status !== 'posted') throw new Error('only_posted_entries_can_be_reversed'); return { status:'draft', lines: entry.lines.map(l=>({ accountId:l.accountId, debitMinor:l.creditMinor, creditMinor:l.debitMinor, currency:l.currency })) }; }
