@@ -1,0 +1,7 @@
+{
+  "name": "@ksp/integrations",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "lint": "node ../../scripts/check-source.mjs packages/integrations", "format:check": "node ../../scripts/check-format.mjs packages/integrations", "build": "tsc --noEmit" }
+}

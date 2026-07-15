@@ -1,0 +1,7 @@
+{
+  "name": "@ksp/config",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit", "lint": "node ../../scripts/check-source.mjs packages/config", "format:check": "node ../../scripts/check-format.mjs packages/config", "build": "tsc --noEmit" }
+}

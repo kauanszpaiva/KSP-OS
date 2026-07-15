@@ -1,0 +1,5 @@
+import { z } from 'zod';
+export const uuid = z.string().uuid();
+export const moneySchema = z.object({ amountMinor: z.number().int(), currency: z.string().regex(/^[A-Z]{3}$/) });
+export const leadSchema = z.object({ organizationId: uuid, ownerId: uuid, name: z.string().min(1), status: z.enum(['active','dormant','converted','lost']), nextAction: z.string().optional() }).superRefine((v,ctx)=>{ if(v.status==='active'&&!v.nextAction) ctx.addIssue({code:'custom',message:'active_leads_require_next_action',path:['nextAction']}); });
+export const approvalRequestSchema = z.object({ organizationId: uuid, requesterId: uuid, type: z.enum(['executive_access','bank_destination','high_value_payment','contract_change','pricing_exception','period_reopen','bulk_export','production_credential','rls_auth_change','protected_deletion','agent_autonomy','high_risk_publication','deployment_exception']), amountMinor: z.number().int().optional(), riskLevel: z.enum(['low','medium','high','critical']), evidence: z.array(z.string()).default([]) });

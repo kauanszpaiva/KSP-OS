@@ -1,100 +1,59 @@
-# KSP Dominion Command OS - Blueprint Package
+# KSP Dominion Command OS Monorepo
 
-**Version:** 1.0  
-**Date:** 2026-07-15  
-**Owner:** KSP Dominion Group  
-**Primary executive authority:** Kauan Paiva and Vanessa Cardoso  
-**Classification:** Confidential working blueprint
+This repository is the implementation home for the KSP Dominion Command OS and the invite-only KSP Client Portal. The blueprint remains the source of truth. This codebase is **not production-ready**; it is now structured for secure vertical-slice delivery and contains the corrected command/portal architecture foundation.
 
-This package defines the product, operating model, architecture, security model, data model, workflows, delivery plan, and AI-assisted engineering rules for the KSP Dominion Command OS.
+## Applications
 
-## Read this first
+| App | Path | Deployment target | Status | Notes |
+|---|---|---|---|---|
+| Command OS | `apps/command` | Vercel project `ksp-command-os`, domain `app.kspdominion.com` | Foundation | Internal-only shell migrated from the previous `apps/web`; module pages are not release-ready vertical slices. |
+| Client Portal | `apps/portal` | Vercel project `ksp-client-portal`, domain `portal.kspdominion.com` | Foundation | Separate external shell with client-safe information architecture; invite/RLS workflows are defined in schema and permission foundations. |
 
-The project is intentionally split into two systems:
+## Package architecture
 
-1. **KSP Dominion Command OS** - the authoritative company operating system and system of record.
-2. **Dominion Autopilot** - the governed AI execution layer that proposes or performs bounded actions through approved APIs, queues, policies, and human approval gates.
+| Package | Purpose | Status |
+|---|---|---|
+| `packages/domain` | React-free domain primitives retained from foundation | Foundation |
+| `packages/permissions` | Central RBAC/ABAC action engine with internal and client roles separated | In progress |
+| `packages/finance` | Journal-line and balanced-posting invariants | In progress |
+| `packages/validation` | Zod validation contracts | Foundation |
+| `packages/ui` | Shared accessible UI primitives | Foundation |
+| `packages/auth`, `packages/database`, `packages/integrations`, `packages/notifications`, `packages/observability`, `packages/testing`, `packages/config` | Boundaries for upcoming vertical slices | Planned/foundation |
 
-Autopilot is never the database owner, never receives unrestricted production credentials, and never bypasses the approval engine.
+## Current implementation status
 
-## Package contents
+| Capability | Status | Evidence |
+|---|---|---|
+| Monorepo workspace | Foundation | `pnpm-workspace.yaml`, app/package manifests |
+| Command/Portal app split | Foundation | `apps/command`, `apps/portal` |
+| Internal/client identity separation | In progress | Migration `202607150002_identity_portal_finance_security.sql` |
+| Client Portal invite-only model | In progress | `portal_invitations`, `client_memberships`, permission engine |
+| Client requests intake | In progress | Schema and RLS foundations exist; end-to-end UI/actions are not release-ready |
+| Publication model | In progress | `client_publications`, `api_portal.published_project_updates` |
+| Change orders | In progress | Versioned schema and decision tables exist; workflow UI/actions pending |
+| Hosted payments | Planned | Provider abstraction and Stripe webhook flow not implemented yet |
+| Finance posting | In progress | DB posting function and line invariants added; full AR/AP/reconciliation UI pending |
+| Executable Supabase RLS tests | Planned/in progress | SQL test plan exists; local Supabase execution requires CLI/runtime setup |
 
-- `KSP_Dominion_Command_OS_Complete_Blueprint_v1.0.md` - single-file edition combining the complete package.
-- `EXECUTIVE_SUMMARY.md` - concise executive view of the solution, hierarchy, stack, controls, and build sequence.
-- `MASTER_BLUEPRINT.md` - executive, product, functional, technical, security, and operational blueprint.
-- `ACCESS_CONTROL_AND_APPROVALS.md` - RBAC, ABAC, project membership, field security, temporary access, and two-person controls.
-- `DOMAIN_DATA_AND_WORKFLOWS.md` - bounded contexts, entity catalog, lifecycle rules, event model, and end-to-end workflows.
-- `PRODUCT_INFORMATION_ARCHITECTURE.md` - route map, role-specific workspaces, shared screen patterns, mobile behavior, and UI acceptance.
-- `INTEGRATION_CATALOG.md` - controlled contracts for Supabase, Vercel, GitHub, Claude Code, Codex, Jules, Google Workspace, Figma, accounting, payment, and media providers.
-- `EXECUTIVE_OPERATING_CADENCE.md` - daily, weekly, monthly, quarterly, project, production, release, and decision rhythms.
-- `ENGINEERING_AND_AI_DELIVERY_PLAYBOOK.md` - repository, environments, CI/CD, testing, Claude Code, Codex, Jules, GitHub, Vercel, and Supabase operating rules.
-- `IMPLEMENTATION_ROADMAP_AND_BACKLOG.md` - phased roadmap, epics, dependencies, release gates, acceptance criteria, and migration plan.
-- `SECURITY_RELIABILITY_AND_COMPLIANCE.md` - security baseline, threat controls, audit, privacy, backup, disaster recovery, and incident response.
-- `DECISION_REGISTER.md` - decisions already made, defaults adopted by this blueprint, and executive decisions that still require formal confirmation.
-- `RESEARCH_BASIS_AND_ASSUMPTIONS.md` - internal assets reviewed, official platform assumptions, and items that must not be hard-coded.
-- `LEGACY_MIGRATION_MAPPING.md` - field/domain mapping and validation rules for the current tracker, Drive, task tools, and repositories.
-- `REQUIREMENTS_TRACEABILITY_MATRIX.md` - traceability from business needs to modules, controls, tests, and release gates.
-- `reference/AGENTS.md` - repository instructions for Codex and Jules-compatible agents.
-- `reference/CLAUDE.md` - repository instructions for Claude Code.
-- `reference/JULES_TASK_PROTOCOL.md` - task boundaries and handoff protocol for Jules.
-- `diagrams/ARCHITECTURE_DIAGRAMS.md` - Mermaid diagrams for context, containers, permissions, data flow, deployment, and agent governance.
+## Local setup
 
-## Implementation position
-
-This is an implementation-grade blueprint, not a claim that every future business decision is already known. The package closes known design gaps by using:
-
-- explicit assumptions;
-- authority and approval rules;
-- data ownership rules;
-- acceptance criteria;
-- release gates;
-- traceability;
-- audit requirements;
-- decision records;
-- verification and reconciliation steps.
-
-No production build should begin until Phase 0 decisions in `DECISION_REGISTER.md` are reviewed and signed by Kauan and Vanessa.
-
-## Recommended repository
-
-Create a new private repository for this application rather than converting the existing static company website repository.
-
-Recommended name:
-
-```text
-ksp-dominion-group/ksp-command-os
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+cp .env.example .env.local
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:db
+pnpm test:rls
+pnpm test:migrations
+pnpm test:e2e
+pnpm build
 ```
 
-Recommended structure:
+The current execution environment blocked registry access, so a valid lockfile still must be generated in a registry-enabled environment before the branch can meet the final CI gate.
 
-```text
-apps/web
-packages/ui
-packages/domain
-packages/config
-packages/testing
-supabase/migrations
-supabase/functions
-supabase/tests
-docs/adr
-docs/specs
-docs/runbooks
-.github/workflows
-.github/CODEOWNERS
-AGENTS.md
-CLAUDE.md
-```
+## Environment rule
 
-## Definition of success
-
-KSP leadership can open one system and reliably answer:
-
-- What requires a decision today?
-- What is at risk?
-- What is owed, due, paid, committed, or forecast?
-- Which clients and opportunities require action?
-- Which projects are healthy, blocked, over budget, or late?
-- What is every department producing?
-- Who can see or change each piece of information?
-- Which action happened, who initiated it, who approved it, and what changed?
-- What should happen next, and what can safely be automated?
+Local and Preview must never connect to Production Supabase. Use separate Supabase projects for Staging and Production, and separate Vercel projects for Command and Portal.

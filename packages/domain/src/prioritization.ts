@@ -1,0 +1,3 @@
+export interface WorkSignal { title:string; severity:'low'|'medium'|'high'|'critical'; dueAt?:Date; blocked?:boolean; clientWaiting?:boolean; approvalWaiting?:boolean; }
+export function executivePriorityScore(item: WorkSignal, now = new Date()): number { let score = {low:10,medium:30,high:60,critical:90}[item.severity]; if (item.blocked) score += 20; if (item.clientWaiting) score += 15; if (item.approvalWaiting) score += 10; if (item.dueAt) { const days = (item.dueAt.getTime()-now.getTime())/86400000; if (days < 0) score += 25; else if (days <= 2) score += 12; } return score; }
+export function topExecutivePriorities(items: WorkSignal[]): WorkSignal[] { return [...items].sort((a,b)=>executivePriorityScore(b)-executivePriorityScore(a)).slice(0,3); }

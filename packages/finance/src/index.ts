@@ -1,0 +1,23 @@
+export interface JournalLineInput {
+  accountId: string;
+  debitMinor: number;
+  creditMinor: number;
+  currency: string;
+}
+
+export function validateJournalLine(line: JournalLineInput): void {
+  const debitPositive = Number.isInteger(line.debitMinor) && line.debitMinor > 0 && line.creditMinor === 0;
+  const creditPositive = Number.isInteger(line.creditMinor) && line.creditMinor > 0 && line.debitMinor === 0;
+  if (!debitPositive && !creditPositive) throw new Error('journal_line_requires_exactly_one_positive_side');
+  if (!/^[A-Z]{3}$/.test(line.currency)) throw new Error('currency_must_be_iso_4217');
+}
+
+export function validateBalancedJournal(lines: JournalLineInput[]): void {
+  if (lines.length < 2) throw new Error('journal_requires_at_least_two_lines');
+  lines.forEach(validateJournalLine);
+  const currency = lines[0].currency;
+  if (lines.some((line) => line.currency !== currency)) throw new Error('mixed_currency_journal_requires_documented_fx_flow');
+  const debit = lines.reduce((sum, line) => sum + line.debitMinor, 0);
+  const credit = lines.reduce((sum, line) => sum + line.creditMinor, 0);
+  if (debit !== credit) throw new Error('journal_entry_must_balance');
+}
