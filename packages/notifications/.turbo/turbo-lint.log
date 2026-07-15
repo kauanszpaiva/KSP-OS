@@ -1,0 +1,5 @@
+
+> @ksp/notifications@ lint C:\Users\nauak\Documents\Ksp Dominion G\Projetinhos\KSP Dominion OS\KSP_Dominion_Command_OS_Blueprint_v1.0\ksp-command-os-blueprint\KSP OS\packages\notifications
+> node ../../scripts/check-source.mjs packages/notifications
+
+Source lint guard passed.

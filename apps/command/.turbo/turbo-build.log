@@ -1,0 +1,48 @@
+
+> @ksp/command@ build C:\Users\nauak\Documents\Ksp Dominion G\Projetinhos\KSP Dominion OS\KSP_Dominion_Command_OS_Blueprint_v1.0\ksp-command-os-blueprint\KSP OS\apps\command
+> next build
+
+   ▲ Next.js 15.1.6
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/21) ...
+   Generating static pages (5/21) 
+   Generating static pages (10/21) 
+   Generating static pages (15/21) 
+ ✓ Generating static pages (21/21)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    179 B           106 kB
+├ ○ /_not-found                          980 B           106 kB
+├ ○ /admin                               179 B           106 kB
+├ ƒ /api/health                          179 B           106 kB
+├ ○ /approvals                           179 B           106 kB
+├ ○ /clients                             179 B           106 kB
+├ ○ /creative                            179 B           106 kB
+├ ○ /crm                                 179 B           106 kB
+├ ○ /documents                           179 B           106 kB
+├ ○ /equipment                           179 B           106 kB
+├ ○ /executive                           179 B           106 kB
+├ ○ /finance                             179 B           106 kB
+├ ○ /inbox                               179 B           106 kB
+├ ○ /marketing                           179 B           106 kB
+├ ○ /people                              179 B           106 kB
+├ ○ /portal                              179 B           106 kB
+├ ○ /projects                            179 B           106 kB
+├ ○ /reports                             179 B           106 kB
+└ ○ /software                            179 B           106 kB
++ First Load JS shared by all            105 kB
+  ├ chunks/0f77e470-5d6ec54021dfb19f.js  52.9 kB
+  ├ chunks/659-c5f37a834952958a.js       50.5 kB
+  └ other shared chunks (total)          1.95 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
