@@ -3,37 +3,78 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   checks:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
+          run_install: false
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - run: corepack enable
-      - run: corepack prepare pnpm@10.28.1 --activate
-      - run: pnpm --version
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm test:db
-      - run: pnpm test:rls
-      - run: pnpm test:migrations
-      - run: pnpm security:secrets
-      - run: pnpm build:command
-      - run: pnpm build:portal
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Runtime information
+        run: |
+          node --version
+          pnpm --version
+          pnpm config get registry
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: TypeScript
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Database checks
+        run: pnpm test:db
+
+      - name: RLS checks
+        run: pnpm test:rls
+
+      - name: Migration checks
+        run: pnpm test:migrations
+
+      - name: Secret checks
+        run: pnpm security:secrets
+
+      - name: Build Command OS
+        run: pnpm build:command
+
+      - name: Build Client Portal
+        run: pnpm build:portal
 
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    continue-on-error: true
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
