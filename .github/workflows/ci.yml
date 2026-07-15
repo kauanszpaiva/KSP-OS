@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.28.1 --activate
+      - run: pnpm --version
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm lint
@@ -25,9 +25,9 @@ jobs:
       - run: pnpm test:db
       - run: pnpm test:rls
       - run: pnpm test:migrations
+      - run: pnpm security:secrets
       - run: pnpm build:command
       - run: pnpm build:portal
-      - run: pnpm security:secrets
 
   dependency-review:
     if: github.event_name == 'pull_request'

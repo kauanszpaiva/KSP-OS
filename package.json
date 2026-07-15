@@ -2,7 +2,7 @@
   "name": "ksp-os",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@9.12.0",
+  "packageManager": "pnpm@10.28.1",
   "scripts": {
     "dev": "turbo dev",
     "dev:command": "pnpm --filter @ksp/command dev",
@@ -35,5 +35,9 @@
     "turbo": "2.3.3",
     "typescript": "5.7.3",
     "vitest": "2.1.8"
+  },
+  "engines": {
+    "node": "22.x",
+    "pnpm": "10.x"
   }
 }
