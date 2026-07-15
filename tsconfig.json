@@ -66,6 +66,17 @@
       ],
       "@ksp/testing": [
         "packages/testing/src/index.ts"
+      "@ksp/domain/*": [
+        "packages/domain/src/*"
+      ],
+      "@ksp/validation/*": [
+        "packages/validation/src/*"
+      ],
+      "@ksp/config/*": [
+        "packages/config/src/*"
+      ],
+      "@ksp/ui/*": [
+        "packages/ui/src/*"
       ]
     },
     "ignoreDeprecations": "6.0"
@@ -78,6 +89,7 @@
     "packages/**/*.tsx",
     "*.config.*",
     "tooling/**/*.ts"
+    "*.config.*"
   ],
   "exclude": [
     "node_modules"

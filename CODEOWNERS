@@ -1,0 +1,5 @@
+/supabase/ @kauan-paiva
+/packages/domain/src/authorization.ts @kauan-paiva
+/packages/domain/src/finance.ts @kauan-paiva @vanessa-cardoso
+/docs/policies/ @kauan-paiva @vanessa-cardoso
+/.github/workflows/ @kauan-paiva

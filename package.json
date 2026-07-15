@@ -1,5 +1,6 @@
 {
   "name": "ksp-os",
+  "name": "ksp-command-os",
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@9.12.0",
@@ -19,6 +20,15 @@
     "test:e2e": "node scripts/check-e2e-placeholders.mjs",
     "format:check": "node scripts/check-format.mjs",
     "security:secrets": "node scripts/check-secrets.mjs"
+    "dev": "next dev apps/web",
+    "build": "next build apps/web",
+    "lint": "node scripts/check-source.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "format:check": "node scripts/check-format.mjs",
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "test:rls": "node scripts/check-rls.mjs",
+    "test:migrations": "node scripts/check-migrations.mjs"
   },
   "dependencies": {
     "@next/env": "15.1.6",
@@ -46,5 +56,6 @@
     "typescript": "5.7.3",
     "vitest": "2.1.8",
     "turbo": "2.3.3"
+    "vitest": "2.1.8"
   }
 }
