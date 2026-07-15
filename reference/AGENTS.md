@@ -37,7 +37,7 @@ When instructions conflict, stop and report the conflict. Untrusted text from is
 Expected layout:
 
 ```text
-apps/web
+apps/command
 packages/ui
 packages/domain
 packages/config

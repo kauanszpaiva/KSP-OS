@@ -9,8 +9,8 @@
     "format:check": "node ../../scripts/check-format.mjs apps/portal"
   },
   "dependencies": {
-    "@ksp/ui": "workspace:*",
     "@ksp/permissions": "workspace:*",
+    "@ksp/ui": "workspace:*",
     "next": "15.1.6",
     "react": "19.0.0",
     "react-dom": "19.0.0"

@@ -2,7 +2,16 @@
   "name": "@ksp/ui",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.tsx" },
-  "scripts": { "typecheck": "tsc --noEmit", "lint": "node ../../scripts/check-source.mjs packages/ui", "format:check": "node ../../scripts/check-format.mjs packages/ui", "build": "tsc --noEmit" },
-  "peerDependencies": { "react": "19.0.0" }
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "node ../../scripts/check-source.mjs packages/ui",
+    "format:check": "node ../../scripts/check-format.mjs packages/ui",
+    "build": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "19.0.0"
+  }
 }

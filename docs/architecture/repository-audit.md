@@ -2,8 +2,8 @@
 
 ## Verified findings
 
-1. The previous foundation contained one app under `apps/web`; it has been migrated to `apps/command`.
-2. Previous root scripts targeted `next dev apps/web` and `next build apps/web`; root scripts now target command and portal workspace filters.
+1. The previous foundation contained one app under `apps/command`; it has been migrated to `apps/command`.
+2. Previous root scripts targeted `next dev apps/command` and `next build apps/command`; root scripts now target command and portal workspace filters.
 3. The previous repository was not a complete pnpm workspace; `pnpm-workspace.yaml` now defines apps and packages.
 4. Many routes remain foundation shells and must not be described as implemented modules.
 5. The first migration combined internal and external identities through `app_role`; migration 002 adds separate `internal_role`, `client_role`, `organization_memberships`, and `client_memberships` foundations.
