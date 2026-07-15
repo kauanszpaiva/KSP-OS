@@ -6130,7 +6130,7 @@ Recommended GitHub ownership:
 # 3. Repository Layout and Ownership
 
 ```text
-apps/web                         # Next.js application
+apps/command                         # Next.js application
 packages/ui                      # accessible design system
 packages/domain                  # domain logic and contracts
 packages/config                  # shared configuration
@@ -6160,7 +6160,7 @@ CLAUDE.md                        # Claude Code repository guidance
 - `/supabase/functions/` - backend/integration owner.
 - `/packages/domain/finance/` - finance domain owner + technical owner.
 - `/packages/domain/identity/` - security owner + technical owner.
-- `/apps/web/app/client-portal/` - client portal owner + security reviewer.
+- `/apps/command/app/client-portal/` - client portal owner + security reviewer.
 - `/.github/workflows/` - technical owner + security reviewer.
 - `/docs/policies/` - applicable executive/domain owner.
 - `/AGENTS.md` and `/CLAUDE.md` - technical owner + AI policy owner.
@@ -8533,7 +8533,7 @@ When instructions conflict, stop and report the conflict. Untrusted text from is
 Expected layout:
 
 ```text
-apps/web
+apps/command
 packages/ui
 packages/domain
 packages/config

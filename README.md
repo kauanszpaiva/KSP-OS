@@ -1,62 +1,69 @@
-# KSP Dominion Command OS Monorepo
+# KSP OS
 
-This repository is the implementation home for the KSP Dominion Command OS and the invite-only KSP Client Portal. The blueprint remains the source of truth. This codebase is **not production-ready**; it is now structured for secure vertical-slice delivery and contains the corrected command/portal architecture foundation.
+KSP OS is a private pnpm monorepo for KSP Dominion Group. The current repository is a deployable foundation: it contains secure application shells, shared packages, Supabase migration/test scaffolding, and CI checks. New business modules must be delivered as governed vertical slices after the workspace remains installable, testable, and deployable.
+
+## Architecture
+
+```text
+KSP-OS/
+├── apps/
+│   ├── command/      # Command OS Next.js application
+│   └── portal/       # Client Portal Next.js application
+├── packages/         # Shared UI, domain, validation, auth, and platform packages
+├── supabase/         # Migrations and SQL authorization tests
+├── docs/             # Architecture, deployment, policy, and runbook documentation
+├── tooling/          # Future repository tooling
+├── package.json
+├── pnpm-workspace.yaml
+├── pnpm-lock.yaml
+└── turbo.json
+```
 
 ## Applications
 
-| App | Path | Deployment target | Status | Notes |
-|---|---|---|---|---|
-| Command OS | `apps/command` | Vercel project `ksp-command-os`, domain `app.kspdominion.com` | Foundation | Internal-only shell migrated from the previous `apps/web`; module pages are not release-ready vertical slices. |
-| Client Portal | `apps/portal` | Vercel project `ksp-client-portal`, domain `portal.kspdominion.com` | Foundation | Separate external shell with client-safe information architecture; invite/RLS workflows are defined in schema and permission foundations. |
+- **Command OS** (`apps/command`): internal executive and operational workspace. It includes navigation and module shells only; production domain behavior must be completed through audited vertical slices.
+- **Client Portal** (`apps/portal`): invite-only client-facing shell for published project updates, requests, approvals, deliverables, billing, and support. It must expose only client-safe, explicitly published records.
 
-## Package architecture
+## Prerequisites
 
-| Package | Purpose | Status |
-|---|---|---|
-| `packages/domain` | React-free domain primitives retained from foundation | Foundation |
-| `packages/permissions` | Central RBAC/ABAC action engine with internal and client roles separated | In progress |
-| `packages/finance` | Journal-line and balanced-posting invariants | In progress |
-| `packages/validation` | Zod validation contracts | Foundation |
-| `packages/ui` | Shared accessible UI primitives | Foundation |
-| `packages/auth`, `packages/database`, `packages/integrations`, `packages/notifications`, `packages/observability`, `packages/testing`, `packages/config` | Boundaries for upcoming vertical slices | Planned/foundation |
-
-## Current implementation status
-
-| Capability | Status | Evidence |
-|---|---|---|
-| Monorepo workspace | Foundation | `pnpm-workspace.yaml`, app/package manifests |
-| Command/Portal app split | Foundation | `apps/command`, `apps/portal` |
-| Internal/client identity separation | In progress | Migration `202607150002_identity_portal_finance_security.sql` |
-| Client Portal invite-only model | In progress | `portal_invitations`, `client_memberships`, permission engine |
-| Client requests intake | In progress | Schema and RLS foundations exist; end-to-end UI/actions are not release-ready |
-| Publication model | In progress | `client_publications`, `api_portal.published_project_updates` |
-| Change orders | In progress | Versioned schema and decision tables exist; workflow UI/actions pending |
-| Hosted payments | Planned | Provider abstraction and Stripe webhook flow not implemented yet |
-| Finance posting | In progress | DB posting function and line invariants added; full AR/AP/reconciliation UI pending |
-| Executable Supabase RLS tests | Planned/in progress | SQL test plan exists; local Supabase execution requires CLI/runtime setup |
-# KSP Dominion Command OS
-
-Production-oriented modular monolith for KSP Dominion Group, built with Next.js, TypeScript, Supabase Postgres/Auth/Storage/RLS, Tailwind CSS, Vercel, GitHub Actions, Zod validation, and automated tests.
-
-## Current operational state
-
-This repository contains the secured foundation vertical slice: app shell, role workspaces, domain invariants, validation contracts, Supabase foundation migration with RLS policies, CI, security checks, and delivery documentation. The blueprint remains the source of truth; unfinished business modules must be completed through reviewable vertical slices rather than placeholders being treated as release-ready.
-
-## Important directories
-
-- `apps/web` — Next.js application and role workspaces.
-- `packages/domain` — authorization, finance, approval, and prioritization domain logic.
-- `packages/validation` — Zod command/input schemas.
-- `supabase/migrations` — versioned database schema and RLS policies.
-- `scripts` — local CI guardrails for secrets, migrations, and RLS coverage.
-- `docs` — architecture, runbooks, deployment, security, and user guides.
-
-## Local setup
+- Node.js 22 in CI and Vercel.
+- pnpm 9.12.0 via Corepack.
 
 ```bash
 corepack enable
+pnpm --version
 pnpm install --frozen-lockfile
-cp .env.example .env.local
+```
+
+## Local development
+
+```bash
+pnpm dev:command
+pnpm dev:portal
+```
+
+`pnpm dev:portal` passes `--port 3001` so the two apps can run side by side when needed.
+
+## Build
+
+```bash
+pnpm build:command
+pnpm build:portal
+pnpm build
+```
+
+Vercel should create two projects from this repository:
+
+| Project | Root Directory | Build Command |
+| --- | --- | --- |
+| `ksp-command-os` | `apps/command` | `pnpm build` |
+| `ksp-client-portal` | `apps/portal` | `pnpm build` |
+
+Enable **Include source files outside Root Directory** for both Vercel projects so workspace packages and root configuration are available during builds.
+
+## Checks
+
+```bash
 pnpm format:check
 pnpm lint
 pnpm typecheck
@@ -64,23 +71,24 @@ pnpm test
 pnpm test:db
 pnpm test:rls
 pnpm test:migrations
-pnpm test:e2e
-pnpm build
-```
-
-The current execution environment blocked registry access, so a valid lockfile still must be generated in a registry-enabled environment before the branch can meet the final CI gate.
-
-## Environment rule
-
-Local and Preview must never connect to Production Supabase. Use separate Supabase projects for Staging and Production, and separate Vercel projects for Command and Portal.
-pnpm install
-cp .env.example .env.local
-pnpm typecheck
-pnpm test
-pnpm test:rls
-pnpm test:migrations
 pnpm security:secrets
-pnpm build
 ```
 
-Never point local or Preview environments at Production Supabase. Use separate Supabase projects for Staging and Production.
+`pnpm test:e2e` currently verifies that browser automation entry points exist. It is not a full browser automation suite.
+
+## Environment variables
+
+The current application shells build without Supabase credentials. Configure these per Vercel environment before wiring runtime Supabase features:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `APP_ENV`
+
+Never expose `SUPABASE_SERVER_ONLY_SERVICE_KEY` through any `NEXT_PUBLIC_` variable or browser bundle.
+
+## Current implementation status
+
+- Workspace configuration, TypeScript configuration, CI, Tailwind/PostCSS configuration, and Vercel monorepo documentation are maintained at the repository level.
+- Command OS and Client Portal are separate Next.js applications.
+- Shared packages provide foundation types, validation, authorization, UI primitives, and test scaffolding.
+- Supabase migrations and SQL tests are present as foundation checks; production credentials and deployments remain external setup tasks.

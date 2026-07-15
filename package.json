@@ -1,45 +1,24 @@
 {
   "name": "ksp-os",
-  "name": "ksp-command-os",
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "dev": "pnpm --filter @ksp/command dev",
+    "dev": "turbo dev",
     "dev:command": "pnpm --filter @ksp/command dev",
-    "dev:portal": "pnpm --filter @ksp/portal dev",
-    "build": "pnpm build:command && pnpm build:portal",
+    "dev:portal": "pnpm --filter @ksp/portal dev -- --port 3001",
+    "build": "turbo build",
     "build:command": "pnpm --filter @ksp/command build",
     "build:portal": "pnpm --filter @ksp/portal build",
-    "lint": "node scripts/check-source.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "format:check": "turbo format:check",
     "test": "vitest run",
     "test:db": "node scripts/check-db-tests.mjs",
-    "test:rls": "node scripts/check-rls.mjs && node scripts/check-db-tests.mjs",
+    "test:rls": "node scripts/check-rls.mjs",
     "test:migrations": "node scripts/check-migrations.mjs",
     "test:e2e": "node scripts/check-e2e-placeholders.mjs",
-    "format:check": "node scripts/check-format.mjs",
     "security:secrets": "node scripts/check-secrets.mjs"
-    "dev": "next dev apps/web",
-    "build": "next build apps/web",
-    "lint": "node scripts/check-source.mjs",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "format:check": "node scripts/check-format.mjs",
-    "security:secrets": "node scripts/check-secrets.mjs",
-    "test:rls": "node scripts/check-rls.mjs",
-    "test:migrations": "node scripts/check-migrations.mjs"
-  },
-  "dependencies": {
-    "@next/env": "15.1.6",
-    "@supabase/ssr": "0.5.2",
-    "@supabase/supabase-js": "2.48.1",
-    "clsx": "2.1.1",
-    "lucide-react": "0.468.0",
-    "next": "15.1.6",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "zod": "3.24.1"
   },
   "devDependencies": {
     "@eslint/js": "9.18.0",
@@ -53,9 +32,8 @@
     "postcss": "8.5.1",
     "prettier": "3.4.2",
     "tailwindcss": "3.4.17",
+    "turbo": "2.3.3",
     "typescript": "5.7.3",
-    "vitest": "2.1.8",
-    "turbo": "2.3.3"
     "vitest": "2.1.8"
   }
 }
