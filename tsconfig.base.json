@@ -40,6 +40,6 @@
       "@ksp/validation": ["packages/validation/src/index.ts"],
       "@ksp/validation/*": ["packages/validation/src/*"]
     },
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "5.0"
   }
 }
