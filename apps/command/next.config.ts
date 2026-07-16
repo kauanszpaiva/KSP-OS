@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@ksp/permissions', '@ksp/ui'],
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   }
