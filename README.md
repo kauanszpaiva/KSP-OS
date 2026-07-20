@@ -27,7 +27,7 @@ KSP-OS/
 ## Prerequisites
 
 - Node.js 22 in CI and Vercel.
-- pnpm 9.12.0 via Corepack.
+- pnpm 10.28.1 (pinned via the root `packageManager` field).
 
 ```bash
 corepack enable
