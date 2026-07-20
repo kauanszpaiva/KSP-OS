@@ -52,14 +52,21 @@ pnpm build:portal
 pnpm build
 ```
 
-Vercel should create two projects from this repository:
+Vercel should create two projects from this repository. Each app ships a
+`vercel.json` that pins the framework, install command, and build command, so
+the only per-project setting to configure in the dashboard is the Root
+Directory:
 
-| Project | Root Directory | Build Command |
+| Project | Root Directory | Config |
 | --- | --- | --- |
-| `ksp-command-os` | `apps/command` | `pnpm build` |
-| `ksp-client-portal` | `apps/portal` | `pnpm build` |
+| `ksp-command-os` | `apps/command` | `apps/command/vercel.json` |
+| `ksp-client-portal` | `apps/portal` | `apps/portal/vercel.json` |
 
-Enable **Include source files outside Root Directory** for both Vercel projects so workspace packages and root configuration are available during builds.
+Enable **Include source files outside Root Directory** for both Vercel projects
+so workspace packages (`packages/*`) and root configuration (lockfile,
+`tsconfig.base.json`, Tailwind/PostCSS) are available during builds. The
+committed `installCommand` runs `pnpm install --frozen-lockfile` from the app
+directory, which resolves and links the entire workspace.
 
 ## Checks
 
