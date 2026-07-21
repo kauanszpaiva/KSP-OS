@@ -8,10 +8,19 @@ export interface SupabasePublicEnv {
   anonKey: string;
 }
 
+function isAllowedSupabaseUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co');
+  } catch {
+    return false;
+  }
+}
+
 export function readPublicEnv(): SupabasePublicEnv | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
+  if (!url || !anonKey || !isAllowedSupabaseUrl(url)) return null;
   return { url, anonKey };
 }
 
