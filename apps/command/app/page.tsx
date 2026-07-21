@@ -1,2 +1,5 @@
 import { redirect } from 'next/navigation';
-export default function Home(){ redirect('/executive'); }
+
+export default function Home() {
+  redirect('/pulse');
+}

@@ -10,5 +10,9 @@
     "lint": "node ../../scripts/check-source.mjs packages/database",
     "format:check": "node ../../scripts/check-format.mjs packages/database",
     "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.47.10"
   }
 }

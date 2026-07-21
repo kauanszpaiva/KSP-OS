@@ -10,5 +10,9 @@
     "lint": "node ../../scripts/check-source.mjs packages/auth",
     "format:check": "node ../../scripts/check-format.mjs packages/auth",
     "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ksp/database": "workspace:*",
+    "@ksp/permissions": "workspace:*"
   }
 }

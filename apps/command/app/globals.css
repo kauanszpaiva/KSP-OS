@@ -1,4 +1,61 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-:root{color-scheme:light} body{background:#f8fafc;color:#172033} a:focus,button:focus,input:focus,select:focus,textarea:focus{outline:3px solid #1f4e79;outline-offset:2px}
+
+:root {
+  color-scheme: light;
+  --canvas: #f5f7fa;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: #0f2540;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Figures align in columns — essential for an operations tool. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Editorial accent, used only for narrative moments (never for UI chrome). */
+.font-display {
+  letter-spacing: -0.012em;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.011em;
+}
+
+/* Restrained, keyboard-visible focus. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #1f4e79;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: #d7e3f1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

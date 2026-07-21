@@ -1,4 +1,39 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
-const nav=['executive','inbox','crm','clients','projects','finance','approvals','documents','people','software','creative','equipment','marketing','portal','reports','admin'];
-export default function AppLayout({ children }: { children: ReactNode }) { return <div className="min-h-screen"><header className="border-b bg-white"><div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4"><Link href="/executive" className="text-lg font-semibold text-slate-950">KSP Dominion Command OS</Link><span className="rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-900">Secure executive workspace</span></div><nav aria-label="Primary" className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-6 pb-3">{nav.map(n=><Link key={n} className="rounded px-3 py-2 text-sm text-slate-700 hover:bg-slate-100" href={`/${n}`}>{n}</Link>)}</nav></header><main className="mx-auto max-w-7xl px-6 py-8">{children}</main></div>; }
+import { canViewFounderVault } from '@ksp/auth';
+import { NAV_GROUPS, MOBILE_PRIMARY } from '../../lib/nav';
+import { requireSession } from '../../lib/session';
+import { Shell } from './_components/shell';
+
+export const dynamic = 'force-dynamic';
+
+const ROLE_LABELS: Record<string, string> = {
+  founder_ceo: 'Founder & CEO',
+  executive_operations: 'Executive Operations',
+  sales_specialist: 'Sales & Delivery',
+  designer: 'Frontend & Design',
+  developer: 'Engineering',
+  contractor: 'Contractor'
+};
+
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const ctx = await requireSession();
+  const showVault = canViewFounderVault(ctx);
+
+  const groups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((item) => !item.founderOnly || showVault)
+  })).filter((g) => g.items.length > 0);
+
+  const primaryRole = ctx.internalRoles[0] ?? 'member';
+  const user = {
+    displayName: ctx.user.displayName,
+    email: ctx.user.email,
+    role: ROLE_LABELS[primaryRole] ?? primaryRole
+  };
+
+  return (
+    <Shell groups={groups} user={user} mobilePrimary={MOBILE_PRIMARY}>
+      {children}
+    </Shell>
+  );
+}
