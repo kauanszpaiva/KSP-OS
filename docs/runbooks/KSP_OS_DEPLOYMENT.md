@@ -13,8 +13,10 @@ Production deploys are not performed by automation or by this repository's agent
 Set in Vercel project settings, never in git:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVER_ONLY_SERVICE_KEY` (server-only; used only by trusted server code, never exposed to the browser bundle)
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (preferred public browser-safe key)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy fallback only)
+- `SUPABASE_SERVER_ONLY_SECRET_KEY` (preferred privileged server-only key)
+- `SUPABASE_SERVER_ONLY_SERVICE_KEY` (legacy fallback only; server-only; used only by trusted server code, never exposed to the browser bundle)
 - `APP_ENV`
 
 The app builds without these (renders `/setup`), so preview builds do not require production credentials.

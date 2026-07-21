@@ -10,8 +10,8 @@ export default function SetupPage() {
       </p>
       <ul className="mt-4 space-y-1 rounded-md border border-line bg-surface p-4 font-mono text-[13px] text-ink-2">
         <li>NEXT_PUBLIC_SUPABASE_URL</li>
-        <li>NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
-        <li>SUPABASE_SERVER_ONLY_SERVICE_KEY (server only)</li>
+        <li>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (preferred) or NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
+        <li>SUPABASE_SERVER_ONLY_SECRET_KEY (preferred) or SUPABASE_SERVER_ONLY_SERVICE_KEY (server only)</li>
       </ul>
       <p className="mt-4 text-[13px] text-ink-3">See docs/runbooks/KSP_OS_LOCAL_SETUP.md for the full procedure.</p>
     </main>
