@@ -31,6 +31,11 @@ jobs:
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # Non-blocking: dependency-review-action hard-errors unless the repo has
+    # Dependency graph + GitHub Advanced Security enabled. Until that is turned
+    # on (Settings -> Security & analysis) the job cannot run, so it must not
+    # gate merges. It stays here and will enforce fail-on-severity once enabled.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
