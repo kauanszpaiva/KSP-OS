@@ -5,6 +5,7 @@
 
 export interface SupabasePublicEnv {
   url: string;
+  /** Public browser-safe key. Supabase now calls this a publishable key; legacy anon keys remain supported. */
   anonKey: string;
 }
 
@@ -17,9 +18,13 @@ function isAllowedSupabaseUrl(value: string): boolean {
   }
 }
 
+function firstPresent(...values: Array<string | undefined>): string | undefined {
+  return values.find((value) => value !== undefined && value.trim().length > 0);
+}
+
 export function readPublicEnv(): SupabasePublicEnv | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const anonKey = firstPresent(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   if (!url || !anonKey || !isAllowedSupabaseUrl(url)) return null;
   return { url, anonKey };
 }
@@ -29,12 +34,12 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
- * Server-only service-role key. Never expose to the browser. Guarded so an
- * accidental client-side import fails loudly instead of leaking the key.
+ * Server-only privileged Supabase key. Never expose to the browser. Guarded so
+ * an accidental client-side import fails loudly instead of leaking the key.
  */
 export function readServiceRoleKey(): string | null {
   if (typeof window !== 'undefined') {
-    throw new Error('service_role_key_must_not_be_read_in_browser');
+    throw new Error('supabase_privileged_key_must_not_be_read_in_browser');
   }
-  return process.env.SUPABASE_SERVER_ONLY_SERVICE_KEY ?? null;
+  return firstPresent(process.env.SUPABASE_SERVER_ONLY_SECRET_KEY, process.env.SUPABASE_SERVER_ONLY_SERVICE_KEY) ?? null;
 }

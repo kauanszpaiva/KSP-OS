@@ -17,12 +17,14 @@ Copy `.env.example` and set values (never commit real keys):
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://tqwnsxjrlomosfblleqy.supabase.co  # KSP Supabase backend
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...                         # anon/public key; set locally or in Vercel, never commit JWTs
-SUPABASE_SERVER_ONLY_SERVICE_KEY=...                      # service role — server only, never shipped to browser
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...                  # publishable/public key; set locally or in Vercel, never commit real keys
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=...                       # legacy fallback for older anon JWT projects
+SUPABASE_SERVER_ONLY_SECRET_KEY=...                       # privileged server key — server only, never shipped to browser
+# SUPABASE_SERVER_ONLY_SERVICE_KEY=...                    # legacy fallback for older service-role JWT projects
 APP_ENV=local
 ```
 
-Without these, the app renders `/setup` and login is disabled — builds still succeed. The runtime client only accepts HTTPS `*.supabase.co` URLs and refuses to read the service-role key in browser code.
+Without these, the app renders `/setup` and login is disabled — builds still succeed. The runtime client only accepts HTTPS `*.supabase.co` URLs and refuses to read privileged Supabase keys in browser code.
 
 ## Database
 

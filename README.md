@@ -88,10 +88,10 @@ pnpm security:secrets
 The current application shells build without Supabase credentials. Configure these per Vercel environment before wiring runtime Supabase features:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (preferred) or `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy fallback)
 - `APP_ENV`
 
-Never expose `SUPABASE_SERVER_ONLY_SERVICE_KEY` through any `NEXT_PUBLIC_` variable or browser bundle.
+Never expose `SUPABASE_SERVER_ONLY_SECRET_KEY` or `SUPABASE_SERVER_ONLY_SERVICE_KEY` through any `NEXT_PUBLIC_` variable or browser bundle.
 
 ## Current implementation status
 
