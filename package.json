@@ -18,10 +18,12 @@
     "test:rls": "node scripts/check-rls.mjs",
     "test:migrations": "node scripts/check-migrations.mjs",
     "test:e2e": "node scripts/check-e2e-placeholders.mjs",
+    "e2e": "playwright test --config e2e/playwright.config.ts",
     "security:secrets": "node scripts/check-secrets.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.18.0",
+    "@playwright/test": "^1.51.1",
     "@testing-library/react": "16.2.0",
     "@types/node": "22.10.7",
     "@types/react": "19.0.7",
