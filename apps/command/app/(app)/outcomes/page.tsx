@@ -1,9 +1,43 @@
 import { canManageOutcomes } from '@ksp/auth';
+import type { CompanyOutcome } from '@ksp/database';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getMembers, getOutcomes } from '../data';
-import { Card, EmptyState, PageHeader, ProgressBar, StatePill } from '../_components/ui';
+import { EmptyState, PageHeader, Panel, Ring, SectionLabel, SlotMeter, StatePill } from '../_components/ui';
 import { OutcomeForm, OutcomeStateForm } from '../_components/forms';
+
+function Lane({ outcome, canManage }: { outcome: CompanyOutcome | null; canManage: boolean }) {
+  if (!outcome) {
+    return (
+      <div className="flex min-h-[188px] flex-col items-center justify-center rounded-lg border border-dashed border-line-2 bg-surface/40 p-5 text-center">
+        <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-line-2 text-ink-4">+</span>
+        <p className="text-[13px] font-medium text-ink-3">Open slot</p>
+        <p className="mt-0.5 text-[12px] text-ink-4">Capacity for one more company outcome.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-[188px] flex-col rounded-lg border border-line bg-surface p-5">
+      <div className="flex items-start gap-4">
+        <Ring value={outcome.progress} />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[15px] font-semibold leading-snug text-ink">{outcome.title}</h3>
+          <p className="mt-1 text-[12px] text-ink-3">
+            {outcome.metric ? `${outcome.metric}${outcome.target ? ` → ${outcome.target}` : ''}` : 'No metric set'}
+          </p>
+          {outcome.horizon_days && <p className="mt-0.5 text-[12px] text-ink-4">{outcome.horizon_days}-day horizon</p>}
+        </div>
+      </div>
+      {outcome.description && <p className="mt-3 line-clamp-2 text-[13px] text-ink-2">{outcome.description}</p>}
+      {canManage && (
+        <div className="mt-auto flex gap-1 border-t border-line pt-3">
+          <OutcomeStateForm id={outcome.id} target="paused">Pause</OutcomeStateForm>
+          <OutcomeStateForm id={outcome.id} target="completed">Complete</OutcomeStateForm>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default async function OutcomesPage() {
   const ctx = await requireSession();
@@ -12,86 +46,74 @@ export default async function OutcomesPage() {
   const members = supabase ? await getMembers(supabase, ctx.user.id) : [];
   const canManage = canManageOutcomes(ctx);
 
-  const active = outcomes.filter((o) => o.state === 'active');
-  const remaining = Math.max(0, 3 - active.length);
+  const active = outcomes.filter((o) => o.state === 'active').slice(0, 3);
+  const inactive = outcomes.filter((o) => o.state !== 'active');
+  const slots: Array<CompanyOutcome | null> = [active[0] ?? null, active[1] ?? null, active[2] ?? null];
 
   return (
     <div>
       <PageHeader
         eyebrow="Execution"
         title="Company outcomes"
-        description="The Focus Governor. A maximum of three company outcomes may be active at once."
+        description="The Focus Governor. At most three outcomes are active at once — the constraint is the point."
+        action={
+          <div className="text-right">
+            <p className="tnum text-2xl font-semibold text-ink">
+              {active.length}
+              <span className="text-base font-normal text-ink-3"> / 3</span>
+            </p>
+            <div className="mt-1.5">
+              <SlotMeter filled={active.length} total={3} />
+            </div>
+          </div>
+        }
       />
 
-      <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-ksp-navy text-white">
-        <div>
-          <p className="text-sm text-slate-200">Active outcomes</p>
-          <p className="text-3xl font-semibold">
-            {active.length}
-            <span className="text-lg text-slate-300"> / 3</span>
-          </p>
-        </div>
-        <p className="max-w-xs text-sm text-slate-200">
-          {remaining > 0
-            ? `${remaining} slot${remaining === 1 ? '' : 's'} available. Choose what matters most.`
-            : 'All slots full. Complete, pause, or replace one to activate a new outcome.'}
-        </p>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        {slots.map((o, i) => (
+          <Lane key={o?.id ?? `slot-${i}`} outcome={o} canManage={canManage} />
+        ))}
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-3">
-          {outcomes.length === 0 ? (
-            <EmptyState title="No company outcomes yet." hint={canManage ? 'Activate your first outcome to anchor the company.' : 'An executive will set company outcomes.'} />
+      <div className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+        <div>
+          <SectionLabel>Paused &amp; closed</SectionLabel>
+          {inactive.length === 0 ? (
+            <EmptyState title="No paused or completed outcomes yet." />
           ) : (
-            outcomes.map((o) => (
-              <Card key={o.id}>
-                <div className="flex items-start justify-between gap-3">
+            <Panel className="divide-y divide-line">
+              {inactive.map((o) => (
+                <div key={o.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-slate-900">{o.title}</h3>
-                      <StatePill state={o.state} />
-                    </div>
-                    {o.description && <p className="mt-1 text-sm text-slate-500">{o.description}</p>}
-                    <p className="mt-1 text-xs text-slate-400">
-                      {o.metric ? `${o.metric}${o.target ? ` → ${o.target}` : ''}` : 'No metric set'}
-                      {o.horizon_days ? ` · ${o.horizon_days}-day horizon` : ''}
-                    </p>
+                    <p className="truncate text-[13.5px] font-medium text-ink">{o.title}</p>
+                    <div className="mt-0.5"><StatePill state={o.state} /></div>
                   </div>
-                  {canManage && o.state === 'active' && (
-                    <div className="flex shrink-0 gap-1">
-                      <OutcomeStateForm id={o.id} target="paused">Pause</OutcomeStateForm>
-                      <OutcomeStateForm id={o.id} target="completed">Complete</OutcomeStateForm>
-                    </div>
-                  )}
-                  {canManage && o.state !== 'active' && (
-                    <div className="shrink-0">
-                      <OutcomeStateForm id={o.id} target="active">Reactivate</OutcomeStateForm>
-                    </div>
+                  {canManage && active.length < 3 && (
+                    <OutcomeStateForm id={o.id} target="active">Reactivate</OutcomeStateForm>
                   )}
                 </div>
-                <div className="mt-3">
-                  <div className="mb-1 flex justify-between text-xs text-slate-500">
-                    <span>Progress</span>
-                    <span>{o.progress}%</span>
-                  </div>
-                  <ProgressBar value={o.progress} />
-                </div>
-              </Card>
-            ))
+              ))}
+            </Panel>
           )}
         </div>
 
-        {canManage ? (
-          <Card>
-            <h2 className="text-sm font-semibold text-ksp-navy">Activate a new outcome</h2>
-            <p className="mb-4 mt-1 text-xs text-slate-500">The system blocks a fourth active outcome.</p>
-            <OutcomeForm members={members} />
-          </Card>
-        ) : (
-          <Card>
-            <p className="text-sm text-slate-500">Company outcomes are set by the founder and executive operations.</p>
-          </Card>
-        )}
+        <div>
+          <SectionLabel>{canManage ? 'Activate an outcome' : 'Governance'}</SectionLabel>
+          <Panel className="p-5">
+            {canManage ? (
+              active.length >= 3 ? (
+                <p className="text-[13px] text-ink-2">
+                  All three slots are full. Pause, complete, or replace an active outcome before activating another —
+                  the system enforces this.
+                </p>
+              ) : (
+                <OutcomeForm members={members} />
+              )
+            ) : (
+              <p className="text-[13px] text-ink-2">Company outcomes are set by the founder and executive operations.</p>
+            )}
+          </Panel>
+        </div>
       </div>
     </div>
   );

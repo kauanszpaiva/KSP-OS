@@ -1,58 +1,161 @@
 import type { ReactNode } from 'react';
 
-export function PageHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description?: string; action?: ReactNode }) {
+/* ---------------------------------------------------------------- layout -- */
+
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  action
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-ksp-blue">{eyebrow}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ksp-navy">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-sm text-slate-500">{description}</p>}
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+      <div className="max-w-2xl">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">{eyebrow}</p>
+        <h1 className="mt-1.5 text-[26px] font-semibold leading-tight text-ink">{title}</h1>
+        {description && <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">{description}</p>}
       </div>
       {action}
     </div>
   );
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-xl border border-ksp-line bg-white p-5 ${className}`}>{children}</div>;
+export function Panel({
+  children,
+  className = '',
+  as: Tag = 'section'
+}: {
+  children: ReactNode;
+  className?: string;
+  as?: 'section' | 'div' | 'article' | 'aside';
+}) {
+  return <Tag className={`rounded-lg border border-line bg-surface ${className}`}>{children}</Tag>;
+}
+
+export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center justify-between">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">{children}</h2>
+      {right}
+    </div>
+  );
 }
 
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-ksp-line bg-white/60 p-8 text-center">
-      <p className="text-sm font-medium text-slate-600">{title}</p>
-      {hint && <p className="mt-1 text-sm text-slate-400">{hint}</p>}
+    <div className="rounded-lg border border-dashed border-line-2 bg-surface/50 px-5 py-8">
+      <p className="text-sm font-medium text-ink-2">{title}</p>
+      {hint && <p className="mt-1 max-w-md text-[13px] text-ink-3">{hint}</p>}
     </div>
   );
 }
 
-export function ProgressBar({ value }: { value: number }) {
-  const clamped = Math.max(0, Math.min(100, value));
+/* ------------------------------------------------------------ data marks -- */
+
+/** Horizontal magnitude rail — single hue, rounded fill end anchored at 0. */
+export function Rail({ value, tone = 'brand' }: { value: number; tone?: 'brand' | 'good' | 'warn' | 'risk' }) {
+  const pct = Math.max(0, Math.min(100, value));
+  const fill = tone === 'good' ? 'bg-good' : tone === 'warn' ? 'bg-warn' : tone === 'risk' ? 'bg-risk' : 'bg-brand';
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-ksp-mist">
-      <div className="h-full rounded-full bg-ksp-blue transition-all" style={{ width: `${clamped}%` }} />
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-line" role="presentation">
+      <div className={`h-full rounded-full ${fill}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
 
-const STATE_STYLES: Record<string, string> = {
-  open: 'bg-slate-100 text-slate-600',
-  in_progress: 'bg-blue-50 text-ksp-blue',
-  blocked: 'bg-red-50 text-red-700',
-  proof_submitted: 'bg-amber-50 text-amber-800',
-  completed: 'bg-emerald-50 text-emerald-700',
-  rejected: 'bg-red-50 text-red-700',
-  active: 'bg-emerald-50 text-emerald-700',
-  paused: 'bg-amber-50 text-amber-800',
-  replaced: 'bg-slate-100 text-slate-500',
-  archived: 'bg-slate-100 text-slate-500'
+/** Progress ring — single hue over a recessive track, tabular figure centered. */
+export function Ring({ value, size = 68, stroke = 6 }: { value: number; size?: number; stroke?: number }) {
+  const pct = Math.max(0, Math.min(100, value));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - pct / 100);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" role="img" aria-label={`${pct}% complete`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e5eaf1" strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="#1f4e79"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={off}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" className="tnum fill-ink text-[15px] font-semibold">
+        {pct}
+      </text>
+    </svg>
+  );
+}
+
+/** Governor meter — n filled slots of a fixed total (the 3-outcome cap). */
+export function SlotMeter({ filled, total }: { filled: number; total: number }) {
+  return (
+    <div className="flex gap-1.5" aria-label={`${filled} of ${total} slots active`}>
+      {Array.from({ length: total }).map((_, i) => (
+        <span
+          key={i}
+          className={`h-1.5 w-8 rounded-full ${i < filled ? 'bg-brand' : 'border border-dashed border-line-2 bg-transparent'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- status -- */
+
+type Tone = 'neutral' | 'brand' | 'good' | 'warn' | 'risk';
+
+const STATE_TONE: Record<string, Tone> = {
+  open: 'neutral',
+  in_progress: 'brand',
+  blocked: 'risk',
+  proof_submitted: 'warn',
+  completed: 'good',
+  rejected: 'risk',
+  active: 'good',
+  paused: 'warn',
+  replaced: 'neutral',
+  archived: 'neutral'
+};
+
+const TONE_CLASS: Record<Tone, { dot: string; text: string }> = {
+  neutral: { dot: 'bg-ink-4', text: 'text-ink-3' },
+  brand: { dot: 'bg-brand', text: 'text-brand' },
+  good: { dot: 'bg-good', text: 'text-good' },
+  warn: { dot: 'bg-warn', text: 'text-warn' },
+  risk: { dot: 'bg-risk', text: 'text-risk' }
 };
 
 export function StatePill({ state }: { state: string }) {
-  const style = STATE_STYLES[state] ?? 'bg-slate-100 text-slate-600';
+  const tone = STATE_TONE[state] ?? 'neutral';
+  const cls = TONE_CLASS[tone];
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${style}`}>
+    <span className={`inline-flex items-center gap-1.5 text-[12px] font-medium capitalize ${cls.text}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${cls.dot}`} />
       {state.replace(/_/g, ' ')}
     </span>
+  );
+}
+
+/** Inline figure — label above a tabular value, optional tone. */
+export function Figure({ label, value, tone = 'neutral', suffix }: { label: string; value: number | string; tone?: Tone; suffix?: string }) {
+  const color = tone === 'risk' ? 'text-risk' : tone === 'warn' ? 'text-warn' : tone === 'good' ? 'text-good' : 'text-ink';
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-ink-3">{label}</p>
+      <p className={`tnum mt-0.5 text-2xl font-semibold ${color}`}>
+        {value}
+        {suffix && <span className="ml-0.5 text-sm font-normal text-ink-3">{suffix}</span>}
+      </p>
+    </div>
   );
 }

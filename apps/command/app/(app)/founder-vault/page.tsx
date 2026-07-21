@@ -3,7 +3,7 @@ import { canViewFounderVault } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate } from '../../../lib/format';
-import { Card, EmptyState, PageHeader } from '../_components/ui';
+import { EmptyState, PageHeader, Panel } from '../_components/ui';
 import { VaultForm } from '../_components/vault-form';
 
 interface VaultEntry {
@@ -25,35 +25,35 @@ export default async function FounderVaultPage() {
   const entries = (data ?? []) as VaultEntry[];
 
   return (
-    <div>
+    <div className="mx-auto max-w-2xl">
       <PageHeader
         eyebrow="Private"
         title="Founder Vault"
-        description="Isolated to you. Excluded from company reporting, client systems, and team search."
+        description="Yours alone. Isolated by row-level security — excluded from company reporting, client systems, and team search."
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <div className="space-y-3">
-          {entries.length === 0 ? (
-            <EmptyState title="Your vault is empty." hint="Only you can ever see what you add here." />
-          ) : (
-            entries.map((e) => (
-              <Card key={e.id}>
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-slate-900">{e.title}</h3>
-                  <span className="rounded-full bg-ksp-mist px-2 py-0.5 text-[11px] capitalize text-slate-500">{e.entry_type}</span>
+
+      <Panel className="mb-10 p-5">
+        <VaultForm />
+      </Panel>
+
+      {entries.length === 0 ? (
+        <EmptyState title="Your vault is empty." hint="Only you can ever see what you write here." />
+      ) : (
+        <div className="space-y-8">
+          {entries.map((e) => (
+            <article key={e.id} className="grid grid-cols-[64px_1fr] gap-4 border-l border-line pl-5">
+              <time className="tnum pt-1 text-[11.5px] uppercase tracking-wide text-ink-4">{formatDate(e.created_at)}</time>
+              <div>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="font-display text-[18px] font-semibold text-ink">{e.title}</h3>
+                  <span className="text-[11px] uppercase tracking-wide text-ink-4">{e.entry_type}</span>
                 </div>
-                {e.body && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{e.body}</p>}
-                <p className="mt-2 text-xs text-slate-400">{formatDate(e.created_at)}</p>
-              </Card>
-            ))
-          )}
+                {e.body && <p className="mt-1.5 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-2">{e.body}</p>}
+              </div>
+            </article>
+          ))}
         </div>
-        <Card className="lg:sticky lg:top-6 lg:self-start">
-          <h2 className="text-sm font-semibold text-ksp-navy">New private entry</h2>
-          <p className="mb-4 mt-1 text-xs text-slate-500">Row-level security enforces founder-only, own-rows-only access.</p>
-          <VaultForm />
-        </Card>
-      </div>
+      )}
     </div>
   );
 }

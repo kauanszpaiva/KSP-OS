@@ -45,6 +45,29 @@ export async function getCommitments(supabase: SupabaseClient): Promise<Commitme
   }));
 }
 
+export interface ActivityView {
+  id: string;
+  verb: string;
+  summary: string;
+  created_at: string;
+  actorName: string;
+}
+
+export async function getActivity(supabase: SupabaseClient, limit = 8): Promise<ActivityView[]> {
+  const [{ data: events }, { data: profiles }] = await Promise.all([
+    supabase.from('activity_events').select('id, verb, summary, created_at, actor_id').order('created_at', { ascending: false }).limit(limit),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  return ((events ?? []) as Array<{ id: string; verb: string; summary: string; created_at: string; actor_id: string | null }>).map((e) => ({
+    id: e.id,
+    verb: e.verb,
+    summary: e.summary,
+    created_at: e.created_at,
+    actorName: (e.actor_id && nameById.get(e.actor_id)) || 'System'
+  }));
+}
+
 export async function getMyCommitments(supabase: SupabaseClient, userId: string): Promise<CommitmentView[]> {
   const all = await getCommitments(supabase);
   const { data: assignments } = await supabase.from('commitment_assignments').select('commitment_id').eq('profile_id', userId);
