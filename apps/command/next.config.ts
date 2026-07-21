@@ -15,7 +15,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  transpilePackages: ['@ksp/permissions', '@ksp/ui'],
+  transpilePackages: ['@ksp/permissions', '@ksp/ui', '@ksp/auth', '@ksp/database', '@ksp/validation'],
   eslint: {
     ignoreDuringBuilds: true,
   },

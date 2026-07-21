@@ -10,7 +10,14 @@ const config: Config = {
     extend: {
       colors: {
         executive: '#1f4e79',
-        paper: '#f8fafc'
+        paper: '#f8fafc',
+        ksp: {
+          blue: '#1f4e79',
+          navy: '#0f2540',
+          graphite: '#3a4356',
+          mist: '#eef2f7',
+          line: '#dbe2ec'
+        }
       }
     }
   },

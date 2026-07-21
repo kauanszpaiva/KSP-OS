@@ -57,6 +57,12 @@ create policy profiles_org_read on profiles for select using (
   )
 );
 
+-- audit_events had only an executive SELECT policy (mig 1); allow internal
+-- members to append audit rows for their own org as themselves. Append-only:
+-- no update/delete policy exists, so history is immutable under RLS.
+create policy audit_member_insert on audit_events for insert
+  with check (organization_id in (select current_org_ids()) and actor_id = auth.uid());
+
 -- Generic updated_at maintenance.
 create or replace function set_updated_at() returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end $$;
