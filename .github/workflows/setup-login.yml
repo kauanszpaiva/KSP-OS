@@ -1,0 +1,106 @@
+# One-shot backend setup: applies missing Supabase migrations, provisions the
+# internal logins listed in scripts/provision-users.json, and verifies sign-in
+# end to end (public-key sign-in + RLS reads, mirroring the app's auth path).
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_SECRET_KEY   privileged server key for the Supabase project
+#   KSP_LOGIN_PASSWORD    initial password set for every provisioned user
+#   SUPABASE_DB_URL       (only needed if migrations are not applied yet)
+#                         Postgres connection string from Supabase ->
+#                         Connect -> Session pooler URI, password included.
+#
+# Secrets never appear in logs; provisioning prints emails/roles only.
+name: setup-login
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/login-fix-ecf2g2]
+    paths:
+      - .github/workflows/setup-login.yml
+      - scripts/provision-users.json
+
+concurrency: setup-login
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://tqwnsxjrlomosfblleqy.supabase.co
+      # Browser-safe publishable key (public by design; ships in the app bundle).
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_NpvF7WGaA8Iy3xGWFRbZsQ_vvCxsiSs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        env:
+          SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          LOGIN_PASSWORD: ${{ secrets.KSP_LOGIN_PASSWORD }}
+        run: |
+          missing=""
+          [ -z "$SECRET_KEY" ] && missing="$missing SUPABASE_SECRET_KEY"
+          [ -z "$LOGIN_PASSWORD" ] && missing="$missing KSP_LOGIN_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing. Add them under Settings -> Secrets and variables -> Actions, then re-run this workflow."
+            exit 1
+          fi
+          echo "Required secrets are present."
+
+      - name: Apply missing migrations
+        env:
+          SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          status=$(curl -s -o /dev/null -w '%{http_code}' \
+            "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/organization_memberships?limit=0" \
+            -H "apikey: $SECRET_KEY" -H "Authorization: Bearer $SECRET_KEY")
+          if [ "$status" = "200" ] && [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "Schema already present; skipping migrations (no SUPABASE_DB_URL set)."
+            exit 0
+          fi
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::Schema is missing (organization_memberships -> HTTP $status) and SUPABASE_DB_URL is not set. Add the SUPABASE_DB_URL secret (Supabase -> Connect -> Session pooler URI) and re-run."
+            exit 1
+          fi
+          apply_if_missing() {
+            marker="$1"; file="$2"
+            present=$(psql "$SUPABASE_DB_URL" -tAc "select coalesce(to_regclass('public.${marker}')::text, '')")
+            if [ -n "$present" ]; then
+              echo "Already applied: $file"
+            else
+              echo "Applying: $file"
+              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -f "supabase/migrations/$file"
+            fi
+          }
+          apply_if_missing profiles 202607150001_foundation.sql
+          apply_if_missing client_memberships 202607150002_identity_portal_finance_security.sql
+          apply_if_missing company_outcomes 202607210001_operational_slice.sql
+          echo "Migrations are in place."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Provision internal users
+        env:
+          SUPABASE_SERVER_ONLY_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          PROVISION_PASSWORD: ${{ secrets.KSP_LOGIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          jq -c '.[]' scripts/provision-users.json | while read -r user; do
+            PROVISION_EMAIL=$(jq -r '.email' <<<"$user") \
+            PROVISION_NAME=$(jq -r '.name' <<<"$user") \
+            PROVISION_ROLE=$(jq -r '.role' <<<"$user") \
+            node scripts/provision-internal-user.mjs || exit 1
+          done
+
+      - name: Verify login end to end
+        env:
+          VERIFY_PASSWORD: ${{ secrets.KSP_LOGIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          jq -r '.[].email' scripts/provision-users.json | while read -r email; do
+            VERIFY_EMAIL="$email" node scripts/verify-login.mjs || exit 1
+          done
+          echo "All provisioned users can sign in and resolve an internal session."
