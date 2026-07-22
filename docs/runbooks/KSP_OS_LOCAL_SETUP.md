@@ -46,7 +46,24 @@ Create auth users and matching `profiles`, one `organizations` row, and
 - Eric → `sales_specialist`
 - Joshua → `designer`
 
-(Use the Supabase dashboard or a seed script with the service role. `supabase/seed.sql` is a starting point.)
+Use the Supabase dashboard, or the provisioning script (idempotent). The script
+creates the auth user, the matching `profiles` row, and an
+`organization_memberships` row with the given `internal_role`. Credentials come
+from environment variables only — never commit them:
+
+```
+NEXT_PUBLIC_SUPABASE_URL="https://<project>.supabase.co" \
+SUPABASE_SERVER_ONLY_SECRET_KEY="<privileged server key>" \
+PROVISION_EMAIL="kauan@kspdominion.group" \
+PROVISION_PASSWORD="<the password>" \
+PROVISION_NAME="Kauan Paiva" \
+PROVISION_ROLE="founder_ceo" \
+pnpm provision:user
+```
+
+Re-running is safe: an existing user's password is reset and the membership is
+upserted. Run this against a local/staging Supabase project — do not target
+Production. `supabase/seed.sql` seeds the organization row as a starting point.
 
 ## Run
 
