@@ -138,7 +138,9 @@ async function main() {
   const orgId = await ensureOrganization(baseUrl, restHeaders, orgSlug, orgName);
 
   // 4) Upsert the internal membership (unique on organization_id, profile_id, role).
-  const membershipRes = await fetch(`${baseUrl}/rest/v1/organization_memberships`, {
+  // on_conflict must name the (organization_id, profile_id, role) unique key —
+  // without it PostgREST merges on the primary key only and re-runs 409.
+  const membershipRes = await fetch(`${baseUrl}/rest/v1/organization_memberships?on_conflict=organization_id,profile_id,role`, {
     method: 'POST',
     headers: { ...restHeaders, Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify({
