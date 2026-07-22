@@ -83,6 +83,35 @@ jobs:
             echo "::error::Schema is missing (organization_memberships -> HTTP $status) and SUPABASE_DB_URL is not set. Add the SUPABASE_DB_URL secret (Supabase -> Connect -> Session pooler URI) and re-run."
             exit 1
           fi
+          # Direct-connection hosts (db.<ref>.supabase.co) are IPv6-only and
+          # unreachable from GitHub runners. If the given URL fails, derive the
+          # IPv4 session-pooler equivalent by probing AWS regions.
+          export PGCONNECT_TIMEOUT=6
+          if ! psql "$SUPABASE_DB_URL" -tAc 'select 1' >/dev/null 2>&1; then
+            echo "Provided DB URL is unreachable; probing session pooler regions..."
+            ref=$(printf '%s' "$SUPABASE_DB_URL" | sed -nE 's|.*@db\.([a-z0-9]+)\.supabase\.co.*|\1|p')
+            pass=$(printf '%s' "$SUPABASE_DB_URL" | sed -nE 's|^postgres(ql)?://[^:]+:([^@]*)@.*|\2|p')
+            if [ -z "$ref" ] || [ -z "$pass" ]; then
+              echo "::error::Could not reach the database and could not derive a pooler URL from the given connection string. Provide the Session pooler URI (Supabase -> Connect -> Session pooler)."
+              exit 1
+            fi
+            found=""
+            for region in us-east-1 us-east-2 sa-east-1 us-west-1 us-west-2 eu-west-1 eu-west-2 eu-west-3 eu-central-1 eu-central-2 eu-north-1 ap-southeast-1 ap-southeast-2 ap-northeast-1 ap-northeast-2 ap-south-1 ca-central-1; do
+              for n in 0 1; do
+                candidate="postgresql://postgres.${ref}:${pass}@aws-${n}-${region}.pooler.supabase.com:5432/postgres"
+                if psql "$candidate" -tAc 'select 1' >/dev/null 2>&1; then
+                  echo "Connected via session pooler in ${region}."
+                  found="$candidate"
+                  break 2
+                fi
+              done
+            done
+            if [ -z "$found" ]; then
+              echo "::error::No reachable pooler endpoint found (or the database password is wrong). Copy the exact Session pooler URI from Supabase -> Connect and pass it as db_url."
+              exit 1
+            fi
+            SUPABASE_DB_URL="$found"
+          fi
           apply_if_missing() {
             marker="$1"; file="$2"
             present=$(psql "$SUPABASE_DB_URL" -tAc "select coalesce(to_regclass('public.${marker}')::text, '')")
