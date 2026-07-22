@@ -112,19 +112,22 @@ jobs:
             fi
             SUPABASE_DB_URL="$found"
           fi
+          # Each migration runs in a single transaction (-1) so a failure rolls
+          # back cleanly. The presence check targets the LAST object each file
+          # creates, so a previously interrupted run is retried, not skipped.
           apply_if_missing() {
-            marker="$1"; file="$2"
-            present=$(psql "$SUPABASE_DB_URL" -tAc "select coalesce(to_regclass('public.${marker}')::text, '')")
+            check="$1"; file="$2"
+            present=$(psql "$SUPABASE_DB_URL" -tAc "$check")
             if [ -n "$present" ]; then
               echo "Already applied: $file"
             else
               echo "Applying: $file"
-              psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -f "supabase/migrations/$file"
+              psql "$SUPABASE_DB_URL" -1 -v ON_ERROR_STOP=1 -q -f "supabase/migrations/$file"
             fi
           }
-          apply_if_missing profiles 202607150001_foundation.sql
-          apply_if_missing client_memberships 202607150002_identity_portal_finance_security.sql
-          apply_if_missing company_outcomes 202607210001_operational_slice.sql
+          apply_if_missing "select 1 from pg_policies where policyname='no_self_approval_insert'" 202607150001_foundation.sql
+          apply_if_missing "select 1 from pg_policies where policyname='change_client_decisions_read'" 202607150002_identity_portal_finance_security.sql
+          apply_if_missing "select 1 from pg_policies where policyname='founder_vault_delete'" 202607210001_operational_slice.sql
           echo "Migrations are in place."
 
       - uses: actions/setup-node@v4

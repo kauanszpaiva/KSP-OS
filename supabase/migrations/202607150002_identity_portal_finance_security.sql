@@ -3,17 +3,20 @@ create schema if not exists private;
 create schema if not exists api_internal;
 create schema if not exists api_portal;
 
-create type internal_role as enum ('founder_ceo','executive_operations','project_manager','department_lead','developer','designer','capture_specialist','videographer','photographer','editor','content_specialist','marketing_specialist','sales_specialist','contractor','freelancer','intern');
-create type client_role as enum ('client_owner','client_project_approver','client_billing_contact','client_collaborator','client_viewer');
-create type permission_action as enum ('client.read','client.update','client.internal_note.read','project.read','project.manage','project.publish','request.submit','request.triage','change_order.draft','change_order.internal_approve','change_order.client_approve','invoice.read','invoice.pay','payment.refund','document.upload','document.download','document.publish','finance.read','finance.post','finance.reconcile','access.grant','access.revoke','production.deploy');
-create type publication_state as enum ('internal_draft','internal_review','approved_for_client','published_to_client','withdrawn','archived');
-create type client_request_status as enum ('submitted','received','under_triage','needs_client_information','under_evaluation','estimate_in_preparation','awaiting_client_approval','approved','scheduled','in_progress','client_review','completed','rejected','canceled','converted_to_change_order');
+-- Idempotent prelude: this migration must be safe to re-run after a partial
+-- application (types/renames commit per-statement when run without a wrapping
+-- transaction), so every prefix statement tolerates already-applied state.
+do $$ begin create type internal_role as enum ('founder_ceo','executive_operations','project_manager','department_lead','developer','designer','capture_specialist','videographer','photographer','editor','content_specialist','marketing_specialist','sales_specialist','contractor','freelancer','intern'); exception when duplicate_object then null; end $$;
+do $$ begin create type client_role as enum ('client_owner','client_project_approver','client_billing_contact','client_collaborator','client_viewer'); exception when duplicate_object then null; end $$;
+do $$ begin create type permission_action as enum ('client.read','client.update','client.internal_note.read','project.read','project.manage','project.publish','request.submit','request.triage','change_order.draft','change_order.internal_approve','change_order.client_approve','invoice.read','invoice.pay','payment.refund','document.upload','document.download','document.publish','finance.read','finance.post','finance.reconcile','access.grant','access.revoke','production.deploy'); exception when duplicate_object then null; end $$;
+do $$ begin create type publication_state as enum ('internal_draft','internal_review','approved_for_client','published_to_client','withdrawn','archived'); exception when duplicate_object then null; end $$;
+do $$ begin create type client_request_status as enum ('submitted','received','under_triage','needs_client_information','under_evaluation','estimate_in_preparation','awaiting_client_approval','approved','scheduled','in_progress','client_review','completed','rejected','canceled','converted_to_change_order'); exception when duplicate_object then null; end $$;
 
-alter table clients rename to client_organizations;
-alter table memberships rename to organization_memberships;
+do $$ begin if to_regclass('public.clients') is not null then alter table clients rename to client_organizations; end if; end $$;
+do $$ begin if to_regclass('public.memberships') is not null then alter table memberships rename to organization_memberships; end if; end $$;
 alter table organization_memberships add column if not exists internal_role internal_role;
 update organization_memberships set internal_role = role::text::internal_role where role::text <> 'client' and internal_role is null;
-alter table organization_memberships add constraint organization_memberships_no_client_role check (internal_role is not null and role::text <> 'client');
+do $$ begin alter table organization_memberships add constraint organization_memberships_no_client_role check (internal_role is not null and role::text <> 'client'); exception when duplicate_object then null; end $$;
 
 create table if not exists internal_permission_grants (id uuid primary key default gen_random_uuid(), organization_id uuid not null references organizations(id), profile_id uuid not null references profiles(id), action permission_action not null, resource_type text, resource_id uuid, effective_from timestamptz not null default now(), effective_until timestamptz, granted_by uuid references profiles(id), revoked_at timestamptz, created_at timestamptz not null default now());
 create table if not exists client_memberships (id uuid primary key default gen_random_uuid(), organization_id uuid not null references organizations(id), client_organization_id uuid not null references client_organizations(id), profile_id uuid not null references profiles(id), role client_role not null, effective_from timestamptz not null default now(), effective_until timestamptz, suspended_at timestamptz, created_at timestamptz not null default now(), unique(client_organization_id, profile_id, role));
@@ -25,7 +28,13 @@ create table if not exists access_reviews (id uuid primary key default gen_rando
 create table if not exists portal_invitations (id uuid primary key default gen_random_uuid(), organization_id uuid not null references organizations(id), client_organization_id uuid not null references client_organizations(id), email text not null, initial_role client_role not null, invited_by uuid not null references profiles(id), token_hash text not null unique, expires_at timestamptz not null, revoked_at timestamptz, accepted_by uuid references profiles(id), accepted_at timestamptz, created_at timestamptz not null default now(), check (expires_at > created_at));
 
 create table if not exists client_internal_notes (id uuid primary key default gen_random_uuid(), organization_id uuid not null references organizations(id), client_organization_id uuid not null references client_organizations(id), body text not null, created_by uuid references profiles(id), created_at timestamptz not null default now());
+-- Internal notes move to the executive-gated client_internal_notes table. The
+-- inherited clients_member_read policy references the internal_notes column and
+-- would block the drop, so replace it with a clean org-membership read policy.
+drop policy if exists clients_member_read on client_organizations;
 alter table client_organizations drop column if exists internal_notes;
+drop policy if exists client_organizations_member_read on client_organizations;
+create policy client_organizations_member_read on client_organizations for select using (organization_id in (select current_org_ids()));
 
 create table if not exists client_publications (id uuid primary key default gen_random_uuid(), organization_id uuid not null references organizations(id), client_organization_id uuid not null references client_organizations(id), project_id uuid references projects(id), source_table text not null, source_id uuid not null, title text not null, summary text not null, state publication_state not null default 'internal_draft', published_at timestamptz, published_by uuid references profiles(id), version_hash text, created_at timestamptz not null default now());
 create table if not exists client_updates (id uuid primary key default gen_random_uuid(), organization_id uuid not null references organizations(id), publication_id uuid not null references client_publications(id), body text not null, created_at timestamptz not null default now());
