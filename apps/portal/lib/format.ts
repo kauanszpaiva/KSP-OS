@@ -28,3 +28,8 @@ export function formatDate(value: string | null): string {
   if (!d) return '—';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+/** price_minor/amount_minor + currency (e.g. cents + 'USD') to a display string. */
+export function formatMoney(minor: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(minor / 100);
+}

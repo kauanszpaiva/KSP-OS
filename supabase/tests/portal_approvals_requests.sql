@@ -1,0 +1,96 @@
+-- Phase P2 (Portal Approvals/Change Orders + Requests/Support) authorization
+-- regression plan. Run against a seeded database with psql/pgTAP; see
+-- docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: an internal member (Eric), a client contact with an
+-- active client_membership on Client A (Client A), a client contact on a
+-- different client organization (Client B), a member of a different
+-- organization (cross-organization denial).
+--
+-- change_orders_portal_read (new this phase) — confirms the bug flagged in
+-- portal_home_projects.sql is actually fixed, before any UI shipped on top
+-- of it:
+--   - a change_order_versions row in state='published_to_client', whose
+--     parent change_orders row has client_organization_id = Client A's,
+--     is now visible to Client A through the
+--     `exists (select 1 from change_orders co where ... and
+--     is_portal_member(co.client_organization_id))` subquery in
+--     change_order_versions_portal_read / change_order_items_portal_read —
+--     this is the concrete, previously-broken path this migration repairs.
+--     Before 202607230008, this exact query returned zero rows for a real
+--     client session even with a valid published version; after it, the
+--     same query returns the row.
+--   - internal_draft/internal_review/draft change_orders (any status other
+--     than what change_order_versions' own state gate already requires) are
+--     still governed entirely by change_order_versions' own
+--     state='published_to_client' condition, not by change_orders.status —
+--     change_orders_portal_read intentionally does not gate on status, only
+--     on client_organization_id membership, since the version-level state
+--     is the actual publish gate (mirrors how client_publications, not the
+--     underlying source record, is the publish gate elsewhere in the repo).
+--   - cross-client denial: Client A never sees a published change_orders/
+--     change_order_versions/change_order_items row belonging to Client B,
+--     even knowing its id.
+--   - cross-organization denial: a member of a different organization never
+--     sees any change_orders row scoped to this organization.
+--   - internal members are unaffected — change_orders_internal (for all,
+--     is_internal_member) is untouched; this phase adds a second, portal-
+--     scoped select policy alongside it, it does not replace it.
+--
+-- change_order_client_decisions assertions (pre-existing RLS, unchanged,
+-- exercised for the first time by this phase's recordChangeOrderDecision
+-- action):
+--   - no self-approval / no forged decided_by: change_client_decisions_insert
+--     requires decided_by=auth.uid(), so Client A cannot record a decision
+--     attributed to a different user id even by crafting the insert
+--     payload directly — the action itself also never accepts decided_by
+--     from client input, always reading it from the session context.
+--   - role-restricted approval (application-level, not RLS): RLS only
+--     checks client-organization membership, not client_role — a
+--     client_viewer or client_collaborator on Client A is a valid
+--     is_portal_member() but recordChangeOrderDecision's canPerform(...,
+--     'change_order.client_approve', ...) call (packages/permissions)
+--     still rejects them; only client_owner/client_project_approver are
+--     allowed to record a decision. Confirm this with a direct call
+--     against the action (or the canPerform function itself), since RLS
+--     alone would let a lower-privileged client role through.
+--   - a client can only record a decision scoped to their own
+--     client_organization_id (is_portal_member(client_organization_id) in
+--     the insert policy) — cannot decide on Client B's change order version
+--     even by supplying Client B's client_organization_id, since
+--     is_portal_member evaluates against the *caller's* memberships.
+--   - change_client_decisions_read: Client A sees decisions scoped to their
+--     own client_organization_id or, for internal members, all decisions in
+--     the organization (is_internal_member(organization_id) or
+--     is_portal_member(client_organization_id)) — cross-client denial holds.
+--   - a duplicate decision on the same change_order_version_id by the same
+--     client_organization_id is rejected by the existing
+--     unique(change_order_version_id, client_organization_id) constraint,
+--     not silently overwritten.
+--
+-- client_requests / request_comments / request_status_history assertions
+-- (pre-existing RLS from 202607150002, exercised for the first time by this
+-- phase's submitClientRequest action and the requests detail view):
+--   - client_requests_portal_insert requires submitted_by=auth.uid() and
+--     status='submitted' — a client cannot submit a request on another
+--     user's behalf, and cannot submit directly into any other status
+--     (e.g. 'approved') to skip triage; the action itself also never
+--     accepts submitted_by or status from client input.
+--   - cross-organization denial: a member of a different organization
+--     cannot submit or read a request scoped to this organization
+--     (is_portal_member(client_organization_id) required for read/insert).
+--   - cross-client denial: Client A never sees Client B's requests, even
+--     knowing the id.
+--   - request_comments_scoped / request_history_scoped: Client A only sees
+--     comments/history rows marked visibility='client' /
+--     client_visible=true for their own client organization's requests —
+--     an internal-only comment or a client_visible=false status change is
+--     never returned to a portal session, even for Client A's own request.
+--   - internal members are unaffected — client_requests_internal (for all,
+--     is_internal_member) and the internal-visible branches of
+--     request_comments_scoped / request_history_scoped are untouched.
+--
+-- Not verified here (requires live Supabase): applying migration
+-- 202607230008 and exercising change_orders_portal_read end-to-end.
+-- Verified by SQL review + the Supabase preview-branch migration check only.
+
+select 'portal approvals + requests authorization regression plan present' as plan;

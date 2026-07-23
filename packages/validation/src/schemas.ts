@@ -226,3 +226,16 @@ export const postCommentSchema = z.object({
 export const acceptPortalInvitationSchema = z.object({
   token: z.string().min(16).max(256)
 });
+
+/** Phase P2 — Approvals (change_order_client_decisions). */
+export const recordChangeOrderDecisionSchema = z.object({
+  changeOrderVersionId: uuid,
+  decision: z.enum(['accepted', 'rejected'])
+});
+
+/** Phase P2 — Requests & Support (client_requests). */
+export const submitClientRequestSchema = z.object({
+  title: z.string().min(3).max(200),
+  body: z.string().min(1).max(4000),
+  projectId: uuid.optional().or(z.literal(''))
+});

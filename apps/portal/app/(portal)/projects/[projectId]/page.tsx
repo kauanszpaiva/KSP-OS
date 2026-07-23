@@ -1,9 +1,10 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Badge, Card, EmptyState, Reveal } from '@ksp/ui';
 import { getServerSupabase } from '../../../../lib/supabase';
 import { requirePortalSession } from '../../../../lib/session';
-import { formatDate, isOverdue } from '../../../../lib/format';
-import { getMilestonesForProjects, getPublishedProjects, getUpdatesForProject } from '../../data';
+import { formatDate, formatMoney, isOverdue } from '../../../../lib/format';
+import { getChangeOrderDecisions, getChangeOrderVersions, getMilestonesForProjects, getPublishedProjects, getUpdatesForProject } from '../../data';
 
 const MILESTONE_TONE: Record<string, 'neutral' | 'brand' | 'good' | 'warn' | 'risk'> = {
   pending: 'neutral',
@@ -39,6 +40,9 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
   const latest = projectPublications[0];
   const milestones = supabase ? await getMilestonesForProjects(supabase, [projectId]) : [];
   const updates = supabase ? await getUpdatesForProject(supabase, projectId) : [];
+  const [allChangeOrderVersions, decisions] = supabase ? await Promise.all([getChangeOrderVersions(supabase), getChangeOrderDecisions(supabase)]) : [[], []];
+  const changeOrderVersions = allChangeOrderVersions.filter((v) => v.projectId === projectId);
+  const decisionByVersionId = new Map(decisions.map((d) => [d.change_order_version_id, d]));
 
   return (
     <div>
@@ -105,12 +109,33 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
       </Reveal>
 
       <Reveal delay={100} className="mt-8">
-        <Card className="p-5">
-          <p className="text-[13px] font-medium text-ink">Approved changes</p>
-          <p className="mt-1 text-[13px] text-ink-3">
-            Change orders and approval history arrive in a later Portal phase.
-          </p>
-        </Card>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Change orders</p>
+        {changeOrderVersions.length === 0 ? (
+          <Card className="p-5">
+            <p className="text-[13px] text-ink-3">No change orders published for this project yet.</p>
+          </Card>
+        ) : (
+          <Card className="divide-y divide-line overflow-hidden">
+            {changeOrderVersions.map((v) => {
+              const decision = decisionByVersionId.get(v.id);
+              return (
+                <div key={v.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] text-ink">v{v.version_number} — {v.scope_summary}</p>
+                    <p className="tnum mt-0.5 text-[12.5px] text-ink-3">{formatMoney(v.price_minor, v.currency)}</p>
+                  </div>
+                  {decision ? (
+                    <Badge tone={decision.decision === 'accepted' ? 'good' : 'risk'}>{decision.decision === 'accepted' ? 'Accepted' : 'Rejected'}</Badge>
+                  ) : (
+                    <Link href="/approvals" className="shrink-0 text-[12.5px] font-medium text-brand hover:underline">
+                      Review in Approvals →
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
+          </Card>
+        )}
       </Reveal>
     </div>
   );

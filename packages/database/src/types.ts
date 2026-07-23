@@ -521,3 +521,71 @@ export interface Comment {
   mentions: string[];
   created_at: string;
 }
+
+/* --------------------------------------------------------- Phase P2 -- */
+
+export interface ChangeOrder {
+  id: string;
+  organization_id: string;
+  client_organization_id: string;
+  project_id: string;
+  client_request_id: string | null;
+  status: RecordStatus;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ChangeOrderVersion {
+  id: string;
+  organization_id: string;
+  change_order_id: string;
+  version_number: number;
+  state: PublicationState;
+  scope_summary: string;
+  price_minor: number;
+  currency: string;
+  version_hash: string;
+  accepted_at: string | null;
+  created_at: string;
+}
+
+export interface ChangeOrderItem {
+  id: string;
+  organization_id: string;
+  change_order_version_id: string;
+  description: string;
+  amount_minor: number;
+  currency: string;
+}
+
+export interface ChangeOrderClientDecision {
+  id: string;
+  organization_id: string;
+  change_order_version_id: string;
+  client_organization_id: string;
+  decided_by: string;
+  decision: 'accepted' | 'rejected';
+  evidence: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface RequestStatusHistory {
+  id: string;
+  organization_id: string;
+  client_request_id: string;
+  from_status: ClientRequestStatus | null;
+  to_status: ClientRequestStatus;
+  changed_by: string | null;
+  client_visible: boolean;
+  created_at: string;
+}
+
+export interface RequestComment {
+  id: string;
+  organization_id: string;
+  client_request_id: string;
+  author_id: string;
+  body: string;
+  visibility: 'internal' | 'client';
+  created_at: string;
+}
