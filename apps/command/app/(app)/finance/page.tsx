@@ -1,9 +1,9 @@
 import { canViewFinance } from '@ksp/auth';
-import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getFinanceOverview } from '../data';
-import { EmptyState, Figure, PageHeader, Panel, SectionLabel } from '../_components/ui';
+import { getFinanceOverview, getSubscriptions } from '../data';
+import { EmptyState, Figure, PageHeader } from '../_components/ui';
+import { FinanceView } from '../_components/finance-view';
 
 function money(minor: number): string {
   return (minor / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -22,9 +22,9 @@ export default async function FinancePage() {
     );
   }
 
-  const overview = supabase
-    ? await getFinanceOverview(supabase)
-    : { chartAccounts: [], draftEntryCount: 0, postedEntryCount: 0, monthlySubscriptionBurnMinor: 0 };
+  const [overview, subscriptions] = supabase
+    ? await Promise.all([getFinanceOverview(supabase), getSubscriptions(supabase)])
+    : [{ chartAccounts: [], draftEntryCount: 0, postedEntryCount: 0, monthlySubscriptionBurnMinor: 0 }, []];
 
   return (
     <div>
@@ -41,24 +41,12 @@ export default async function FinancePage() {
         }
       />
 
-      {overview.chartAccounts.length === 0 ? (
-        <EmptyState icon="finance" title="No chart of accounts yet." hint="Once accounts exist, this overview will show posting activity and subscription burn." />
-      ) : (
-        <Reveal>
-          <SectionLabel>Chart of accounts</SectionLabel>
-          <Panel className="divide-y divide-line">
-            {overview.chartAccounts.map((a) => (
-              <div key={a.id} className="flex items-center justify-between px-4 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-[13.5px] font-medium text-ink">{a.name}</p>
-                  <p className="mt-0.5 text-[11.5px] uppercase tracking-wide text-ink-4">{a.code}</p>
-                </div>
-                <span className="text-[12px] capitalize text-ink-3">{a.account_type}</span>
-              </div>
-            ))}
-          </Panel>
-        </Reveal>
-      )}
+      <FinanceView
+        chartAccounts={overview.chartAccounts}
+        subscriptions={subscriptions}
+        draftEntryCount={overview.draftEntryCount}
+        postedEntryCount={overview.postedEntryCount}
+      />
     </div>
   );
 }
