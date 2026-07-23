@@ -1,0 +1,69 @@
+-- Phase P1 (Portal Home + Projects) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: an internal member (Eric), a client contact with an
+-- active client_membership on Client A (Client A), a client contact on a
+-- different client organization (Client B), a member of a different
+-- organization (cross-organization denial).
+--
+-- client_publications draft-leak assertion (the single most important test
+-- in the whole Portal group — a leak here is a real client-facing
+-- incident):
+--   - internal-note protection: an `internal_draft`/`internal_review`/
+--     `approved_for_client` publication (any state other than
+--     `published_to_client`) is never visible to Client A, even for a
+--     publication whose client_organization_id is Client A's own — only
+--     `state = 'published_to_client'` rows are ever readable by a portal
+--     member (client_publications_portal_read, migration 202607150002,
+--     unchanged by this phase).
+--   - cross-client denial: Client A never sees a published_to_client
+--     publication belonging to Client B, even knowing its id.
+--   - cross-organization denial: a member of a different organization
+--     never sees any publication scoped to this organization.
+--
+-- mission_milestones_portal_read (new this phase) assertions:
+--   - a milestone on a project with at least one published_to_client
+--     publication for Client A's client_organization_id is visible to
+--     Client A.
+--   - a milestone on a project with only internal_draft/internal_review
+--     publications (never published to any client) is invisible to Client
+--     A, even if Client A is otherwise a member of the organization's
+--     client roster — this is the "is this project client-facing at all"
+--     gate the policy reuses from client_publications.
+--   - cross-client denial: a milestone on a project published to Client B
+--     only is invisible to Client A.
+--   - internal members are unaffected — the pre-existing
+--     mission_milestones_read/insert/update/delete policies (Phase C3)
+--     still gate all internal access exactly as before; this phase adds a
+--     new select policy, it does not touch or replace the internal ones.
+--
+-- client_updates / client_requests (unchanged, pre-existing RLS, exercised
+-- by this phase's new data layer) assertions:
+--   - client_updates_portal_read: Client A only sees updates attached to a
+--     published_to_client publication scoped to their own client
+--     organization — confirmed still correct as this phase's Home/Project
+--     detail pages are the first real callers of this table from the app.
+--   - client_requests_portal_read: Client A sees only their own client
+--     organization's requests (is_portal_member(client_organization_id),
+--     no state restriction) — confirmed this phase's "what KSP needs from
+--     you" filter (client-side, on request.status) never expands what RLS
+--     already restricts, only narrows it further for display.
+--
+-- Known, not-yet-fixed issue flagged for Phase P2 (out of scope here):
+-- change_order_versions_portal_read / change_order_items_portal_read both
+-- gate through an `exists (select 1 from change_orders co where ...)`
+-- subquery, but `change_orders` itself has no portal-read RLS policy at
+-- all (only `change_orders_internal`). Since Postgres evaluates a
+-- referenced table's RLS for the querying role inside a policy subquery,
+-- this likely means those two "portal read" policies never actually
+-- return true for a real portal session, unlike the analogous
+-- `client_updates_portal_read` pattern (which works, because
+-- `client_publications` — the table it joins through — does have a
+-- portal-read policy). Verify with a live query in P2 before building the
+-- Approvals/Change Orders UI on top of it; may need a
+-- `change_orders_portal_read` policy added first.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising mission_milestones_portal_read end-to-end. Verified by SQL
+-- review + the Supabase preview-branch migration check only.
+
+select 'portal home + projects authorization regression plan present' as plan;
