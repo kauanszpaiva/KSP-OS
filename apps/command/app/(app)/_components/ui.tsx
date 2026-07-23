@@ -162,6 +162,11 @@ const TONE_CLASS: Record<Tone, { dot: string; text: string }> = {
   risk: { dot: 'bg-risk', text: 'text-risk' }
 };
 
+/** Same state→tone mapping StatePill uses, for callers that need just the color (e.g. a Gantt marker dot). */
+export function stateToneDotClass(state: string): string {
+  return TONE_CLASS[STATE_TONE[state] ?? 'neutral'].dot;
+}
+
 export function StatePill({ state }: { state: string }) {
   const tone = STATE_TONE[state] ?? 'neutral';
   const cls = TONE_CLASS[tone];

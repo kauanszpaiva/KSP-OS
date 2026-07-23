@@ -6,6 +6,7 @@ import {
   createMilestone,
   createMission,
   createTask,
+  reassignTask,
   updateMilestoneStatus,
   updateMissionHealth,
   updateTaskStatus,
@@ -164,6 +165,34 @@ export function TaskStatusForm({ id, blocked }: { id: string; blocked: boolean }
       <button type="submit" disabled={pending} className={ghostBtn}>
         {blocked ? 'Unblock' : 'Mark blocked'}
       </button>
+    </form>
+  );
+}
+
+export function TaskReassignForm({ id, ownerId, members }: { id: string; ownerId: string | null; members: MemberRef[] }) {
+  const [, action] = useActionState(reassignTask, initial);
+  return (
+    <form action={action} className="inline-flex items-center gap-1.5">
+      <input type="hidden" name="id" value={id} />
+      <label className="text-[11.5px] text-ink-4" htmlFor={`t-reassign-${id}`}>
+        Owner
+      </label>
+      <select
+        id={`t-reassign-${id}`}
+        name="ownerId"
+        defaultValue={ownerId ?? ''}
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        className="rounded-md border border-line-2 bg-surface px-1.5 py-0.5 text-[11.5px] text-ink transition-colors duration-fast focus:border-brand focus:outline-none"
+      >
+        <option value="" disabled>
+          Unassigned
+        </option>
+        {members.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.displayName}
+          </option>
+        ))}
+      </select>
     </form>
   );
 }

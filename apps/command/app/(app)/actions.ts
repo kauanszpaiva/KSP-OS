@@ -25,6 +25,7 @@ import {
   decideCompletionSchema,
   markNotificationReadSchema,
   postCommentSchema,
+  reassignTaskSchema,
   recordDecisionSchema,
   revokeConnectionSchema,
   submitProofSchema,
@@ -778,6 +779,25 @@ export async function updateTaskStatus(_prev: ActionResult, form: FormData): Pro
   return { ok: true };
 }
 
+export async function reassignTask(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = reassignTaskSchema.safeParse({
+    id: form.get('id'),
+    ownerId: form.get('ownerId')
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('tasks').update({ owner_id: parsed.data.ownerId }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not reassign the task (check your access).' };
+
+  await record(supabase, ctx, 'task.reassigned', 'tasks', parsed.data.id, 'Task reassigned');
+  revalidatePath('/workspace');
+  return { ok: true };
+}
+
 /* --------------------------------------------------------------- Phase C4 -- */
 
 export async function createLead(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -1197,6 +1217,12 @@ export async function markNotificationRead(_prev: ActionResult, form: FormData):
   return { ok: true };
 }
 
+/** Which page to revalidate after posting a comment, per object_table — extend as CommentThread rolls out further. */
+const COMMENT_REVALIDATE_PATH: Record<string, string> = {
+  commitments: '/commitments',
+  tasks: '/workspace'
+};
+
 export async function postComment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const gate = await authed();
   if ('error' in gate) return { ok: false, error: gate.error };
@@ -1218,7 +1244,7 @@ export async function postComment(_prev: ActionResult, form: FormData): Promise<
   });
   if (error) return { ok: false, error: 'Could not post the comment.' };
 
-  revalidatePath('/commitments');
+  revalidatePath(COMMENT_REVALIDATE_PATH[parsed.data.objectTable] ?? '/pulse');
   return { ok: true };
 }
 

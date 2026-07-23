@@ -4,6 +4,7 @@ import {
   createMilestoneSchema,
   createMissionSchema,
   createTaskSchema,
+  reassignTaskSchema,
   updateMilestoneStatusSchema,
   updateMissionHealthSchema,
   updateTaskStatusSchema
@@ -70,5 +71,19 @@ describe('updateTaskStatusSchema', () => {
 
   it('rejects an invalid status', () => {
     expect(updateTaskStatusSchema.safeParse({ id: uuidA, status: 'done' }).success).toBe(false);
+  });
+});
+
+describe('reassignTaskSchema', () => {
+  it('accepts a valid task/owner pair', () => {
+    expect(reassignTaskSchema.safeParse({ id: uuidA, ownerId: uuidB }).success).toBe(true);
+  });
+
+  it('rejects a missing ownerId', () => {
+    expect(reassignTaskSchema.safeParse({ id: uuidA }).success).toBe(false);
+  });
+
+  it('rejects a non-uuid ownerId', () => {
+    expect(reassignTaskSchema.safeParse({ id: uuidA, ownerId: 'not-a-uuid' }).success).toBe(false);
   });
 });
