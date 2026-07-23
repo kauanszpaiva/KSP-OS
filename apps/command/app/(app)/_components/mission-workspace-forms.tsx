@@ -78,6 +78,7 @@ export function MilestoneForm({ projectId }: { projectId: string }) {
       <input type="hidden" name="projectId" value={projectId} />
       <input name="title" placeholder="Milestone title" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
       <input name="phase" placeholder="Phase (optional)" className="w-32 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
+      <input name="startDate" type="date" title="Start date (optional, for the Timeline view)" className="rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none" />
       <input name="dueDate" type="date" className="rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none" />
       <button type="submit" disabled={pending} className={ghostBtn}>{pending ? 'Adding…' : 'Add'}</button>
       <FormError state={state} />
@@ -133,7 +134,7 @@ export function TaskForm({ members, projectId }: { members: MemberRef[]; project
         <label className={label} htmlFor="t-title">Task</label>
         <input id="t-title" name="title" className={field} placeholder="Draft the sitemap" required />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className={label} htmlFor="t-owner">Owner</label>
           <select id="t-owner" name="ownerId" className={field} defaultValue="">
@@ -142,6 +143,10 @@ export function TaskForm({ members, projectId }: { members: MemberRef[]; project
               <option key={m.id} value={m.id}>{m.displayName}</option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className={label} htmlFor="t-start">Start date</label>
+          <input id="t-start" name="startDate" type="date" className={field} title="Optional — used for the Timeline view" />
         </div>
         <div>
           <label className={label} htmlFor="t-due">Due date</label>

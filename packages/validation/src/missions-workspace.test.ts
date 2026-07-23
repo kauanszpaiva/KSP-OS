@@ -39,6 +39,18 @@ describe('createMilestoneSchema', () => {
   it('accepts a milestone with no due date', () => {
     expect(createMilestoneSchema.safeParse({ projectId: uuidA, title: 'Ship the sitemap' }).success).toBe(true);
   });
+
+  it('accepts a valid start date before the due date', () => {
+    expect(
+      createMilestoneSchema.safeParse({ projectId: uuidA, title: 'Ship the sitemap', startDate: '2026-01-01', dueDate: '2026-01-10' }).success
+    ).toBe(true);
+  });
+
+  it('rejects a start date after the due date', () => {
+    expect(
+      createMilestoneSchema.safeParse({ projectId: uuidA, title: 'Ship the sitemap', startDate: '2026-01-10', dueDate: '2026-01-01' }).success
+    ).toBe(false);
+  });
 });
 
 describe('updateMilestoneStatusSchema', () => {
@@ -61,6 +73,14 @@ describe('addDependencySchema', () => {
 describe('createTaskSchema', () => {
   it('accepts a minimal task', () => {
     expect(createTaskSchema.safeParse({ title: 'Draft the sitemap' }).success).toBe(true);
+  });
+
+  it('accepts a valid start date before the due date', () => {
+    expect(createTaskSchema.safeParse({ title: 'Draft the sitemap', startDate: '2026-01-01', dueDate: '2026-01-10' }).success).toBe(true);
+  });
+
+  it('rejects a start date after the due date', () => {
+    expect(createTaskSchema.safeParse({ title: 'Draft the sitemap', startDate: '2026-01-10', dueDate: '2026-01-01' }).success).toBe(false);
   });
 });
 

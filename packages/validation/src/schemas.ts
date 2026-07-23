@@ -64,12 +64,21 @@ export const updateMissionHealthSchema = z.object({
   nextAction: z.string().max(300).optional().or(z.literal(''))
 });
 
-export const createMilestoneSchema = z.object({
-  projectId: uuid,
-  title: z.string().min(2).max(200),
-  phase: z.string().max(80).optional().or(z.literal('')),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal(''))
-});
+const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const createMilestoneSchema = z
+  .object({
+    projectId: uuid,
+    title: z.string().min(2).max(200),
+    phase: z.string().max(80).optional().or(z.literal('')),
+    startDate: dateString.optional().or(z.literal('')),
+    dueDate: dateString.optional().or(z.literal(''))
+  })
+  .superRefine((v, ctx) => {
+    if (v.startDate && v.dueDate && v.startDate > v.dueDate) {
+      ctx.addIssue({ code: 'custom', message: 'start_date_after_due_date', path: ['startDate'] });
+    }
+  });
 
 export const updateMilestoneStatusSchema = z.object({
   id: uuid,
@@ -89,12 +98,19 @@ export const addDependencySchema = z
   });
 
 /** Phase C3 — Workspace (tasks). */
-export const createTaskSchema = z.object({
-  title: z.string().min(2).max(200),
-  projectId: uuid.optional(),
-  ownerId: uuid.optional(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal(''))
-});
+export const createTaskSchema = z
+  .object({
+    title: z.string().min(2).max(200),
+    projectId: uuid.optional(),
+    ownerId: uuid.optional(),
+    startDate: dateString.optional().or(z.literal('')),
+    dueDate: dateString.optional().or(z.literal(''))
+  })
+  .superRefine((v, ctx) => {
+    if (v.startDate && v.dueDate && v.startDate > v.dueDate) {
+      ctx.addIssue({ code: 'custom', message: 'start_date_after_due_date', path: ['startDate'] });
+    }
+  });
 
 export const updateTaskStatusSchema = z.object({
   id: uuid,

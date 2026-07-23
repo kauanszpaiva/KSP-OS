@@ -647,6 +647,7 @@ export async function createMilestone(_prev: ActionResult, form: FormData): Prom
     projectId: form.get('projectId'),
     title: form.get('title'),
     phase: form.get('phase') ?? undefined,
+    startDate: form.get('startDate') ?? undefined,
     dueDate: form.get('dueDate') ?? undefined
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -658,6 +659,7 @@ export async function createMilestone(_prev: ActionResult, form: FormData): Prom
       project_id: parsed.data.projectId,
       title: parsed.data.title,
       phase: parsed.data.phase || null,
+      start_date: parsed.data.startDate || null,
       due_date: parsed.data.dueDate || null,
       created_by: ctx.user.id
     })
@@ -734,6 +736,7 @@ export async function createTask(_prev: ActionResult, form: FormData): Promise<A
     title: form.get('title'),
     projectId: form.get('projectId') || undefined,
     ownerId: form.get('ownerId') || undefined,
+    startDate: form.get('startDate') ?? undefined,
     dueDate: form.get('dueDate') ?? undefined
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -745,6 +748,7 @@ export async function createTask(_prev: ActionResult, form: FormData): Promise<A
       project_id: parsed.data.projectId ?? null,
       owner_id: parsed.data.ownerId ?? ctx.user.id,
       title: parsed.data.title,
+      start_date: parsed.data.startDate || null,
       due_date: parsed.data.dueDate || null
     })
     .select('id')

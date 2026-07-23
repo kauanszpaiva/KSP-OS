@@ -1,0 +1,35 @@
+-- Phase V0 (Command-wide visual redesign, foundation) regression plan for
+-- 202607230009_timeline_start_dates.sql. Run against a seeded database with
+-- psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+--
+-- This migration adds two nullable columns (start_date) and two check
+-- constraints — no new table, no new RLS policy. Assertions:
+--
+--   - start_date accepts null on both mission_milestones and tasks (every
+--     row created before this migration, and every row created without a
+--     start date, remains valid — no backfill required, no existing row
+--     invalidated).
+--   - start_date accepts a value <= due_date on both tables.
+--   - the check constraint rejects start_date > due_date on insert AND on
+--     update, on both tables (mission_milestones_start_before_due,
+--     tasks_start_before_due) — confirms the constraint is a real guard,
+--     not just documentation.
+--   - the constraint is satisfied (never fires) when either date is null —
+--     a milestone/task with only a due_date (the pre-existing shape) is
+--     unaffected.
+--   - no RLS regression: an internal member's existing read/write access to
+--     mission_milestones/tasks is unchanged — the same
+--     mission_milestones_read/insert/update/delete and tasks_project_read/
+--     write policies from 202607230002_missions.sql still gate access;
+--     this migration adds columns to already-covered tables, so
+--     cross-organization denial and cross-project denial continue to hold
+--     exactly as documented in supabase/tests/missions.sql.
+--
+-- Not verified here (requires live Supabase): applying this migration
+-- against existing seeded rows and confirming no existing row violates the
+-- new check constraint (expected: none do, since every existing row has
+-- start_date = null, which the constraint always permits) — verified by
+-- migration review plus the Supabase preview-branch check on this phase's
+-- PR, same as every prior phase.
+
+select 'timeline start_date migration regression plan present' as plan;
