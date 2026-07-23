@@ -70,6 +70,27 @@ export function TriageSignalForm({ id, target, children }: { id: string; target:
   );
 }
 
+/** Board-view move control — any-to-any status change, unlike the List view's two hardcoded next-step buttons above. */
+export function SignalStatusSelectForm({ id, currentStatus }: { id: string; currentStatus: string }) {
+  const [, action] = useActionState(triageSignal, initial);
+  return (
+    <form action={action} className="inline">
+      <input type="hidden" name="id" value={id} />
+      <select
+        name="triageStatus"
+        defaultValue={currentStatus}
+        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        className="rounded-md border border-line-2 bg-surface px-1.5 py-0.5 text-[11.5px] text-ink transition-colors duration-fast focus:border-brand focus:outline-none"
+      >
+        <option value="new">New</option>
+        <option value="triaged">Triaged</option>
+        <option value="converted">Converted</option>
+        <option value="dismissed">Dismissed</option>
+      </select>
+    </form>
+  );
+}
+
 export function ConvertSignalForm({ signalId, defaultTitle }: { signalId: string; defaultTitle: string }) {
   const [state, action, pending] = useActionState(convertSignalToCommitment, initial);
   return (
