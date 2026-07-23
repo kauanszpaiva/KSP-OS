@@ -298,6 +298,45 @@ export async function getTeamLoad(supabase: SupabaseClient): Promise<TeamLoadVie
   return [...load.values()].sort((a, b) => b.openCommitments + b.openTasks - (a.openCommitments + a.openTasks));
 }
 
+/* ----------------------------------------------------- Phase C7: Member admin -- */
+
+export interface MemberAdminView {
+  profileId: string;
+  displayName: string;
+  email: string;
+  role: string;
+  suspended: boolean;
+}
+
+/**
+ * One row per internal member with their role and suspension state, for the
+ * executive-only access panel. member_read RLS scopes organization_memberships
+ * to the caller's org; a profile with several role rows is collapsed to one
+ * (the role column is what updateMemberRole mutates).
+ */
+export async function getMembersAdmin(supabase: SupabaseClient): Promise<MemberAdminView[]> {
+  const [{ data: memberships }, { data: profiles }] = await Promise.all([
+    supabase.from('organization_memberships').select('profile_id, internal_role, suspended_at').not('internal_role', 'is', null),
+    supabase.from('profiles').select('id, display_name, email')
+  ]);
+  const profileById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string; email: string | null }>).map((p) => [p.id, p]));
+  const seen = new Set<string>();
+  const rows: MemberAdminView[] = [];
+  for (const m of (memberships ?? []) as Array<{ profile_id: string; internal_role: string; suspended_at: string | null }>) {
+    if (seen.has(m.profile_id)) continue;
+    seen.add(m.profile_id);
+    const p = profileById.get(m.profile_id);
+    rows.push({
+      profileId: m.profile_id,
+      displayName: p?.display_name ?? 'Unknown',
+      email: p?.email ?? '',
+      role: m.internal_role,
+      suspended: Boolean(m.suspended_at)
+    });
+  }
+  return rows.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
 /* --------------------------------------------------------------- Phase C4 -- */
 
 export interface LeadView extends Lead {

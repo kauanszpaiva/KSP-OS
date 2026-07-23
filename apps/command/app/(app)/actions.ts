@@ -28,6 +28,7 @@ import {
   reassignTaskSchema,
   recordDecisionSchema,
   revokeConnectionSchema,
+  setMemberSuspendedSchema,
   submitProofSchema,
   toggleProductActiveSchema,
   triageSignalSchema,
@@ -36,6 +37,7 @@ import {
   updateDocumentClassificationSchema,
   updateClientSchema,
   updateLeadStatusSchema,
+  updateMemberRoleSchema,
   updateMilestoneStatusSchema,
   updateMissionHealthSchema,
   updateMissionSchema,
@@ -965,6 +967,69 @@ export async function updateClient(_prev: ActionResult, form: FormData): Promise
 
   await record(supabase, ctx, 'client.updated', 'client_organizations', parsed.data.id, `Updated client details`);
   revalidatePath('/clients');
+  return { ok: true };
+}
+
+/**
+ * Member management (executive-only). Changing another member's role is an
+ * access.grant-class action; the app gate is isExecutive (matching every other
+ * executive mutation here), the DB backstop is the executive-only UPDATE policy
+ * on organization_memberships, and the last-founder invariant is enforced by a
+ * DB trigger. An executive cannot change their own role or suspend themselves,
+ * to avoid self-lockout. Both `role` (legacy app_role) and `internal_role` are
+ * kept in sync so getAuthContext (which reads internal_role) sees the change.
+ */
+export async function updateMemberRole(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can manage member roles.' };
+
+  const parsed = updateMemberRoleSchema.safeParse({ profileId: form.get('profileId'), role: form.get('role') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  if (parsed.data.profileId === ctx.user.id) return { ok: false, error: 'You cannot change your own role.' };
+
+  const { error } = await supabase
+    .from('organization_memberships')
+    .update({ role: parsed.data.role, internal_role: parsed.data.role })
+    .eq('organization_id', ctx.organizationId)
+    .eq('profile_id', parsed.data.profileId);
+  if (error) {
+    const msg = /last active founder/i.test(error.message) ? 'The organization must keep at least one active founder.' : 'Could not update the member (check your access).';
+    return { ok: false, error: msg };
+  }
+
+  await record(supabase, ctx, 'member.role_changed', 'organization_memberships', parsed.data.profileId, `Role set to ${parsed.data.role}`);
+  revalidatePath('/team');
+  return { ok: true };
+}
+
+export async function setMemberSuspended(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can suspend or reactivate members.' };
+
+  const parsed = setMemberSuspendedSchema.safeParse({ profileId: form.get('profileId'), suspended: form.get('suspended') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  if (parsed.data.profileId === ctx.user.id) return { ok: false, error: 'You cannot suspend yourself.' };
+
+  const { error } = await supabase
+    .from('organization_memberships')
+    .update({ suspended_at: parsed.data.suspended ? new Date().toISOString() : null })
+    .eq('organization_id', ctx.organizationId)
+    .eq('profile_id', parsed.data.profileId);
+  if (error) {
+    const msg = /last active founder/i.test(error.message) ? 'The organization must keep at least one active founder.' : 'Could not update the member (check your access).';
+    return { ok: false, error: msg };
+  }
+
+  await record(supabase, ctx, parsed.data.suspended ? 'member.suspended' : 'member.reactivated', 'organization_memberships', parsed.data.profileId, parsed.data.suspended ? 'Member suspended' : 'Member reactivated');
+  revalidatePath('/team');
   return { ok: true };
 }
 

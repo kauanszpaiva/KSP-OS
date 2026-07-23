@@ -189,6 +189,36 @@ export const addClientNoteSchema = z.object({
   body: z.string().min(1).max(4000)
 });
 
+/** Phase C7 — Member management (organization_memberships), executive-only. */
+const INTERNAL_ROLE_VALUES = [
+  'founder_ceo',
+  'executive_operations',
+  'project_manager',
+  'department_lead',
+  'developer',
+  'designer',
+  'capture_specialist',
+  'videographer',
+  'photographer',
+  'editor',
+  'content_specialist',
+  'marketing_specialist',
+  'sales_specialist',
+  'contractor',
+  'freelancer',
+  'intern'
+] as const;
+
+export const updateMemberRoleSchema = z.object({
+  profileId: uuid,
+  role: z.enum(INTERNAL_ROLE_VALUES)
+});
+
+export const setMemberSuspendedSchema = z.object({
+  profileId: uuid,
+  suspended: booleanString
+});
+
 /** Phase C4 — Products. */
 export const createProductSchema = z.object({
   name: z.string().min(2).max(160),
