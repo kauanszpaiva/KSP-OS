@@ -10,6 +10,16 @@ create type publication_state as enum ('internal_draft','internal_review','appro
 create type client_request_status as enum ('submitted','received','under_triage','needs_client_information','under_evaluation','estimate_in_preparation','awaiting_client_approval','approved','scheduled','in_progress','client_review','completed','rejected','canceled','converted_to_change_order');
 
 alter table clients rename to client_organizations;
+-- The rename carries the old `clients_member_read` policy over with it, still
+-- gated on `internal_notes is null` — that column is dropped a few statements
+-- below once client_internal_notes exists, which fails with a dependency error
+-- unless the old policy is cleared first. Replace it with the is_internal_member()
+-- gate this migration uses for every other table it introduces, so basic client
+-- fields stay internally readable; fine-grained note access is governed by the
+-- new client_internal_notes table's own policy below, not by hiding the whole row.
+drop policy if exists clients_member_read on client_organizations;
+create policy client_organizations_read on client_organizations for select
+  using (organization_id in (select current_org_ids()));
 alter table memberships rename to organization_memberships;
 alter table organization_memberships add column if not exists internal_role internal_role;
 update organization_memberships set internal_role = role::text::internal_role where role::text <> 'client' and internal_role is null;
