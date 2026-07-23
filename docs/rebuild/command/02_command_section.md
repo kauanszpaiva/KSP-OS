@@ -47,3 +47,16 @@ Purpose: the approval/decision chamber.
 ## Cross-module notes
 
 - Pulse's "Needs attention" ledger was **not** extended to include Signals/Decisions in this phase — that's Phase C6.5 (Inbox/Approvals consolidation), which explicitly owns that aggregation.
+
+## Phase V1 addition (Command-wide visual redesign) — Board view
+
+Part of the multi-phase Asana/ClickUp-style visual redesign (`docs/rebuild/command/07_visual_redesign_v0_foundation.md`). First real application of V0's new `Board` component.
+
+| Task | Status | Detail |
+|---|---|---|
+| V1.1 Signals — Board | ✅ | `apps/command/app/(app)/_components/signals-view.tsx` (new) — a `List` / `Board` `Segmented` toggle, extracted from the page's previously-inline JSX. Board columns: New / Triaged / Converted / Dismissed. A new `SignalStatusSelectForm` (`_components/signal-decision-forms.tsx`) gives each Board card a free any-to-any status move — this is safe for Signals specifically because `triageSignal`'s existing RLS/action already permits any transition, unlike Decisions below. |
+| V1.2 Decisions — Board | ✅ | `apps/command/app/(app)/_components/decisions-view.tsx` (new) — same `List`/`Board` toggle pattern. **Deliberately does not offer a generic move-to-any-column control**: Decisions is a governed one-way approval workflow (no-self-approval, executive-only, enforced by RLS and `recordDecision`'s own logic), not a freely re-triageable status like Signals. The Board's "Waiting" column cards embed the exact same permission-gated `DecisionForm` the List view already used — movement happens only through the real governed action, never a free select, so the Board view cannot bypass a rule the List view enforces. |
+| V1.3 Tests | — | No new Zod schema/mutation this phase — both views reuse existing actions (`triageSignal`, `recordDecision`) as-is. No new unit tests needed. |
+| V1.4 Docs | ✅ | This section. |
+
+**What changed vs. the original C2 plan**: nothing about C2's own scope — this is a purely additive visual increment layered on top of the already-shipped module, not a revision of C2's decisions.
