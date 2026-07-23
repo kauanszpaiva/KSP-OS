@@ -23,6 +23,8 @@ import {
   createSignalSchema,
   createTaskSchema,
   decideCompletionSchema,
+  markNotificationReadSchema,
+  postCommentSchema,
   recordDecisionSchema,
   revokeConnectionSchema,
   submitProofSchema,
@@ -39,6 +41,7 @@ import {
   updateTaskStatusSchema
 } from '@ksp/validation';
 import { getServerSupabase } from '../../lib/supabase';
+import { searchAll, type SearchResult } from './data';
 
 export interface ActionResult {
   ok: boolean;
@@ -77,6 +80,36 @@ async function record(
     target_id: objectId,
     classification: 'internal',
     metadata: { summary }
+  });
+}
+
+/**
+ * Emits a notification to a specific recipient. Called only from a short,
+ * curated list of high-signal actions (assigned to you, a decision on your
+ * request, your signal was converted) — never from every mutation, per
+ * docs/rebuild/command/06_cross_cutting.md. A no-op when the recipient is the
+ * actor themselves (no one needs to be notified of their own action).
+ */
+async function notify(
+  supabase: SupabaseClient,
+  ctx: AuthContext,
+  recipientId: string,
+  verb: string,
+  objectTable: string,
+  objectId: string | null,
+  summary: string,
+  link?: string
+) {
+  if (recipientId === ctx.user.id) return;
+  await supabase.from('notifications').insert({
+    organization_id: ctx.organizationId,
+    recipient_id: recipientId,
+    actor_id: ctx.user.id,
+    verb,
+    object_table: objectTable,
+    object_id: objectId,
+    summary,
+    link: link ?? null
   });
 }
 
@@ -232,6 +265,7 @@ export async function createCommitment(_prev: ActionResult, form: FormData): Pro
     assigned_by: ctx.user.id
   });
   await record(supabase, ctx, 'commitment.created', 'commitments', data.id, `Committed: ${parsed.data.title}`);
+  await notify(supabase, ctx, parsed.data.ownerId, 'commitment.assigned', 'commitments', data.id, `You were assigned: ${parsed.data.title}`, '/focus');
   revalidatePath('/commitments');
   revalidatePath('/focus');
   revalidatePath('/pulse');
@@ -434,12 +468,17 @@ export async function convertSignalToCommitment(_prev: ActionResult, form: FormD
     role: 'accountable',
     assigned_by: ctx.user.id
   });
-  await supabase
+  const { data: signalRow } = await supabase
     .from('inbox_items')
     .update({ triage_status: 'converted', target_table: 'commitments', target_id: data.id })
-    .eq('id', signalId);
+    .eq('id', signalId)
+    .select('created_by')
+    .single();
 
   await record(supabase, ctx, 'signal.converted', 'inbox_items', signalId, `Converted to commitment: ${title}`);
+  if (signalRow?.created_by) {
+    await notify(supabase, ctx, signalRow.created_by, 'signal.converted', 'inbox_items', signalId, `Your signal became a commitment: ${title}`, '/commitments');
+  }
   revalidatePath('/signals');
   revalidatePath('/commitments');
   revalidatePath('/focus');
@@ -492,6 +531,12 @@ export async function recordDecision(_prev: ActionResult, form: FormData): Promi
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
+  const { data: requestRow } = await supabase
+    .from('approval_requests')
+    .select('requester_id, approval_type')
+    .eq('id', parsed.data.approvalRequestId)
+    .maybeSingle();
+
   const { error } = await supabase.from('approval_decisions').insert({
     organization_id: ctx.organizationId,
     approval_request_id: parsed.data.approvalRequestId,
@@ -507,6 +552,19 @@ export async function recordDecision(_prev: ActionResult, form: FormData): Promi
   }
 
   await record(supabase, ctx, 'decision.recorded', 'approval_requests', parsed.data.approvalRequestId, `Decision: ${parsed.data.decision}`);
+  if (requestRow?.requester_id) {
+    const typeLabel = String(requestRow.approval_type).replace(/_/g, ' ');
+    await notify(
+      supabase,
+      ctx,
+      requestRow.requester_id,
+      'decision.recorded',
+      'approval_requests',
+      parsed.data.approvalRequestId,
+      `Your ${typeLabel} request was ${parsed.data.decision}`,
+      '/decisions'
+    );
+  }
   revalidatePath('/decisions');
   return { ok: true };
 }
@@ -1120,4 +1178,53 @@ export async function updateTaskLink(_prev: ActionResult, form: FormData): Promi
   revalidatePath('/software');
   revalidatePath('/workspace');
   return { ok: true };
+}
+
+/* --------------------------------------------------------------- Phase C6 -- */
+
+export async function markNotificationRead(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase } = gate;
+
+  const parsed = markNotificationReadSchema.safeParse({ id: form.get('id') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the notification.' };
+
+  revalidatePath('/pulse');
+  return { ok: true };
+}
+
+export async function postComment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = postCommentSchema.safeParse({
+    objectTable: form.get('objectTable'),
+    objectId: form.get('objectId'),
+    body: form.get('body')
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('comments').insert({
+    organization_id: ctx.organizationId,
+    object_table: parsed.data.objectTable,
+    object_id: parsed.data.objectId,
+    author_id: ctx.user.id,
+    body: parsed.data.body
+  });
+  if (error) return { ok: false, error: 'Could not post the comment.' };
+
+  revalidatePath('/commitments');
+  return { ok: true };
+}
+
+/** Called directly from the command palette client component (not a form action). */
+export async function runSearch(query: string): Promise<SearchResult[]> {
+  const gate = await authed();
+  if ('error' in gate) return [];
+  return searchAll(gate.supabase, query);
 }

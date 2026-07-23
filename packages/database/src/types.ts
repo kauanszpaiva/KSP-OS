@@ -408,3 +408,30 @@ export interface JournalLine {
   project_id: string | null;
   client_id: string | null;
 }
+
+/* --------------------------------------------------------- Phase C6 -- */
+
+export interface Notification {
+  id: string;
+  organization_id: string;
+  recipient_id: string;
+  actor_id: string | null;
+  verb: string;
+  object_table: string;
+  object_id: string | null;
+  summary: string;
+  link: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface Comment {
+  id: string;
+  organization_id: string;
+  object_table: string;
+  object_id: string;
+  author_id: string;
+  body: string;
+  mentions: string[];
+  created_at: string;
+}

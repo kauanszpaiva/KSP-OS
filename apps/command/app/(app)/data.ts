@@ -6,6 +6,7 @@ import type {
   ChartAccount,
   ClientInternalNote,
   ClientOrganization,
+  Comment,
   Commitment,
   CompanyOutcome,
   Contact,
@@ -17,6 +18,7 @@ import type {
   Lead,
   MissionDependency,
   MissionMilestone,
+  Notification,
   Product,
   Project,
   ProjectMembership,
@@ -427,4 +429,101 @@ export async function getFinanceOverview(supabase: SupabaseClient): Promise<Fina
     postedEntryCount: entryRows.filter((e) => e.status === 'posted').length,
     monthlySubscriptionBurnMinor: monthlyBurn
   };
+}
+
+/* --------------------------------------------------------------- Phase C6 -- */
+
+export async function getNotifications(supabase: SupabaseClient, limit = 20): Promise<Notification[]> {
+  // notifications_read RLS scopes rows to recipient_id = auth.uid() only.
+  const { data } = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(limit);
+  return (data ?? []) as Notification[];
+}
+
+export interface CommentView extends Comment {
+  authorName: string;
+}
+
+export async function getComments(supabase: SupabaseClient, objectTable: string, objectId: string): Promise<CommentView[]> {
+  const [{ data: comments }, { data: profiles }] = await Promise.all([
+    supabase
+      .from('comments')
+      .select('*')
+      .eq('object_table', objectTable)
+      .eq('object_id', objectId)
+      .order('created_at', { ascending: true }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  return ((comments ?? []) as Comment[]).map((c) => ({ ...c, authorName: nameById.get(c.author_id) ?? 'Unknown' }));
+}
+
+/** Bulk variant for list pages — one query instead of one per row. */
+export async function getCommentsForObjects(
+  supabase: SupabaseClient,
+  objectTable: string,
+  objectIds: string[]
+): Promise<Map<string, CommentView[]>> {
+  const empty = new Map<string, CommentView[]>();
+  if (objectIds.length === 0) return empty;
+  const [{ data: comments }, { data: profiles }] = await Promise.all([
+    supabase.from('comments').select('*').eq('object_table', objectTable).in('object_id', objectIds).order('created_at', { ascending: true }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  const byObject = new Map<string, CommentView[]>();
+  for (const c of (comments ?? []) as Comment[]) {
+    const view = { ...c, authorName: nameById.get(c.author_id) ?? 'Unknown' };
+    const arr = byObject.get(c.object_id) ?? [];
+    arr.push(view);
+    byObject.set(c.object_id, arr);
+  }
+  return byObject;
+}
+
+export interface SearchResult {
+  kind: 'outcome' | 'commitment' | 'mission' | 'client' | 'lead' | 'document';
+  id: string;
+  title: string;
+  href: string;
+}
+
+/**
+ * Fans out across live modules, each query using the same request-scoped
+ * client so every table's own RLS still applies — this never sees more than
+ * the caller already could by visiting each module directly.
+ */
+export async function searchAll(supabase: SupabaseClient, query: string): Promise<SearchResult[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const like = `%${q}%`;
+
+  const [outcomes, commitments, missions, clients, leads, documents] = await Promise.all([
+    supabase.from('company_outcomes').select('id, title').ilike('title', like).limit(5),
+    supabase.from('commitments').select('id, title').ilike('title', like).limit(5),
+    supabase.from('projects').select('id, name').ilike('name', like).limit(5),
+    supabase.from('client_organizations').select('id, display_name').ilike('display_name', like).limit(5),
+    supabase.from('leads').select('id, name').ilike('name', like).limit(5),
+    supabase.from('documents').select('id, title').ilike('title', like).limit(5)
+  ]);
+
+  const results: SearchResult[] = [];
+  for (const o of (outcomes.data ?? []) as Array<{ id: string; title: string }>) {
+    results.push({ kind: 'outcome', id: o.id, title: o.title, href: '/outcomes' });
+  }
+  for (const c of (commitments.data ?? []) as Array<{ id: string; title: string }>) {
+    results.push({ kind: 'commitment', id: c.id, title: c.title, href: '/commitments' });
+  }
+  for (const m of (missions.data ?? []) as Array<{ id: string; name: string }>) {
+    results.push({ kind: 'mission', id: m.id, title: m.name, href: '/missions' });
+  }
+  for (const c of (clients.data ?? []) as Array<{ id: string; display_name: string }>) {
+    results.push({ kind: 'client', id: c.id, title: c.display_name, href: '/clients' });
+  }
+  for (const l of (leads.data ?? []) as Array<{ id: string; name: string }>) {
+    results.push({ kind: 'lead', id: l.id, title: l.name, href: '/revenue' });
+  }
+  for (const d of (documents.data ?? []) as Array<{ id: string; title: string }>) {
+    results.push({ kind: 'document', id: d.id, title: d.title, href: '/knowledge' });
+  }
+  return results;
 }

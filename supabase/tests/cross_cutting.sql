@@ -1,0 +1,39 @@
+-- Phase C6 (Cross-cutting) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: Founder CEO (Kauan), Executive Operations (Vanessa),
+-- a non-executive internal member (Eric), a member of a different
+-- organization (cross-organization denial), an unaffiliated user.
+--
+-- notifications assertions:
+--   - a recipient reads only their own notifications; Eric cannot see a
+--     notification addressed to Vanessa (recipient_id scoping).
+--   - cross-organization denial: a member of a different organization cannot
+--     read or insert a notification scoped to this organization, even
+--     knowing its id.
+--   - insert requires organization_id in the actor's own current_org_ids()
+--     and, when actor_id is set, actor_id = auth.uid() — Eric cannot forge a
+--     notification with someone else's actor_id.
+--   - a recipient can update (mark read) only their own notifications; Eric
+--     cannot mark Vanessa's notification read.
+--
+-- comments assertions:
+--   - read/insert are scoped to organization_id in current_org_ids() —
+--     cross-organization denial: a member of a different organization
+--     cannot read or post a comment on this organization's commitments.
+--   - insert requires author_id = auth.uid() — Eric cannot post a comment
+--     that attributes authorship to Vanessa.
+--   - append-only: no update or delete policy exists, so no internal
+--     member (including executives) can edit or remove a posted comment —
+--     confirm an update/delete attempt is rejected outright, the same
+--     guarantee activity_events already relies on.
+--   - known v1 limitation (documented, not tested as a bug): comments
+--     follow org membership only, not the target row's own classification
+--     or project membership — a comment on a commitment Eric cannot open
+--     directly is still readable by Eric once posted. This is called out
+--     in the migration and in docs/rebuild/command/06_cross_cutting.md.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising the new policies end-to-end. Verified by SQL review + the
+-- Supabase preview-branch migration check only.
+
+select 'cross-cutting authorization regression plan present' as plan;

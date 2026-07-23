@@ -206,3 +206,17 @@ export const updateTaskLinkSchema = z.object({
   id: uuid,
   link: z.string().url().max(500).optional().or(z.literal(''))
 });
+
+/** Phase C6 — Notifications. */
+export const markNotificationReadSchema = z.object({
+  id: uuid
+});
+
+/** Phase C6 — Comments (generic thread by object_table/object_id). */
+export const postCommentSchema = z.object({
+  objectTable: z.string().min(1).max(80),
+  objectId: uuid,
+  body: z.string().min(1).max(4000)
+});
+
+/** Phase C6 — Quick capture reuses createSignalSchema (Phase C2) as-is. */
