@@ -2,26 +2,34 @@ import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getCommitments, getMissions } from '../data';
 import { EmptyState, PageHeader } from '../_components/ui';
-import { ScheduleView, type ScheduleItem } from '../_components/schedule-view';
+import { TimelineView, type TimelineItem } from '../_components/schedule-view';
 
+/**
+ * mission_dependencies is a mission-level relationship, not milestone-level
+ * — Schedule mixes milestones and commitments at finer granularity, so
+ * annotating "waits on" here would attribute a mission-level dependency to
+ * every one of that mission's milestones, which is imprecise. Dependency
+ * annotations are wired into Missions' own Timeline in a later phase, where
+ * rows are actually missions and the relationship maps 1:1.
+ */
 export default async function SchedulePage() {
   await requireSession();
   const supabase = await getServerSupabase();
   const [commitments, missions] = supabase ? await Promise.all([getCommitments(supabase), getMissions(supabase)]) : [[], []];
 
-  const items: ScheduleItem[] = [];
+  const items: TimelineItem[] = [];
   for (const c of commitments) {
-    const date = c.due_date ?? c.next_action_date;
-    if (!date || ['completed', 'archived', 'rejected'].includes(c.state)) continue;
-    items.push({ id: `c-${c.id}`, title: c.title, subtitle: `Commitment · ${c.ownerName}`, date, state: c.state });
+    const end = c.due_date ?? c.next_action_date;
+    if (!end || ['completed', 'archived', 'rejected'].includes(c.state)) continue;
+    items.push({ id: `c-${c.id}`, title: c.title, subtitle: `Commitment · ${c.ownerName}`, end, state: c.state });
   }
   for (const m of missions) {
     for (const ms of m.milestones) {
       if (!ms.due_date || ms.status === 'done') continue;
-      items.push({ id: `m-${ms.id}`, title: ms.title, subtitle: `Milestone · ${m.name}`, date: ms.due_date, state: ms.status });
+      items.push({ id: `m-${ms.id}`, title: ms.title, subtitle: `Milestone · ${m.name}`, start: ms.start_date, end: ms.due_date, state: ms.status });
     }
   }
-  items.sort((a, b) => a.date.localeCompare(b.date));
+  items.sort((a, b) => a.end.localeCompare(b.end));
 
   return (
     <div>
@@ -34,7 +42,7 @@ export default async function SchedulePage() {
       {items.length === 0 ? (
         <EmptyState icon="schedule" title="Nothing scheduled." hint="Dated commitments and mission milestones will appear here in order." />
       ) : (
-        <ScheduleView items={items} />
+        <TimelineView items={items} />
       )}
     </div>
   );

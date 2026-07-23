@@ -221,3 +221,137 @@ export function Segmented({ items, value, onValueChange }: { items: SegmentedIte
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ Charts --
+ * Hand-rolled SVG/CSS, matching the same no-new-dependency approach the
+ * command app's Rail/Ring/SlotMeter single-value indicators already use —
+ * these are the multi-value/multi-series generalization of that pattern.
+ */
+
+const BAR_TONE_CLASS: Record<Tone, string> = {
+  neutral: 'bg-ink-4',
+  brand: 'bg-brand',
+  accent: 'bg-accent',
+  good: 'bg-good',
+  warn: 'bg-warn',
+  risk: 'bg-risk'
+};
+
+const STROKE_TONE_CLASS: Record<Tone, string> = {
+  neutral: 'stroke-ink-4',
+  brand: 'stroke-brand',
+  accent: 'stroke-accent',
+  good: 'stroke-good',
+  warn: 'stroke-warn',
+  risk: 'stroke-risk'
+};
+
+const TEXT_TONE_CLASS: Record<Tone, string> = {
+  neutral: 'text-ink-4',
+  brand: 'text-brand',
+  accent: 'text-accent',
+  good: 'text-good',
+  warn: 'text-warn',
+  risk: 'text-risk'
+};
+
+export interface BarChartDatum {
+  label: string;
+  value: number;
+  tone?: Tone;
+}
+
+/** Horizontal grouped bars — team load, pipeline-by-stage, cost breakdowns, etc. */
+export function BarChart({
+  data,
+  maxValue,
+  valueFormatter = (v) => String(v)
+}: {
+  data: BarChartDatum[];
+  maxValue?: number;
+  valueFormatter?: (value: number) => string;
+}) {
+  const max = maxValue ?? Math.max(...data.map((d) => d.value), 1);
+  return (
+    <div className="space-y-2.5">
+      {data.map((d) => (
+        <div key={d.label} className="flex items-center gap-3">
+          <span className="w-24 shrink-0 truncate text-[12px] text-ink-3">{d.label}</span>
+          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className={cx('h-full rounded-full transition-[width] duration-slow ease-standard', BAR_TONE_CLASS[d.tone ?? 'brand'])}
+              style={{ width: `${Math.min((d.value / max) * 100, 100)}%` }}
+            />
+          </div>
+          <span className="tnum w-14 shrink-0 text-right text-[12px] text-ink-2">{valueFormatter(d.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export interface DonutSegment {
+  label: string;
+  value: number;
+  tone?: Tone;
+}
+
+/** Multi-segment donut — generalizes Ring's single-arc stroke-dasharray math to N segments with a legend. */
+export function Donut({ segments, size = 96, stroke = 14 }: { segments: DonutSegment[]; size?: number; stroke?: number }) {
+  const total = segments.reduce((sum, s) => sum + s.value, 0) || 1;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let cumulative = 0;
+
+  return (
+    <div className="inline-flex items-center gap-4">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-surface-2" />
+        {segments.map((seg) => {
+          const fraction = seg.value / total;
+          const dash = fraction * circumference;
+          const offset = -cumulative * circumference;
+          cumulative += fraction;
+          return (
+            <circle
+              key={seg.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              strokeWidth={stroke}
+              strokeDasharray={`${dash} ${circumference - dash}`}
+              strokeDashoffset={offset}
+              className={STROKE_TONE_CLASS[seg.tone ?? 'brand']}
+            />
+          );
+        })}
+      </svg>
+      <ul className="space-y-1.5">
+        {segments.map((seg) => (
+          <li key={seg.label} className="flex items-center gap-2 text-[12px] text-ink-2">
+            <Dot tone={seg.tone ?? 'brand'} />
+            <span className="truncate">{seg.label}</span>
+            <span className="tnum text-ink-4">{seg.value}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** A simple SVG trend polyline — completion-rate/cash/velocity over time. */
+export function Sparkline({ values, width = 120, height = 32, tone = 'brand' }: { values: number[]; width?: number; height?: number; tone?: Tone }) {
+  if (values.length < 2) return null;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const points = values
+    .map((v, i) => `${(i / (values.length - 1)) * width},${height - ((v - min) / range) * height}`)
+    .join(' ');
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={cx('overflow-visible', TEXT_TONE_CLASS[tone])} aria-hidden>
+      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

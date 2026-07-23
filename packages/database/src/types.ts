@@ -206,6 +206,7 @@ export interface MissionMilestone {
   project_id: string;
   title: string;
   phase: string | null;
+  start_date: string | null;
   due_date: string | null;
   status: MilestoneStatus;
   sort_order: number;
@@ -229,6 +230,7 @@ export interface Task {
   project_id: string | null;
   owner_id: string | null;
   title: string;
+  start_date: string | null;
   due_date: string | null;
   blocked: boolean;
   client_visible: boolean;

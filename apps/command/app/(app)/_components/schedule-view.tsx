@@ -5,12 +5,23 @@ import { Reveal, Segmented } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
 import { StatePill, stateToneDotClass } from './ui';
 
-export interface ScheduleItem {
+export interface TimelineItem {
   id: string;
   title: string;
   subtitle: string;
-  date: string;
+  /** Optional — when present alongside `end` and distinct from it, renders a real duration bar. */
+  start?: string | null;
+  /** The anchor date (due_date/next_action_date/etc.) — always present, even for point-in-time items. */
+  end: string;
   state: string;
+  /** Optional row grouping (e.g. by mission) — renders a divider header when more than one distinct label is present. */
+  groupLabel?: string;
+}
+
+/** `fromId` must happen before `toId` — mirrors mission_dependencies' project→depends_on_project_id shape. */
+export interface TimelineDependency {
+  fromId: string;
+  toId: string;
 }
 
 function monthKey(date: string): string {
@@ -27,18 +38,24 @@ function parseDay(date: string): number {
 }
 
 /**
- * A date-axis timeline, not a duration-bar Gantt chart — commitments and
- * milestones only carry a single due_date/next_action_date each, no start
- * date, so there is no real "duration" to draw a bar's length from. Rather
- * than fabricate one, each item renders as a marker positioned by date
- * along a shared horizontal axis. Labeled "Gantt" per Kauan's own naming,
- * documented honestly here and in docs/rebuild/command/03_execution_section.md
- * as a date-axis view, not a critical-path/duration chart — that still
- * needs a start-date column this phase doesn't add.
+ * Date-axis Gantt: renders a real duration bar when an item has a `start`
+ * distinct from its `end` (only true for missions/tasks post-migration
+ * 202607230009), and falls back to the original marker-dot rendering for
+ * every item that only carries a single point-in-time date (commitments
+ * and anything else not covered by that migration) — the same honest
+ * fallback this component has used since Phase C3.6, just no longer the
+ * only rendering path.
+ *
+ * Dependencies render as a small inline "waits on: …" annotation on the
+ * dependent row rather than a drawn elbow connector between rows — a
+ * pixel-accurate connector (matching the ClickUp/Asana screenshots
+ * exactly) needs real DOM measurement (ResizeObserver/getBoundingClientRect
+ * across a scrollable, variable-width axis), not pure data math; this is a
+ * stated v1 simplification, not a silent gap.
  */
-function GanttView({ items }: { items: ScheduleItem[] }) {
+function GanttView({ items, dependencies }: { items: TimelineItem[]; dependencies: TimelineDependency[] }) {
   const { startDay, totalDays, weekMarks } = useMemo(() => {
-    const days = items.map((i) => parseDay(i.date));
+    const days = items.flatMap((i) => [parseDay(i.end), ...(i.start ? [parseDay(i.start)] : [])]);
     const minDay = Math.min(...days);
     const maxDay = Math.max(...days);
     const start = minDay - 2;
@@ -50,6 +67,21 @@ function GanttView({ items }: { items: ScheduleItem[] }) {
     }
     return { startDay: start, totalDays: total, weekMarks: marks };
   }, [items]);
+
+  const dependentsByToId = useMemo(() => {
+    const byId = new Map(items.map((i) => [i.id, i]));
+    const map = new Map<string, string[]>();
+    for (const dep of dependencies) {
+      const from = byId.get(dep.fromId);
+      if (!from) continue;
+      const arr = map.get(dep.toId) ?? [];
+      arr.push(from.title);
+      map.set(dep.toId, arr);
+    }
+    return map;
+  }, [items, dependencies]);
+
+  let lastGroup: string | undefined;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-surface">
@@ -67,22 +99,43 @@ function GanttView({ items }: { items: ScheduleItem[] }) {
         </div>
         <div className="space-y-0">
           {items.map((item, i) => {
-            const day = parseDay(item.date) - startDay;
-            const overdue = isOverdue(item.date) && item.state !== 'done' && item.state !== 'completed';
+            const endDay = parseDay(item.end) - startDay;
+            const startDayOffset = item.start ? parseDay(item.start) - startDay : null;
+            const hasRange = startDayOffset !== null && startDayOffset < endDay;
+            const overdue = isOverdue(item.end) && item.state !== 'done' && item.state !== 'completed';
+            const waitsOn = dependentsByToId.get(item.id);
+            const showGroupHeader = item.groupLabel && item.groupLabel !== lastGroup;
+            if (item.groupLabel) lastGroup = item.groupLabel;
             return (
-              <div key={item.id} className="relative flex items-center gap-3 border-t border-line px-3 py-2 first:border-t-0">
-                <div className="w-40 shrink-0 truncate text-[12.5px] text-ink-2 sm:w-56">
-                  <span className="font-medium text-ink">{item.title}</span>
-                  <span className="text-ink-4"> · {item.subtitle}</span>
+              <div key={item.id}>
+                {showGroupHeader && (
+                  <div className="border-t border-line bg-surface-2/60 px-3 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-4">
+                    {item.groupLabel}
+                  </div>
+                )}
+                <div className="relative flex h-11 items-center gap-3 border-t border-line px-3 first:border-t-0">
+                  <div className="w-40 shrink-0 truncate text-[12.5px] text-ink-2 sm:w-56">
+                    <span className="font-medium text-ink">{item.title}</span>
+                    <span className="text-ink-4"> · {item.subtitle}</span>
+                    {waitsOn && waitsOn.length > 0 && <span className="block truncate text-[10.5px] text-ink-4">⛓ waits on {waitsOn.join(', ')}</span>}
+                  </div>
+                  <div className="relative h-5 flex-1">
+                    {hasRange ? (
+                      <span
+                        className={`absolute top-1/2 -translate-y-1/2 rounded-full ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/40' : ''} h-3 opacity-80`}
+                        style={{ left: `${(startDayOffset / totalDays) * 100}%`, width: `${Math.max(((endDay - startDayOffset) / totalDays) * 100, 1.2)}%` }}
+                        title={`${item.title} — ${formatDate(item.start ?? null)} → ${formatDate(item.end)}`}
+                      />
+                    ) : (
+                      <span
+                        className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/40' : ''} h-2.5 w-2.5`}
+                        style={{ left: `${(endDay / totalDays) * 100}%` }}
+                        title={`${item.title} — ${formatDate(item.end)}`}
+                      />
+                    )}
+                  </div>
+                  <span className={`tnum w-16 shrink-0 text-right text-[11.5px] ${overdue ? 'font-medium text-risk' : 'text-ink-3'}`}>{formatDate(item.end)}</span>
                 </div>
-                <div className="relative h-5 flex-1">
-                  <span
-                    className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/40' : ''} h-2.5 w-2.5`}
-                    style={{ left: `${(day / totalDays) * 100}%` }}
-                    title={`${item.title} — ${formatDate(item.date)}`}
-                  />
-                </div>
-                <span className={`tnum w-16 shrink-0 text-right text-[11.5px] ${overdue ? 'font-medium text-risk' : 'text-ink-3'}`}>{formatDate(item.date)}</span>
               </div>
             );
           })}
@@ -92,10 +145,10 @@ function GanttView({ items }: { items: ScheduleItem[] }) {
   );
 }
 
-function ListView({ items }: { items: ScheduleItem[] }) {
-  const byMonth = new Map<string, ScheduleItem[]>();
+function ListView({ items }: { items: TimelineItem[] }) {
+  const byMonth = new Map<string, TimelineItem[]>();
   for (const item of items) {
-    const key = monthKey(item.date);
+    const key = monthKey(item.end);
     const arr = byMonth.get(key) ?? [];
     arr.push(item);
     byMonth.set(key, arr);
@@ -112,7 +165,7 @@ function ListView({ items }: { items: ScheduleItem[] }) {
           </div>
           <div className="space-y-2">
             {monthItems.map((item) => {
-              const overdue = isOverdue(item.date) && !['done', 'completed'].includes(item.state);
+              const overdue = isOverdue(item.end) && !['done', 'completed'].includes(item.state);
               return (
                 <div
                   key={item.id}
@@ -124,7 +177,7 @@ function ListView({ items }: { items: ScheduleItem[] }) {
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <StatePill state={item.state} />
-                    <span className={`tnum text-[12px] ${overdue ? 'font-medium text-risk' : 'text-ink-3'}`}>{formatDate(item.date)}</span>
+                    <span className={`tnum text-[12px] ${overdue ? 'font-medium text-risk' : 'text-ink-3'}`}>{formatDate(item.end)}</span>
                   </div>
                 </div>
               );
@@ -136,7 +189,7 @@ function ListView({ items }: { items: ScheduleItem[] }) {
   );
 }
 
-export function ScheduleView({ items }: { items: ScheduleItem[] }) {
+export function TimelineView({ items, dependencies = [] }: { items: TimelineItem[]; dependencies?: TimelineDependency[] }) {
   const [view, setView] = useState<'list' | 'gantt'>('list');
   return (
     <div>
@@ -150,7 +203,7 @@ export function ScheduleView({ items }: { items: ScheduleItem[] }) {
           onValueChange={(v) => setView(v as 'list' | 'gantt')}
         />
       </div>
-      {view === 'list' ? <ListView items={items} /> : <GanttView items={items} />}
+      {view === 'list' ? <ListView items={items} /> : <GanttView items={items} dependencies={dependencies} />}
     </div>
   );
 }
