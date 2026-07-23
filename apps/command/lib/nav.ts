@@ -26,8 +26,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Pulse', href: '/pulse', status: 'live', icon: 'pulse' },
       { label: 'Focus', href: '/focus', status: 'live', icon: 'focus' },
-      { label: 'Signals', href: '/signals', status: 'planned', icon: 'signals' },
-      { label: 'Decisions', href: '/decisions', status: 'planned', icon: 'decisions' }
+      { label: 'Signals', href: '/signals', status: 'live', icon: 'signals' },
+      { label: 'Decisions', href: '/decisions', status: 'live', icon: 'decisions' }
     ]
   },
   {

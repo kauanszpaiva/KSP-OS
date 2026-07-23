@@ -114,3 +114,60 @@ export interface Profile {
   email: string;
   status: RecordStatus;
 }
+
+/* --------------------------------------------------------- Phase C2 -- */
+
+export type SignalTriageStatus = 'new' | 'triaged' | 'converted' | 'dismissed';
+
+export interface InboxItem {
+  id: string;
+  organization_id: string;
+  created_by: string | null;
+  item_type: string;
+  title: string;
+  body: string | null;
+  triage_status: SignalTriageStatus;
+  target_table: string | null;
+  target_id: string | null;
+  classification: 'public' | 'internal' | 'confidential' | 'restricted';
+  created_at: string;
+}
+
+export type ApprovalType =
+  | 'executive_access'
+  | 'bank_destination'
+  | 'high_value_payment'
+  | 'contract_change'
+  | 'pricing_exception'
+  | 'period_reopen'
+  | 'bulk_export'
+  | 'production_credential'
+  | 'rls_auth_change'
+  | 'protected_deletion'
+  | 'agent_autonomy'
+  | 'high_risk_publication'
+  | 'deployment_exception';
+
+export interface ApprovalRequest {
+  id: string;
+  organization_id: string;
+  requester_id: string;
+  approval_type: ApprovalType;
+  amount_minor: number | null;
+  currency: string | null;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  evidence: unknown[];
+  status: RecordStatus;
+  due_at: string | null;
+  created_at: string;
+}
+
+export interface ApprovalDecision {
+  id: string;
+  organization_id: string;
+  approval_request_id: string;
+  approver_id: string;
+  decision: 'approved' | 'rejected';
+  comments: string | null;
+  created_at: string;
+}

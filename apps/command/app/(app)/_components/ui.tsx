@@ -131,7 +131,13 @@ const STATE_TONE: Record<string, Tone> = {
   active: 'good',
   paused: 'warn',
   replaced: 'neutral',
-  archived: 'neutral'
+  archived: 'neutral',
+  draft: 'neutral',
+  pending_approval: 'warn',
+  approved: 'good',
+  posted: 'good',
+  locked: 'neutral',
+  quarantined: 'risk'
 };
 
 const TONE_CLASS: Record<Tone, { dot: string; text: string }> = {

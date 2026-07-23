@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@ksp/database';
-import type { Commitment, CompanyOutcome, Proof } from '@ksp/database';
+import type { ApprovalDecision, ApprovalRequest, Commitment, CompanyOutcome, InboxItem, Proof } from '@ksp/database';
 
 export interface MemberRef {
   id: string;
@@ -73,4 +73,49 @@ export async function getMyCommitments(supabase: SupabaseClient, userId: string)
   const { data: assignments } = await supabase.from('commitment_assignments').select('commitment_id').eq('profile_id', userId);
   const assigned = new Set(((assignments ?? []) as Array<{ commitment_id: string }>).map((a) => a.commitment_id));
   return all.filter((c) => c.owner_id === userId || assigned.has(c.id));
+}
+
+/* --------------------------------------------------------------- Phase C2 -- */
+
+export interface SignalView extends InboxItem {
+  creatorName: string;
+}
+
+export async function getSignals(supabase: SupabaseClient): Promise<SignalView[]> {
+  // inbox_owner_read RLS scopes rows to the executive (all) or the creator (own).
+  const [{ data: items }, { data: profiles }] = await Promise.all([
+    supabase.from('inbox_items').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  return ((items ?? []) as InboxItem[]).map((i) => ({
+    ...i,
+    creatorName: (i.created_by && nameById.get(i.created_by)) || 'Unknown'
+  }));
+}
+
+export interface DecisionView extends ApprovalRequest {
+  requesterName: string;
+  decisions: ApprovalDecision[];
+}
+
+export async function getDecisions(supabase: SupabaseClient): Promise<DecisionView[]> {
+  // approvals_executive_read RLS scopes rows to the executive (all) or the requester (own).
+  const [{ data: requests }, { data: profiles }, { data: decisions }] = await Promise.all([
+    supabase.from('approval_requests').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, display_name'),
+    supabase.from('approval_decisions').select('*').order('created_at', { ascending: false })
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  const decisionsByRequest = new Map<string, ApprovalDecision[]>();
+  for (const d of (decisions ?? []) as ApprovalDecision[]) {
+    const arr = decisionsByRequest.get(d.approval_request_id) ?? [];
+    arr.push(d);
+    decisionsByRequest.set(d.approval_request_id, arr);
+  }
+  return ((requests ?? []) as ApprovalRequest[]).map((r) => ({
+    ...r,
+    requesterName: nameById.get(r.requester_id) ?? 'Unknown',
+    decisions: decisionsByRequest.get(r.id) ?? []
+  }));
 }

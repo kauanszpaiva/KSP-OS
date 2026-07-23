@@ -1,14 +1,18 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getAuthContext, canManageOutcomes, type AuthContext } from '@ksp/auth';
+import { getAuthContext, canManageOutcomes, isExecutive, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
 import { canPerform } from '@ksp/permissions';
 import {
   createCommitmentSchema,
+  createDecisionRequestSchema,
   createOutcomeSchema,
+  createSignalSchema,
   decideCompletionSchema,
+  recordDecisionSchema,
   submitProofSchema,
+  triageSignalSchema,
   updateProgressSchema
 } from '@ksp/validation';
 import { getServerSupabase } from '../../lib/supabase';
@@ -319,5 +323,167 @@ export async function decideCompletion(_prev: ActionResult, form: FormData): Pro
   revalidatePath('/commitments');
   revalidatePath('/focus');
   revalidatePath('/pulse');
+  return { ok: true };
+}
+
+/* --------------------------------------------------------------- Phase C2 -- */
+
+export async function createSignal(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createSignalSchema.safeParse({
+    itemType: form.get('itemType'),
+    title: form.get('title'),
+    body: form.get('body') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('inbox_items')
+    .insert({
+      organization_id: ctx.organizationId,
+      created_by: ctx.user.id,
+      item_type: parsed.data.itemType,
+      title: parsed.data.title,
+      body: parsed.data.body || null
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not capture signal.' };
+
+  await record(supabase, ctx, 'signal.captured', 'inbox_items', data.id, `Signal: ${parsed.data.title}`);
+  revalidatePath('/signals');
+  return { ok: true };
+}
+
+export async function triageSignal(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = triageSignalSchema.safeParse({
+    id: form.get('id'),
+    triageStatus: form.get('triageStatus')
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase
+    .from('inbox_items')
+    .update({ triage_status: parsed.data.triageStatus })
+    .eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the signal (check your access).' };
+
+  await record(supabase, ctx, 'signal.triaged', 'inbox_items', parsed.data.id, `Signal moved to ${parsed.data.triageStatus}`);
+  revalidatePath('/signals');
+  return { ok: true };
+}
+
+export async function convertSignalToCommitment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const signalId = String(form.get('signalId') ?? '');
+  const title = String(form.get('title') ?? '').trim();
+  if (!signalId || title.length < 3) return { ok: false, error: 'A commitment title is required.' };
+
+  const { error, data } = await supabase
+    .from('commitments')
+    .insert({
+      organization_id: ctx.organizationId,
+      title,
+      outcome_statement: title,
+      owner_id: ctx.user.id,
+      next_action_date: new Date().toISOString().slice(0, 10),
+      created_by: ctx.user.id,
+      state: 'open'
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the commitment.' };
+
+  await supabase.from('commitment_assignments').insert({
+    organization_id: ctx.organizationId,
+    commitment_id: data.id,
+    profile_id: ctx.user.id,
+    role: 'accountable',
+    assigned_by: ctx.user.id
+  });
+  await supabase
+    .from('inbox_items')
+    .update({ triage_status: 'converted', target_table: 'commitments', target_id: data.id })
+    .eq('id', signalId);
+
+  await record(supabase, ctx, 'signal.converted', 'inbox_items', signalId, `Converted to commitment: ${title}`);
+  revalidatePath('/signals');
+  revalidatePath('/commitments');
+  revalidatePath('/focus');
+  return { ok: true };
+}
+
+export async function createDecisionRequest(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createDecisionRequestSchema.safeParse({
+    approvalType: form.get('approvalType'),
+    riskLevel: form.get('riskLevel'),
+    amountMinor: form.get('amountMinor') || undefined,
+    dueAt: form.get('dueAt') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('approval_requests')
+    .insert({
+      organization_id: ctx.organizationId,
+      requester_id: ctx.user.id,
+      approval_type: parsed.data.approvalType,
+      risk_level: parsed.data.riskLevel,
+      amount_minor: parsed.data.amountMinor ?? null,
+      due_at: parsed.data.dueAt || null
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the approval request.' };
+
+  await record(supabase, ctx, 'decision.requested', 'approval_requests', data.id, `Requested decision: ${parsed.data.approvalType}`);
+  revalidatePath('/decisions');
+  return { ok: true };
+}
+
+export async function recordDecision(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can decide on approval requests.' };
+
+  const parsed = recordDecisionSchema.safeParse({
+    approvalRequestId: form.get('approvalRequestId'),
+    decision: form.get('decision'),
+    comments: form.get('comments') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('approval_decisions').insert({
+    organization_id: ctx.organizationId,
+    approval_request_id: parsed.data.approvalRequestId,
+    approver_id: ctx.user.id,
+    decision: parsed.data.decision,
+    comments: parsed.data.comments || null
+  });
+  if (error) {
+    if (error.message.includes('duplicate key') || error.message.includes('unique')) {
+      return { ok: false, error: 'You have already decided on this request.' };
+    }
+    return { ok: false, error: 'Could not record the decision — requesters cannot approve their own request.' };
+  }
+
+  await record(supabase, ctx, 'decision.recorded', 'approval_requests', parsed.data.approvalRequestId, `Decision: ${parsed.data.decision}`);
+  revalidatePath('/decisions');
   return { ok: true };
 }
