@@ -34,6 +34,21 @@ export function createServerClient(cookies: CookieAdapter): SupabaseClient | nul
 }
 
 /**
+ * User-token client for machine callers (the AI connector API). Binds a Supabase
+ * access token as the Authorization header so every query runs as that user with
+ * their RLS in force — it is NOT service-role and grants no elevated access. The
+ * caller must still resolve getAuthContext to confirm an active membership.
+ */
+export function createTokenClient(accessToken: string): SupabaseClient | null {
+  const env = readPublicEnv();
+  if (!env || !accessToken) return null;
+  return createSupabaseClient(env.url, env.anonKey, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+}
+
+/**
  * Service-role client for trusted server-side jobs only. Bypasses RLS, so it is
  * used sparingly and never in request paths that act on behalf of a user without
  * an explicit authorization check first.
