@@ -235,6 +235,7 @@ export interface Task {
   classification: 'public' | 'internal' | 'confidential' | 'restricted';
   status: RecordStatus;
   created_at: string;
+  link: string | null;
 }
 
 /* --------------------------------------------------------- Phase C4 -- */
@@ -333,4 +334,77 @@ export interface ContentItem {
   link: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+/* --------------------------------------------------------- Phase C5 -- */
+
+export interface DocumentRecord {
+  id: string;
+  organization_id: string;
+  client_id: string | null;
+  project_id: string | null;
+  title: string;
+  storage_path: string;
+  checksum: string | null;
+  classification: 'public' | 'internal' | 'confidential' | 'restricted';
+  client_visible: boolean;
+  retention_category: string | null;
+  legal_hold: boolean;
+  status: RecordStatus;
+  created_at: string;
+}
+
+export interface Subscription {
+  id: string;
+  organization_id: string;
+  vendor: string;
+  product: string;
+  owner_id: string | null;
+  cost_minor: number;
+  currency: string;
+  billing_frequency: string;
+  renewal_date: string | null;
+  auto_renewal: boolean;
+  status: RecordStatus;
+}
+
+export interface IntegrationConnection {
+  id: string;
+  organization_id: string;
+  provider: string;
+  scopes: string[];
+  token_expires_at: string | null;
+  status: RecordStatus;
+  metadata: Record<string, unknown>;
+}
+
+export interface ChartAccount {
+  id: string;
+  organization_id: string;
+  code: string;
+  name: string;
+  account_type: string;
+  status: RecordStatus;
+}
+
+export interface JournalEntry {
+  id: string;
+  organization_id: string;
+  memo: string | null;
+  status: RecordStatus;
+  posted_at: string | null;
+  reversed_entry_id: string | null;
+  created_at: string;
+}
+
+export interface JournalLine {
+  id: string;
+  organization_id: string;
+  journal_entry_id: string;
+  account_id: string;
+  debit_minor: number;
+  credit_minor: number;
+  currency: string;
+  project_id: string | null;
+  client_id: string | null;
 }

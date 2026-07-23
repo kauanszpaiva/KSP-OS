@@ -178,3 +178,31 @@ export const updateContentStatusSchema = z.object({
   id: uuid,
   status: z.enum(['idea', 'drafting', 'internal_review', 'client_review', 'approved', 'scheduled', 'published'])
 });
+
+/** Phase C5 — Knowledge (documents). Metadata only for v1 — no file upload. */
+export const createDocumentSchema = z.object({
+  title: z.string().min(2).max(200),
+  storagePath: z.string().min(1).max(500),
+  classification: z.enum(['public', 'internal', 'confidential', 'restricted']).default('confidential')
+});
+
+export const updateDocumentClassificationSchema = z.object({
+  id: uuid,
+  classification: z.enum(['public', 'internal', 'confidential', 'restricted'])
+});
+
+/** Phase C5 — Connections (integration_connections). No OAuth flow in v1. */
+export const createConnectionSchema = z.object({
+  provider: z.string().min(2).max(80),
+  scopes: z.string().max(300).optional().or(z.literal(''))
+});
+
+export const revokeConnectionSchema = z.object({
+  id: uuid
+});
+
+/** Phase C5 — Software (tasks.link, added to the existing task update flow). */
+export const updateTaskLinkSchema = z.object({
+  id: uuid,
+  link: z.string().url().max(500).optional().or(z.literal(''))
+});

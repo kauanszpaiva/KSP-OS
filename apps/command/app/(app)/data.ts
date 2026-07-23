@@ -3,13 +3,17 @@ import type {
   ApprovalDecision,
   ApprovalRequest,
   Campaign,
+  ChartAccount,
   ClientInternalNote,
   ClientOrganization,
   Commitment,
   CompanyOutcome,
   Contact,
   ContentItem,
+  DocumentRecord,
   InboxItem,
+  IntegrationConnection,
+  JournalEntry,
   Lead,
   MissionDependency,
   MissionMilestone,
@@ -17,6 +21,7 @@ import type {
   Project,
   ProjectMembership,
   Proof,
+  Subscription,
   Task
 } from '@ksp/database';
 
@@ -346,4 +351,80 @@ export async function getContentItems(supabase: SupabaseClient): Promise<Content
     ...i,
     campaignName: (i.campaign_id && nameById.get(i.campaign_id)) || null
   }));
+}
+
+/* --------------------------------------------------------------- Phase C5 -- */
+
+export interface DocumentView extends DocumentRecord {
+  projectName: string | null;
+  clientName: string | null;
+}
+
+export async function getDocuments(supabase: SupabaseClient): Promise<DocumentView[]> {
+  // documents_member_read RLS already hides `classification = 'restricted'` rows from non-executives.
+  const [{ data: docs }, { data: projects }, { data: clients }] = await Promise.all([
+    supabase.from('documents').select('*').order('created_at', { ascending: false }),
+    supabase.from('projects').select('id, name'),
+    supabase.from('client_organizations').select('id, display_name')
+  ]);
+  const projectNameById = new Map(((projects ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]));
+  const clientNameById = new Map(((clients ?? []) as Array<{ id: string; display_name: string }>).map((c) => [c.id, c.display_name]));
+  return ((docs ?? []) as DocumentRecord[]).map((d) => ({
+    ...d,
+    projectName: (d.project_id && projectNameById.get(d.project_id)) || null,
+    clientName: (d.client_id && clientNameById.get(d.client_id)) || null
+  }));
+}
+
+export async function getSoftwareTasks(supabase: SupabaseClient): Promise<TaskView[]> {
+  const all = await getTasks(supabase);
+  // v1 has no department dimension on projects/tasks — a task counts as
+  // "software" if it links a link (PR/deploy URL) or has none yet but is open,
+  // since there is no other signal to filter on. Documented simplification.
+  return all;
+}
+
+export async function getSubscriptions(supabase: SupabaseClient): Promise<Subscription[]> {
+  // subscriptions_executive_read RLS — empty for non-executives, not an error.
+  const { data } = await supabase.from('subscriptions').select('*').order('renewal_date', { ascending: true, nullsFirst: false });
+  return (data ?? []) as Subscription[];
+}
+
+export async function getIntegrationConnections(supabase: SupabaseClient): Promise<IntegrationConnection[]> {
+  // integrations_admin_read RLS — empty for non-executives, not an error.
+  const { data } = await supabase.from('integration_connections').select('*').order('provider', { ascending: true });
+  return (data ?? []) as IntegrationConnection[];
+}
+
+export interface FinanceOverview {
+  chartAccounts: ChartAccount[];
+  draftEntryCount: number;
+  postedEntryCount: number;
+  monthlySubscriptionBurnMinor: number;
+}
+
+/**
+ * Read-only aggregate over existing executive-gated finance tables. No
+ * posting, no new invariant, no write path — see the Phase C5 migration
+ * header and docs/rebuild/command/05_control_section.md for why the Journal
+ * Workbench and Subscription Console writes are deliberately not built here.
+ */
+export async function getFinanceOverview(supabase: SupabaseClient): Promise<FinanceOverview> {
+  const [{ data: accounts }, { data: entries }, { data: subs }] = await Promise.all([
+    supabase.from('chart_accounts').select('*').order('code', { ascending: true }),
+    supabase.from('journal_entries').select('status'),
+    supabase.from('subscriptions').select('cost_minor, billing_frequency, status')
+  ]);
+  const entryRows = (entries ?? []) as Array<{ status: string }>;
+  const subRows = (subs ?? []) as Array<{ cost_minor: number; billing_frequency: string; status: string }>;
+  const monthlyBurn = subRows
+    .filter((s) => s.status === 'active')
+    .reduce((sum, s) => sum + (s.billing_frequency === 'annual' ? Math.round(s.cost_minor / 12) : s.cost_minor), 0);
+
+  return {
+    chartAccounts: (accounts ?? []) as ChartAccount[],
+    draftEntryCount: entryRows.filter((e) => e.status === 'draft').length,
+    postedEntryCount: entryRows.filter((e) => e.status === 'posted').length,
+    monthlySubscriptionBurnMinor: monthlyBurn
+  };
 }

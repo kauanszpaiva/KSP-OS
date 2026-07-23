@@ -10,9 +10,11 @@ import {
   createCampaignSchema,
   createClientSchema,
   createCommitmentSchema,
+  createConnectionSchema,
   createContactSchema,
   createContentItemSchema,
   createDecisionRequestSchema,
+  createDocumentSchema,
   createLeadSchema,
   createMilestoneSchema,
   createMissionSchema,
@@ -22,15 +24,18 @@ import {
   createTaskSchema,
   decideCompletionSchema,
   recordDecisionSchema,
+  revokeConnectionSchema,
   submitProofSchema,
   toggleProductActiveSchema,
   triageSignalSchema,
   updateClientHealthSchema,
   updateContentStatusSchema,
+  updateDocumentClassificationSchema,
   updateLeadStatusSchema,
   updateMilestoneStatusSchema,
   updateMissionHealthSchema,
   updateProgressSchema,
+  updateTaskLinkSchema,
   updateTaskStatusSchema
 } from '@ksp/validation';
 import { getServerSupabase } from '../../lib/supabase';
@@ -1000,5 +1005,119 @@ export async function updateContentStatus(_prev: ActionResult, form: FormData): 
 
   await record(supabase, ctx, 'content.status_changed', 'content_items', parsed.data.id, `Content moved to ${parsed.data.status}`);
   revalidatePath('/content');
+  return { ok: true };
+}
+
+/* --------------------------------------------------------------- Phase C5 -- */
+
+export async function createDocumentRecord(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createDocumentSchema.safeParse({
+    title: form.get('title'),
+    storagePath: form.get('storagePath'),
+    classification: form.get('classification') || undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('documents')
+    .insert({
+      organization_id: ctx.organizationId,
+      title: parsed.data.title,
+      storage_path: parsed.data.storagePath,
+      classification: parsed.data.classification
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not add the document.' };
+
+  await record(supabase, ctx, 'document.created', 'documents', data.id, `Document: ${parsed.data.title}`);
+  revalidatePath('/knowledge');
+  return { ok: true };
+}
+
+export async function updateDocumentClassification(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can reclassify documents.' };
+
+  const parsed = updateDocumentClassificationSchema.safeParse({ id: form.get('id'), classification: form.get('classification') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('documents').update({ classification: parsed.data.classification }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the document.' };
+
+  await record(supabase, ctx, 'document.reclassified', 'documents', parsed.data.id, `Classification set to ${parsed.data.classification}`);
+  revalidatePath('/knowledge');
+  return { ok: true };
+}
+
+export async function createConnection(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can manage connections.' };
+
+  const parsed = createConnectionSchema.safeParse({ provider: form.get('provider'), scopes: form.get('scopes') ?? undefined });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const scopes = parsed.data.scopes
+    ? parsed.data.scopes.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+  const { error, data } = await supabase
+    .from('integration_connections')
+    .insert({ organization_id: ctx.organizationId, provider: parsed.data.provider, scopes })
+    .select('id')
+    .single();
+  if (error) {
+    if (error.message.includes('duplicate key') || error.message.includes('unique')) {
+      return { ok: false, error: 'A connection for this provider already exists.' };
+    }
+    return { ok: false, error: 'Could not create the connection.' };
+  }
+
+  await record(supabase, ctx, 'connection.created', 'integration_connections', data.id, `Connection: ${parsed.data.provider}`);
+  revalidatePath('/connections');
+  return { ok: true };
+}
+
+export async function revokeConnection(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can manage connections.' };
+
+  const parsed = revokeConnectionSchema.safeParse({ id: form.get('id') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('integration_connections').update({ status: 'archived' }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not revoke the connection.' };
+
+  await record(supabase, ctx, 'connection.revoked', 'integration_connections', parsed.data.id, 'Connection revoked');
+  revalidatePath('/connections');
+  return { ok: true };
+}
+
+export async function updateTaskLink(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateTaskLinkSchema.safeParse({ id: form.get('id'), link: form.get('link') ?? undefined });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('tasks').update({ link: parsed.data.link || null }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the link (check your access).' };
+
+  await record(supabase, ctx, 'task.link_updated', 'tasks', parsed.data.id, 'Link updated');
+  revalidatePath('/software');
+  revalidatePath('/workspace');
   return { ok: true };
 }
