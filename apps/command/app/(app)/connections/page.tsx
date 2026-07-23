@@ -1,11 +1,10 @@
 import { isExecutive } from '@ksp/auth';
-import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { formatDate, isOverdue } from '../../../lib/format';
 import { getIntegrationConnections } from '../data';
-import { EmptyState, PageHeader, Panel, StatePill } from '../_components/ui';
-import { ConnectionForm, RevokeConnectionForm } from '../_components/control-forms';
+import { EmptyState, PageHeader } from '../_components/ui';
+import { ConnectionForm } from '../_components/control-forms';
+import { ConnectionsView } from '../_components/connections-view';
 
 export default async function ConnectionsPage() {
   const ctx = await requireSession();
@@ -39,34 +38,7 @@ export default async function ConnectionsPage() {
         </div>
       </details>
 
-      {connections.length === 0 ? (
-        <EmptyState icon="connections" title="No connections yet." hint="Record the first provider connection to start tracking scopes and expiry." />
-      ) : (
-        <Reveal>
-          <Panel className="divide-y divide-line">
-            {connections.map((c) => {
-              const expiring = c.token_expires_at ? isOverdue(c.token_expires_at) : false;
-              return (
-                <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-medium capitalize text-ink">{c.provider}</p>
-                    <p className="mt-0.5 truncate text-[12px] text-ink-3">
-                      {c.scopes.length > 0 ? c.scopes.join(', ') : 'No scopes recorded'}
-                      {c.token_expires_at && (
-                        <span className={expiring ? 'text-risk' : ''}> · expires {formatDate(c.token_expires_at)}</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <StatePill state={c.status} />
-                    {c.status === 'active' && <RevokeConnectionForm id={c.id} />}
-                  </div>
-                </div>
-              );
-            })}
-          </Panel>
-        </Reveal>
-      )}
+      <ConnectionsView connections={connections} />
     </div>
   );
 }
