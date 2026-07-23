@@ -139,21 +139,75 @@ export function Dot({ tone = 'neutral', className }: { tone?: Tone; className?: 
 
 const AVATAR_HUES = ['bg-brand', 'bg-accent', 'bg-good', 'bg-warn', 'bg-risk'];
 
-export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
-  const initials =
+function hueFor(name: string): string {
+  return AVATAR_HUES[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_HUES.length];
+}
+
+function initialsFor(name: string): string {
+  return (
     name
       .split(' ')
       .map((p) => p[0])
       .filter(Boolean)
       .slice(0, 2)
       .join('')
-      .toUpperCase() || '?';
-  const hue = AVATAR_HUES[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_HUES.length];
-  const dim = size === 'sm' ? 'h-7 w-7 text-[10px]' : size === 'lg' ? 'h-10 w-10 text-[13px]' : 'h-8 w-8 text-[11px]';
+      .toUpperCase() || '?'
+  );
+}
+
+const AVATAR_DIM: Record<'sm' | 'md' | 'lg', string> = {
+  sm: 'h-7 w-7 text-[10px]',
+  md: 'h-8 w-8 text-[11px]',
+  lg: 'h-10 w-10 text-[13px]'
+};
+
+/**
+ * Deterministic initial avatar. A solid brand-family hue carries the color and
+ * a top-left white sheen (`bg-gradient-to-br from-white/25`) plus a surface
+ * ring give it depth and separate it cleanly when stacked.
+ */
+export function Avatar({ name, size = 'md', title }: { name: string; size?: 'sm' | 'md' | 'lg'; title?: string }) {
+  const hue = hueFor(name);
   const onHue = hue === 'bg-accent' ? 'text-on-accent' : 'text-on-brand';
   return (
-    <span className={cx('inline-flex shrink-0 items-center justify-center rounded-full font-semibold', dim, hue, onHue)} aria-hidden>
-      {initials}
+    <span
+      className={cx(
+        'inline-flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-white/25 to-transparent font-semibold shadow-sm ring-2 ring-surface',
+        AVATAR_DIM[size],
+        hue,
+        onHue
+      )}
+      title={title ?? name}
+    >
+      {initialsFor(name)}
+    </span>
+  );
+}
+
+/** Overlapping stack of avatars with a trailing "+N" when the list overflows. */
+export function AvatarStack({ names, size = 'sm', max = 4 }: { names: string[]; size?: 'sm' | 'md' | 'lg'; max?: number }) {
+  const unique = [...new Set(names.filter(Boolean))];
+  if (unique.length === 0) return null;
+  const shown = unique.slice(0, max);
+  const extra = unique.length - shown.length;
+  return (
+    <span className="inline-flex items-center -space-x-2">
+      {shown.map((name, i) => (
+        <span key={`${name}-${i}`} className="relative" style={{ zIndex: shown.length - i }}>
+          <Avatar name={name} size={size} />
+        </span>
+      ))}
+      {extra > 0 && (
+        <span
+          className={cx(
+            'inline-flex shrink-0 items-center justify-center rounded-full bg-surface-2 font-semibold text-ink-3 ring-2 ring-surface',
+            AVATAR_DIM[size]
+          )}
+          title={unique.slice(max).join(', ')}
+        >
+          +{extra}
+        </span>
+      )}
     </span>
   );
 }

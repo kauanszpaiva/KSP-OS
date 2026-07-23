@@ -81,11 +81,23 @@ function GanttView({ items, dependencies }: { items: TimelineItem[]; dependencie
     return map;
   }, [items, dependencies]);
 
+  const todayOffset = useMemo(() => {
+    const t = parseDay(new Date().toISOString().slice(0, 10)) - startDay;
+    return t >= 0 && t <= totalDays ? (t / totalDays) * 100 : null;
+  }, [startDay, totalDays]);
+
   let lastGroup: string | undefined;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-      <div style={{ minWidth: `${Math.max(totalDays * 10, 640)}px` }}>
+      <div className="relative" style={{ minWidth: `${Math.max(totalDays * 10, 640)}px` }}>
+        {todayOffset !== null && (
+          <span className="pointer-events-none absolute bottom-0 top-8 z-10 w-px bg-brand/40" style={{ left: `${todayOffset}%` }} aria-hidden>
+            <span className="absolute -top-[7px] left-1/2 -translate-x-1/2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-semibold text-on-brand">
+              Today
+            </span>
+          </span>
+        )}
         <div className="relative h-8 border-b border-line">
           {weekMarks.map((mark) => (
             <span
@@ -113,22 +125,28 @@ function GanttView({ items, dependencies }: { items: TimelineItem[]; dependencie
                     {item.groupLabel}
                   </div>
                 )}
-                <div className="relative flex h-11 items-center gap-3 border-t border-line px-3 first:border-t-0">
+                <div className="relative flex h-11 items-center gap-3 border-t border-line px-3 transition-colors duration-fast first:border-t-0 hover:bg-surface-2/60">
                   <div className="w-40 shrink-0 truncate text-[12.5px] text-ink-2 sm:w-56">
                     <span className="font-medium text-ink">{item.title}</span>
                     <span className="text-ink-4"> · {item.subtitle}</span>
-                    {waitsOn && waitsOn.length > 0 && <span className="block truncate text-[10.5px] text-ink-4">⛓ waits on {waitsOn.join(', ')}</span>}
+                    {waitsOn && waitsOn.length > 0 && (
+                      <span className="mt-0.5 flex items-center gap-1">
+                        <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-ink-3">
+                          ⛓ {waitsOn.join(', ')}
+                        </span>
+                      </span>
+                    )}
                   </div>
                   <div className="relative h-5 flex-1">
                     {hasRange ? (
                       <span
-                        className={`absolute top-1/2 -translate-y-1/2 rounded-full ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/40' : ''} h-3 opacity-80`}
+                        className={`absolute top-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-white/25 to-transparent shadow-sm ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/40' : ''} h-3.5`}
                         style={{ left: `${(startDayOffset / totalDays) * 100}%`, width: `${Math.max(((endDay - startDayOffset) / totalDays) * 100, 1.2)}%` }}
                         title={`${item.title} — ${formatDate(item.start ?? null)} → ${formatDate(item.end)}`}
                       />
                     ) : (
                       <span
-                        className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/40' : ''} h-2.5 w-2.5`}
+                        className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-white/30 to-transparent shadow-sm ring-2 ring-surface ${stateToneDotClass(item.state)} ${overdue ? 'ring-risk/50' : ''} h-3 w-3`}
                         style={{ left: `${(endDay / totalDays) * 100}%` }}
                         title={`${item.title} — ${formatDate(item.end)}`}
                       />

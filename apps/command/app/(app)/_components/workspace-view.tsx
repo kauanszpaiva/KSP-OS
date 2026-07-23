@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Reveal, Segmented } from '@ksp/ui';
+import { Avatar, AvatarStack, Reveal, Segmented } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
 import type { CommentView, MemberRef, TaskView } from '../data';
 import { updateTaskStatus } from '../actions';
@@ -17,17 +17,21 @@ function TaskRow({ task, members, comments }: { task: TaskView; members: MemberR
   return (
     <details className="group border-t border-line transition-colors duration-fast first:border-t-0 hover:bg-surface-2/60 open:bg-canvas/60">
       <summary className="flex flex-wrap cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-medium text-ink">{task.title}</p>
-          <p className="mt-0.5 text-[12px] text-ink-3">
-            {task.ownerName}
-            {task.projectName ? ` · ${task.projectName}` : ''}
-            {task.due_date && <span className={overdue ? 'text-risk' : ''}> · due {formatDate(task.due_date)}</span>}
-            {task.blocked && <span className="text-risk"> · blocked</span>}
-            {comments.length > 0 && <span> · {comments.length} comment{comments.length === 1 ? '' : 's'}</span>}
-          </p>
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Avatar name={task.ownerName} size="sm" />
+          <div className="min-w-0">
+            <p className="truncate text-[14px] font-medium text-ink">{task.title}</p>
+            <p className="mt-0.5 text-[12px] text-ink-3">
+              {task.ownerName}
+              {task.projectName ? ` · ${task.projectName}` : ''}
+              {task.due_date && <span className={overdue ? 'text-risk' : ''}> · due {formatDate(task.due_date)}</span>}
+              {task.blocked && <span className="text-risk"> · blocked</span>}
+              {comments.length > 0 && <span> · {comments.length} comment{comments.length === 1 ? '' : 's'}</span>}
+            </p>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-2">
+          {comments.length > 0 && <AvatarStack names={[task.ownerName, ...comments.map((c) => c.authorName)]} size="sm" />}
           <TaskStatusForm id={task.id} blocked={task.blocked} />
           <CompleteTaskForm id={task.id} />
         </div>
@@ -139,11 +143,14 @@ function BoardViewForWorkspace({ tasks, commentsByTask }: { tasks: TaskView[]; c
         return (
           <div className="space-y-2">
             <p className="truncate text-[13px] font-medium text-ink">{task.title}</p>
-            <p className="truncate text-[11px] text-ink-3">
-              {task.ownerName}
-              {task.projectName ? ` · ${task.projectName}` : ''}
-              {comments.length > 0 && ` · ${comments.length} comment${comments.length === 1 ? '' : 's'}`}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <Avatar name={task.ownerName} size="sm" />
+              <p className="min-w-0 truncate text-[11px] text-ink-3">
+                {task.ownerName}
+                {task.projectName ? ` · ${task.projectName}` : ''}
+                {comments.length > 0 && ` · ${comments.length} comment${comments.length === 1 ? '' : 's'}`}
+              </p>
+            </div>
             {task.due_date && (
               <p className={`tnum text-[11px] ${overdue ? 'font-medium text-risk' : 'text-ink-4'}`}>due {formatDate(task.due_date)}</p>
             )}
