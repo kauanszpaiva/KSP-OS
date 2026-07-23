@@ -250,7 +250,7 @@ Confirmed per §4: `packages/ui/src/index.tsx`'s re-export surface (`icons, prim
 
 ## 26. Secret-management patterns
 
-`scripts/check-secrets.mjs` (6 lines): scans every `.ts|.tsx|.js|.mjs|.json|.md|.sql|.env|.yml|.yaml` file (excluding `.git`/`node_modules`/`.next`) against three patterns — `/service_role[a-z0-9_\-]*\s*=\s*['"][^'"]+/i`, `/sb_secret_[a-z0-9_\-]+/i`, `/SUPABASE_SERVICE_ROLE_KEY=.+/` — exits 1 listing offenders. Wired as `security:secrets` and run in CI.
+`scripts/check-secrets.mjs` (6 lines): scans every `.ts|.tsx|.js|.mjs|.json|.md|.sql|.env|.yml|.yaml` file (excluding `.git`/`node_modules`/`.next`) against three regexes targeting an assigned `service_role`-style key, an `sb_secret_`-prefixed token, and a populated Supabase service-role-key environment assignment — exits 1 listing offenders. Wired as `security:secrets` and run in CI. (Deliberately not reproduced verbatim here: the third pattern matches its own literal text, which would make this very sentence trip the scanner it's describing — see `scripts/check-secrets.mjs` directly for the exact regex source.)
 
 Governance rules (quoted verbatim — see §28 for the full excerpt) already establish "no secrets in repository, logs, prompts, fixtures, comments, screenshots, or docs" as a non-negotiable rule this Activity Hub plan must also respect.
 
