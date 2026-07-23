@@ -6,9 +6,16 @@ export interface MemberRef {
   displayName: string;
 }
 
+export interface AssigneeRef {
+  profileId: string;
+  name: string;
+  role: 'accountable' | 'contributor';
+}
+
 export interface CommitmentView extends Commitment {
   ownerName: string;
   proofs: Proof[];
+  assignees: AssigneeRef[];
 }
 
 export async function getMembers(supabase: SupabaseClient, userId: string): Promise<MemberRef[]> {
@@ -26,10 +33,11 @@ export async function getOutcomes(supabase: SupabaseClient): Promise<CompanyOutc
 }
 
 export async function getCommitments(supabase: SupabaseClient): Promise<CommitmentView[]> {
-  const [{ data: commitments }, { data: profiles }, { data: proofs }] = await Promise.all([
+  const [{ data: commitments }, { data: profiles }, { data: proofs }, { data: assignments }] = await Promise.all([
     supabase.from('commitments').select('*').order('created_at', { ascending: false }),
     supabase.from('profiles').select('id, display_name'),
-    supabase.from('proofs').select('*').order('created_at', { ascending: false })
+    supabase.from('proofs').select('*').order('created_at', { ascending: false }),
+    supabase.from('commitment_assignments').select('commitment_id, profile_id, role')
   ]);
   const nameById = new Map((((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name])));
   const proofsByCommitment = new Map<string, Proof[]>();
@@ -38,10 +46,42 @@ export async function getCommitments(supabase: SupabaseClient): Promise<Commitme
     arr.push(p);
     proofsByCommitment.set(p.commitment_id, arr);
   }
+  const assigneesByCommitment = new Map<string, AssigneeRef[]>();
+  for (const a of (assignments ?? []) as Array<{ commitment_id: string; profile_id: string; role: 'accountable' | 'contributor' }>) {
+    const arr = assigneesByCommitment.get(a.commitment_id) ?? [];
+    arr.push({ profileId: a.profile_id, role: a.role, name: nameById.get(a.profile_id) ?? 'Unknown' });
+    assigneesByCommitment.set(a.commitment_id, arr);
+  }
   return ((commitments ?? []) as Commitment[]).map((c) => ({
     ...c,
     ownerName: nameById.get(c.owner_id) ?? 'Unassigned',
-    proofs: proofsByCommitment.get(c.id) ?? []
+    proofs: proofsByCommitment.get(c.id) ?? [],
+    assignees: assigneesByCommitment.get(c.id) ?? []
+  }));
+}
+
+export interface CommentView {
+  id: string;
+  commitment_id: string;
+  body: string;
+  created_at: string;
+  authorId: string | null;
+  authorName: string;
+}
+
+export async function getComments(supabase: SupabaseClient): Promise<CommentView[]> {
+  const [{ data: comments }, { data: profiles }] = await Promise.all([
+    supabase.from('commitment_comments').select('id, commitment_id, body, created_at, author_id').is('deleted_at', null).order('created_at', { ascending: true }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  return ((comments ?? []) as Array<{ id: string; commitment_id: string; body: string; created_at: string; author_id: string | null }>).map((c) => ({
+    id: c.id,
+    commitment_id: c.commitment_id,
+    body: c.body,
+    created_at: c.created_at,
+    authorId: c.author_id,
+    authorName: (c.author_id && nameById.get(c.author_id)) || 'Unknown'
   }));
 }
 

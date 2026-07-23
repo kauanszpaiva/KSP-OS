@@ -52,5 +52,51 @@ export const decideCompletionSchema = z.object({
   comment: z.string().max(1000).optional().or(z.literal(''))
 });
 
+// --- Workspace multi-view actions ------------------------------------------
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/** Board drag-and-drop: only the freely-transitionable working states. States
+ * proof_submitted/completed are gated by DB triggers and never set from here. */
+export const updateCommitmentStateSchema = z.object({
+  commitmentId: uuid,
+  state: z.enum(['open', 'in_progress', 'blocked'])
+});
+
+/** Inline spreadsheet edits. One field per call, typed by the field name.
+ * expectedUpdatedAt powers optimistic-concurrency conflict detection. */
+export const updateCommitmentFieldSchema = z.discriminatedUnion('field', [
+  z.object({ field: z.literal('title'), commitmentId: uuid, expectedUpdatedAt: z.string().optional(), value: z.string().min(3).max(160) }),
+  z.object({ field: z.literal('outcomeStatement'), commitmentId: uuid, expectedUpdatedAt: z.string().optional(), value: z.string().min(3).max(500) }),
+  z.object({ field: z.literal('progress'), commitmentId: uuid, expectedUpdatedAt: z.string().optional(), value: z.coerce.number().int().min(0).max(100) }),
+  z.object({ field: z.literal('state'), commitmentId: uuid, expectedUpdatedAt: z.string().optional(), value: z.enum(['open', 'in_progress', 'blocked']) }),
+  z.object({ field: z.literal('dueDate'), commitmentId: uuid, expectedUpdatedAt: z.string().optional(), value: isoDate.or(z.literal('')) }),
+  z.object({ field: z.literal('nextActionDate'), commitmentId: uuid, expectedUpdatedAt: z.string().optional(), value: isoDate.or(z.literal('')) }),
+  z.object({ field: z.literal('outcomeId'), commitmentId: uuid, expectedUpdatedAt: z.string().optional(), value: uuid.or(z.literal('')) })
+]);
+
+/** Assignee management. Executive-only at the RLS layer. */
+export const setAssigneeSchema = z.object({
+  commitmentId: uuid,
+  profileId: uuid,
+  role: z.enum(['accountable', 'contributor']).default('contributor')
+});
+
+export const removeAssigneeSchema = z.object({
+  commitmentId: uuid,
+  profileId: uuid
+});
+
+/** Per-commitment discussion thread (the internal chat surface). */
+export const addCommentSchema = z.object({
+  commitmentId: uuid,
+  body: z.string().min(1).max(2000)
+});
+
+export const deleteCommentSchema = z.object({
+  commentId: uuid
+});
+
 export type CreateOutcomeInput = z.infer<typeof createOutcomeSchema>;
 export type CreateCommitmentInput = z.infer<typeof createCommitmentSchema>;
+export type UpdateCommitmentFieldInput = z.infer<typeof updateCommitmentFieldSchema>;
