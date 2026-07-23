@@ -34,9 +34,11 @@ import {
   updateClientHealthSchema,
   updateContentStatusSchema,
   updateDocumentClassificationSchema,
+  updateClientSchema,
   updateLeadStatusSchema,
   updateMilestoneStatusSchema,
   updateMissionHealthSchema,
+  updateMissionSchema,
   updateProgressSchema,
   updateTaskLinkSchema,
   updateTaskStatusSchema
@@ -638,6 +640,40 @@ export async function updateMissionHealth(_prev: ActionResult, form: FormData): 
   return { ok: true };
 }
 
+export async function updateMission(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const decision = canPerform(ctx.membership, 'project.manage', { organizationId: ctx.organizationId, classification: 'internal' });
+  if (!decision.allowed) return { ok: false, error: 'You are not permitted to edit missions.' };
+
+  const parsed = updateMissionSchema.safeParse({
+    id: form.get('id'),
+    name: form.get('name') ?? undefined,
+    projectType: form.get('projectType') ?? undefined,
+    nextAction: form.get('nextAction') ?? undefined,
+    clientId: form.get('clientId') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+  if (parsed.data.projectType !== undefined) patch.project_type = parsed.data.projectType;
+  if (parsed.data.nextAction !== undefined) patch.next_action = parsed.data.nextAction || null;
+  // Empty string clears the link; a uuid sets it; `undefined` leaves it untouched.
+  if (parsed.data.clientId !== undefined) patch.client_id = parsed.data.clientId || null;
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await supabase.from('projects').update(patch).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the mission (check your access).' };
+
+  await record(supabase, ctx, 'mission.updated', 'projects', parsed.data.id, `Updated mission details`);
+  revalidatePath('/missions');
+  revalidatePath('/workspace');
+  return { ok: true };
+}
+
 export async function createMilestone(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const gate = await authed();
   if ('error' in gate) return { ok: false, error: gate.error };
@@ -903,6 +939,31 @@ export async function updateClientHealth(_prev: ActionResult, form: FormData): P
   if (error) return { ok: false, error: 'Could not update the client (check your access).' };
 
   await record(supabase, ctx, 'client.health_changed', 'client_organizations', parsed.data.id, `Health set to ${parsed.data.relationshipHealth}`);
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function updateClient(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateClientSchema.safeParse({
+    id: form.get('id'),
+    legalName: form.get('legalName') ?? undefined,
+    displayName: form.get('displayName') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.legalName !== undefined) patch.legal_name = parsed.data.legalName;
+  if (parsed.data.displayName !== undefined) patch.display_name = parsed.data.displayName;
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await supabase.from('client_organizations').update(patch).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the client (check your access).' };
+
+  await record(supabase, ctx, 'client.updated', 'client_organizations', parsed.data.id, `Updated client details`);
   revalidatePath('/clients');
   return { ok: true };
 }

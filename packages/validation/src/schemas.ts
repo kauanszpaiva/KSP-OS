@@ -64,6 +64,19 @@ export const updateMissionHealthSchema = z.object({
   nextAction: z.string().max(300).optional().or(z.literal(''))
 });
 
+/**
+ * Edit a mission's core fields. Every field except `id` is optional so the
+ * form can send only what changed; `clientId` accepts the empty string to
+ * explicitly clear the client link (unlink), distinct from "not provided".
+ */
+export const updateMissionSchema = z.object({
+  id: uuid,
+  name: z.string().min(2).max(160).optional(),
+  projectType: z.string().min(1).max(80).optional(),
+  nextAction: z.string().max(300).optional().or(z.literal('')),
+  clientId: uuid.optional().or(z.literal(''))
+});
+
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const createMilestoneSchema = z
@@ -155,6 +168,13 @@ export const createClientSchema = z.object({
 export const updateClientHealthSchema = z.object({
   id: uuid,
   relationshipHealth: z.enum(['unknown', 'healthy', 'watch', 'at_risk'])
+});
+
+/** Edit a client's names. Optional fields so the form only sends what changed. */
+export const updateClientSchema = z.object({
+  id: uuid,
+  legalName: z.string().min(2).max(200).optional(),
+  displayName: z.string().min(2).max(160).optional()
 });
 
 export const createContactSchema = z.object({

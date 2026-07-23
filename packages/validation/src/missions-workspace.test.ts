@@ -7,6 +7,7 @@ import {
   reassignTaskSchema,
   updateMilestoneStatusSchema,
   updateMissionHealthSchema,
+  updateMissionSchema,
   updateTaskStatusSchema
 } from './schemas';
 
@@ -32,6 +33,30 @@ describe('updateMissionHealthSchema', () => {
 
   it('rejects an invalid health value', () => {
     expect(updateMissionHealthSchema.safeParse({ id: uuidA, health: 'great' }).success).toBe(false);
+  });
+});
+
+describe('updateMissionSchema', () => {
+  it('accepts an id-only patch (nothing changed)', () => {
+    expect(updateMissionSchema.safeParse({ id: uuidA }).success).toBe(true);
+  });
+
+  it('accepts a full edit including a client link', () => {
+    expect(
+      updateMissionSchema.safeParse({ id: uuidA, name: 'Rebrand', projectType: 'campaign', nextAction: 'Kickoff', clientId: uuidB }).success
+    ).toBe(true);
+  });
+
+  it('accepts an empty clientId to unlink the client', () => {
+    expect(updateMissionSchema.safeParse({ id: uuidA, clientId: '' }).success).toBe(true);
+  });
+
+  it('rejects a non-uuid clientId', () => {
+    expect(updateMissionSchema.safeParse({ id: uuidA, clientId: 'acme' }).success).toBe(false);
+  });
+
+  it('rejects a name that is too short', () => {
+    expect(updateMissionSchema.safeParse({ id: uuidA, name: 'A' }).success).toBe(false);
   });
 });
 
