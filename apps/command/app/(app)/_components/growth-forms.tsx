@@ -10,6 +10,7 @@ import {
   createLead,
   createProduct,
   toggleProductActive,
+  updateClient,
   updateClientHealth,
   updateContentStatus,
   updateLeadStatus,
@@ -93,6 +94,27 @@ export function ClientForm() {
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
         {pending ? 'Creating…' : 'Create client'}
+      </button>
+    </form>
+  );
+}
+
+export function ClientEditForm({ id, legalName, displayName }: { id: string; legalName: string; displayName: string }) {
+  const [state, action, pending] = useActionState(updateClient, initial);
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="id" value={id} />
+      <div>
+        <label className={label} htmlFor={`ce-legal-${id}`}>Legal name</label>
+        <input id={`ce-legal-${id}`} name="legalName" className={field} defaultValue={legalName} required />
+      </div>
+      <div>
+        <label className={label} htmlFor={`ce-display-${id}`}>Display name</label>
+        <input id={`ce-display-${id}`} name="displayName" className={field} defaultValue={displayName} required />
+      </div>
+      <FormError state={state} />
+      <button type="submit" className={primaryBtn} disabled={pending}>
+        {pending ? 'Saving…' : 'Save changes'}
       </button>
     </form>
   );

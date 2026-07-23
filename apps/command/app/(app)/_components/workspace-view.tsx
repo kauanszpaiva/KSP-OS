@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Reveal, Segmented } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
 import type { CommentView, MemberRef, TaskView } from '../data';
+import { updateTaskStatus } from '../actions';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { Board, type BoardColumn } from './board-view';
 import { CalendarView, type CalendarItem } from './calendar-view';
@@ -101,15 +103,36 @@ function ListView({
  * behavior.
  */
 function BoardViewForWorkspace({ tasks, commentsByTask }: { tasks: TaskView[]; commentsByTask: Map<string, CommentView[]> }) {
+  const router = useRouter();
   const columns: BoardColumn<TaskView>[] = [
     { value: 'blocked', label: 'Blocked', items: tasks.filter((t) => t.status === 'active' && t.blocked) },
     { value: 'open', label: 'Open', items: tasks.filter((t) => t.status === 'active' && !t.blocked) },
     { value: 'done', label: 'Done', items: tasks.filter((t) => t.status !== 'active') }
   ];
 
+  // Dragging a card to a column maps to the same task mutation the inline
+  // controls use (mark done / block / unblock), then refreshes the server
+  // components so RLS-scoped data re-renders. A same-column drop never fires.
+  async function moveTask(task: TaskView, toColumn: string) {
+    const fd = new FormData();
+    fd.set('id', task.id);
+    if (toColumn === 'done') {
+      fd.set('status', 'archived');
+    } else if (toColumn === 'blocked') {
+      fd.set('status', 'active');
+      fd.set('blocked', 'true');
+    } else {
+      fd.set('status', 'active');
+      fd.set('blocked', 'false');
+    }
+    await updateTaskStatus({ ok: false }, fd);
+    router.refresh();
+  }
+
   return (
     <Board
       columns={columns}
+      onDropItem={moveTask}
       renderCard={(task) => {
         const overdue = isOverdue(task.due_date);
         const comments = commentsByTask.get(task.id) ?? [];
