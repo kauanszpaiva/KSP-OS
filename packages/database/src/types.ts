@@ -317,6 +317,63 @@ export interface ClientInternalNote {
   created_at: string;
 }
 
+export type PublicationState = 'internal_draft' | 'internal_review' | 'approved_for_client' | 'published_to_client' | 'withdrawn' | 'archived';
+
+export interface ClientPublication {
+  id: string;
+  organization_id: string;
+  client_organization_id: string;
+  project_id: string | null;
+  source_table: string;
+  source_id: string;
+  title: string;
+  summary: string;
+  state: PublicationState;
+  published_at: string | null;
+  published_by: string | null;
+  version_hash: string | null;
+  created_at: string;
+}
+
+export interface ClientUpdate {
+  id: string;
+  organization_id: string;
+  publication_id: string;
+  body: string;
+  created_at: string;
+}
+
+export type ClientRequestStatus =
+  | 'submitted'
+  | 'received'
+  | 'under_triage'
+  | 'needs_client_information'
+  | 'under_evaluation'
+  | 'estimate_in_preparation'
+  | 'awaiting_client_approval'
+  | 'approved'
+  | 'scheduled'
+  | 'in_progress'
+  | 'client_review'
+  | 'completed'
+  | 'rejected'
+  | 'canceled'
+  | 'converted_to_change_order';
+
+export interface ClientRequest {
+  id: string;
+  organization_id: string;
+  client_organization_id: string;
+  project_id: string | null;
+  submitted_by: string;
+  title: string;
+  body: string;
+  status: ClientRequestStatus;
+  evidence: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Product {
   id: string;
   organization_id: string;
