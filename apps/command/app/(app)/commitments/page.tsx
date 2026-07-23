@@ -1,5 +1,6 @@
 import { isExecutive } from '@ksp/auth';
 import { canPerform } from '@ksp/permissions';
+import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate, isOverdue } from '../../../lib/format';
@@ -13,7 +14,7 @@ function Row({ c, canOperate, canDecide }: { c: CommitmentView; canOperate: bool
   const acceptedProof = c.proofs.find((p) => p.accepted_at);
   const dateLabel = c.due_date ? formatDate(c.due_date) : c.next_action_date ? formatDate(c.next_action_date) : '—';
   return (
-    <details className="group border-t border-line first:border-t-0 open:bg-canvas/60">
+    <details className="group border-t border-line transition-colors duration-fast first:border-t-0 hover:bg-surface-2/60 open:bg-canvas/60">
       <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden md:grid-cols-[1fr_140px_90px_112px]">
         <div className="min-w-0">
           <p className="truncate text-[14px] font-medium text-ink">{c.title}</p>
@@ -69,10 +70,24 @@ function Row({ c, canOperate, canDecide }: { c: CommitmentView; canOperate: bool
   );
 }
 
-function Group({ title, items, canDecideAll, userId, exec }: { title: string; items: CommitmentView[]; canDecideAll: boolean; userId: string; exec: boolean }) {
+function Group({
+  title,
+  items,
+  canDecideAll,
+  userId,
+  exec,
+  delay
+}: {
+  title: string;
+  items: CommitmentView[];
+  canDecideAll: boolean;
+  userId: string;
+  exec: boolean;
+  delay: number;
+}) {
   if (items.length === 0) return null;
   return (
-    <div>
+    <Reveal delay={delay}>
       <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{items.length}</span>}>{title}</SectionLabel>
       <Panel>
         <div className="hidden grid-cols-[1fr_140px_90px_112px] gap-4 border-b border-line px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-4 md:grid">
@@ -85,7 +100,7 @@ function Group({ title, items, canDecideAll, userId, exec }: { title: string; it
           <Row key={c.id} c={c} canOperate={exec || c.owner_id === userId} canDecide={canDecideAll} />
         ))}
       </Panel>
-    </div>
+    </Reveal>
   );
 }
 
@@ -112,23 +127,27 @@ export default async function CommitmentsPage() {
       />
 
       {canCreate && (
-        <details className="mb-6 rounded-lg border border-line bg-surface">
-          <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-brand marker:hidden [&::-webkit-details-marker]:hidden">
+        <details className="mb-6 rounded-xl border border-line bg-surface shadow-card">
+          <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
             + New commitment
           </summary>
-          <div className="border-t border-line p-4">
+          <div className="animate-fade-slide-up border-t border-line p-4">
             <CommitmentForm members={members} outcomes={outcomes.map((o) => ({ id: o.id, title: o.title }))} />
           </div>
         </details>
       )}
 
       {commitments.length === 0 ? (
-        <EmptyState title="No commitments yet." hint={canCreate ? 'Create one and assign an accountable owner.' : 'Commitments assigned to you will appear here and in Focus.'} />
+        <EmptyState
+          icon="commitments"
+          title="No commitments yet."
+          hint={canCreate ? 'Create one and assign an accountable owner.' : 'Commitments assigned to you will appear here and in Focus.'}
+        />
       ) : (
         <div className="space-y-8">
-          <Group title="In review" items={review} canDecideAll={exec} userId={ctx.user.id} exec={exec} />
-          <Group title="Active" items={activeWork} canDecideAll={exec} userId={ctx.user.id} exec={exec} />
-          <Group title="Closed" items={closed} canDecideAll={exec} userId={ctx.user.id} exec={exec} />
+          <Group title="In review" items={review} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={0} />
+          <Group title="Active" items={activeWork} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={60} />
+          <Group title="Closed" items={closed} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={120} />
         </div>
       )}
     </div>
