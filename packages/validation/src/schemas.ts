@@ -102,6 +102,12 @@ export const updateTaskStatusSchema = z.object({
   blocked: booleanString.optional()
 });
 
+/** Phase C3.6 — Task reassignment (a single owner_id, matching the existing tasks schema shape). */
+export const reassignTaskSchema = z.object({
+  id: uuid,
+  ownerId: uuid
+});
+
 /** Phase C4 — Revenue (leads). */
 export const createLeadSchema = z
   .object({
