@@ -267,6 +267,35 @@ export interface ClientOrganization {
   archived_at: string | null;
 }
 
+export type ClientRole = 'client_owner' | 'client_project_approver' | 'client_billing_contact' | 'client_collaborator' | 'client_viewer';
+
+export interface ClientMembership {
+  id: string;
+  organization_id: string;
+  client_organization_id: string;
+  profile_id: string;
+  role: ClientRole;
+  effective_from: string;
+  effective_until: string | null;
+  suspended_at: string | null;
+  created_at: string;
+}
+
+export interface PortalInvitation {
+  id: string;
+  organization_id: string;
+  client_organization_id: string;
+  email: string;
+  initial_role: ClientRole;
+  invited_by: string;
+  token_hash: string;
+  expires_at: string;
+  revoked_at: string | null;
+  accepted_by: string | null;
+  accepted_at: string | null;
+  created_at: string;
+}
+
 export interface Contact {
   id: string;
   organization_id: string;

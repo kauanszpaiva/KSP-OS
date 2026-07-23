@@ -220,3 +220,9 @@ export const postCommentSchema = z.object({
 });
 
 /** Phase C6 — Quick capture reuses createSignalSchema (Phase C2) as-is. */
+
+/** Phase P0 — Portal invitation accept. Token is the raw value from the
+ * invite link; the server hashes it before comparing to token_hash. */
+export const acceptPortalInvitationSchema = z.object({
+  token: z.string().min(16).max(256)
+});
