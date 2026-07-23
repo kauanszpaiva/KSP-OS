@@ -1,0 +1,243 @@
+{
+  "plan_name": "KSP Project Activity Hub",
+  "status": "planning_complete_conditionally_ready",
+  "last_updated": "2026-07-23",
+  "branch": "plan/ksp-project-activity-hub",
+  "readiness_gate": "CONDITIONALLY_READY",
+  "readiness_gate_source": "12_OPEN_QUESTIONS_AND_DECISIONS.md",
+  "notes": "Planning-only deliverable. No production code, migrations, dependencies, or provider integrations were created. All ADRs are Proposed, none Accepted, pending Kauan's review of docs/project-activity-hub/12_OPEN_QUESTIONS_AND_DECISIONS.md.",
+  "documents": [
+    {
+      "file": "00_CURRENT_SYSTEM_AUDIT.md",
+      "purpose": "Full audit of the existing KSP OS repo relevant to the Activity Hub: schema, auth, RLS, existing audit-log infra, webhooks/queues (none), observability, tests.",
+      "status": "complete",
+      "evidence_dependencies": ["repo-audit research agent"],
+      "decisions_required": [],
+      "implementation_phase": null
+    },
+    {
+      "file": "01_INTEGRATION_CAPABILITY_MATRIX.md",
+      "purpose": "Per-provider (GitHub, Vercel, Supabase, Claude Code/API, Codex/OpenAI/MCP) capability tables with auth method, events, rate limits, retention, stability, confidence, and fallback.",
+      "status": "complete",
+      "evidence_dependencies": ["GitHub+Vercel research agent", "Supabase research agent", "Claude Code/API research agent (claude-code-guide)", "Codex/OpenAI/MCP research agent"],
+      "decisions_required": ["D2", "D3", "D4"],
+      "implementation_phase": null
+    },
+    {
+      "file": "02_PRODUCT_SCOPE.md",
+      "purpose": "Primary/secondary users mapped to KSP's real role model, user journeys, non-goals, MVP boundaries, success/failure criteria.",
+      "status": "complete",
+      "evidence_dependencies": ["00_CURRENT_SYSTEM_AUDIT.md"],
+      "decisions_required": [],
+      "implementation_phase": null
+    },
+    {
+      "file": "03_CORRELATION_AND_PROVENANCE.md",
+      "purpose": "Raw-delivery vs. normalized-event distinction, 23-family event taxonomy, actor-identity resolution, 3-level correlation engine.",
+      "status": "complete",
+      "evidence_dependencies": ["00_CURRENT_SYSTEM_AUDIT.md", "01_INTEGRATION_CAPABILITY_MATRIX.md"],
+      "decisions_required": ["D8", "D10"],
+      "implementation_phase": null
+    },
+    {
+      "file": "04_DATA_MODEL.md",
+      "purpose": "Conceptual data model (14 tables, Mermaid ERD), explicit reuse-vs-new-table calls for every proposed concept.",
+      "status": "complete",
+      "evidence_dependencies": ["00_CURRENT_SYSTEM_AUDIT.md", "03_CORRELATION_AND_PROVENANCE.md"],
+      "decisions_required": [],
+      "implementation_phase": null
+    },
+    {
+      "file": "05_SYSTEM_ARCHITECTURE.md",
+      "purpose": "Ingestion pipeline, queue/job-processor recommendation and fallback, 7 Mermaid diagrams, reliability/failure-handling design.",
+      "status": "complete",
+      "evidence_dependencies": ["00_CURRENT_SYSTEM_AUDIT.md", "01_INTEGRATION_CAPABILITY_MATRIX.md", "04_DATA_MODEL.md"],
+      "decisions_required": ["D1"],
+      "implementation_phase": "Phase 0-2"
+    },
+    {
+      "file": "06_SECURITY_PRIVACY_AND_TRUST.md",
+      "purpose": "Threat table (~25 scenarios), retention matrix, prompt-injection and redaction controls.",
+      "status": "complete",
+      "evidence_dependencies": ["01_INTEGRATION_CAPABILITY_MATRIX.md", "05_SYSTEM_ARCHITECTURE.md"],
+      "decisions_required": ["D5", "D6", "D7"],
+      "implementation_phase": null
+    },
+    {
+      "file": "07_UX_INFORMATION_ARCHITECTURE.md",
+      "purpose": "Nav map reconciled against KSP OS's real nav.ts, new Mission-detail page and screen specs, evidence/completion model, reports, metrics, notifications.",
+      "status": "complete",
+      "evidence_dependencies": ["00_CURRENT_SYSTEM_AUDIT.md", "04_DATA_MODEL.md"],
+      "decisions_required": ["D16", "D20", "D21", "D22"],
+      "implementation_phase": "Phase 1-6"
+    },
+    {
+      "file": "08_TEST_AND_VERIFICATION_PLAN.md",
+      "purpose": "Unit/integration/e2e/security/performance test plan, following existing repo test-tooling conventions.",
+      "status": "complete",
+      "evidence_dependencies": ["03_CORRELATION_AND_PROVENANCE.md", "05_SYSTEM_ARCHITECTURE.md", "06_SECURITY_PRIVACY_AND_TRUST.md"],
+      "decisions_required": [],
+      "implementation_phase": null
+    },
+    {
+      "file": "09_IMPLEMENTATION_ROADMAP.md",
+      "purpose": "First vertical slice definition, Phase 0-7 roadmap, PAH-001 through PAH-020 backlog epics.",
+      "status": "complete",
+      "evidence_dependencies": ["all prior documents"],
+      "decisions_required": ["D11", "D19"],
+      "implementation_phase": "Phase 0-7"
+    },
+    {
+      "file": "10_OPERATIONS_AND_RUNBOOKS.md",
+      "purpose": "Observability metrics, structured-log fields, 12 operational runbooks.",
+      "status": "complete",
+      "evidence_dependencies": ["05_SYSTEM_ARCHITECTURE.md", "06_SECURITY_PRIVACY_AND_TRUST.md"],
+      "decisions_required": ["D17", "D18"],
+      "implementation_phase": "Phase 0+"
+    },
+    {
+      "file": "11_COST_AND_PLAN_REQUIREMENTS.md",
+      "purpose": "Cost attribution model, S/M/L scale scenarios, plan-tier gates per provider.",
+      "status": "complete",
+      "evidence_dependencies": ["01_INTEGRATION_CAPABILITY_MATRIX.md"],
+      "decisions_required": ["D12", "D13", "D14", "D15"],
+      "implementation_phase": null
+    },
+    {
+      "file": "12_OPEN_QUESTIONS_AND_DECISIONS.md",
+      "purpose": "22-item decision register plus the final readiness gate (CONDITIONALLY_READY).",
+      "status": "complete",
+      "evidence_dependencies": ["all prior documents"],
+      "decisions_required": ["D1-D22 (all)"],
+      "implementation_phase": null
+    },
+    {
+      "file": "adr/0001-github-app-vs-pat.md",
+      "purpose": "ADR: GitHub App vs. personal access token.",
+      "status": "Proposed",
+      "evidence_dependencies": ["01_INTEGRATION_CAPABILITY_MATRIX.md"],
+      "decisions_required": ["D2"],
+      "implementation_phase": "Phase 1"
+    },
+    {
+      "file": "adr/0002-webhook-first-vs-polling-first.md",
+      "purpose": "ADR: webhook-first with polling fallback ingestion strategy.",
+      "status": "Proposed",
+      "evidence_dependencies": ["01_INTEGRATION_CAPABILITY_MATRIX.md", "05_SYSTEM_ARCHITECTURE.md"],
+      "decisions_required": ["D3"],
+      "implementation_phase": "Phase 1-3"
+    },
+    {
+      "file": "adr/0003-raw-event-retention.md",
+      "purpose": "ADR: raw-delivery payload retention window.",
+      "status": "Proposed",
+      "evidence_dependencies": ["06_SECURITY_PRIVACY_AND_TRUST.md"],
+      "decisions_required": ["D5"],
+      "implementation_phase": "Phase 0"
+    },
+    {
+      "file": "adr/0004-queue-and-job-processor.md",
+      "purpose": "ADR: pgmq vs. plain polling-table queue architecture.",
+      "status": "Proposed",
+      "evidence_dependencies": ["05_SYSTEM_ARCHITECTURE.md", "11_COST_AND_PLAN_REQUIREMENTS.md"],
+      "decisions_required": ["D1"],
+      "implementation_phase": "Phase 0"
+    },
+    {
+      "file": "adr/0005-canonical-event-model.md",
+      "purpose": "ADR: canonical 23-family event taxonomy and normalization model.",
+      "status": "Proposed",
+      "evidence_dependencies": ["03_CORRELATION_AND_PROVENANCE.md"],
+      "decisions_required": ["D10"],
+      "implementation_phase": "Phase 0"
+    },
+    {
+      "file": "adr/0006-normalized-ledger-vs-provider-tables.md",
+      "purpose": "ADR: single normalized ledger vs. per-provider tables.",
+      "status": "Proposed",
+      "evidence_dependencies": ["04_DATA_MODEL.md"],
+      "decisions_required": [],
+      "implementation_phase": "Phase 0"
+    },
+    {
+      "file": "adr/0007-ai-session-storage.md",
+      "purpose": "ADR: AI agent session storage model (sessions + event stream tables).",
+      "status": "Proposed",
+      "evidence_dependencies": ["01_INTEGRATION_CAPABILITY_MATRIX.md", "04_DATA_MODEL.md"],
+      "decisions_required": [],
+      "implementation_phase": "Phase 4-4b"
+    },
+    {
+      "file": "adr/0008-prompt-transcript-retention.md",
+      "purpose": "ADR: AI session prompt/transcript retention window.",
+      "status": "Proposed",
+      "evidence_dependencies": ["06_SECURITY_PRIVACY_AND_TRUST.md", "adr/0007-ai-session-storage.md"],
+      "decisions_required": ["D6"],
+      "implementation_phase": "Phase 4"
+    },
+    {
+      "file": "adr/0009-domain-audit-vs-db-only.md",
+      "purpose": "ADR: dual-write to activity_events/audit_events for human Hub actions vs. Hub-ledger-only for external events.",
+      "status": "Proposed",
+      "evidence_dependencies": ["00_CURRENT_SYSTEM_AUDIT.md"],
+      "decisions_required": ["D9"],
+      "implementation_phase": "Phase 0"
+    },
+    {
+      "file": "adr/0010-supabase-audit-mechanism.md",
+      "purpose": "ADR: Auth Audit Logs + Database Webhooks + pgaudit vs. Platform Audit Logs.",
+      "status": "Proposed",
+      "evidence_dependencies": ["01_INTEGRATION_CAPABILITY_MATRIX.md", "11_COST_AND_PLAN_REQUIREMENTS.md"],
+      "decisions_required": ["D4"],
+      "implementation_phase": "Phase 3"
+    },
+    {
+      "file": "adr/0011-secret-storage.md",
+      "purpose": "ADR: Vercel environment variables as the secret-storage mechanism.",
+      "status": "Proposed",
+      "evidence_dependencies": ["00_CURRENT_SYSTEM_AUDIT.md"],
+      "decisions_required": ["D7"],
+      "implementation_phase": "Phase 0"
+    },
+    {
+      "file": "adr/0012-correlation-confidence-model.md",
+      "purpose": "ADR: database-enforced confidence/explanation requirement for Level 3 correlations.",
+      "status": "Proposed",
+      "evidence_dependencies": ["03_CORRELATION_AND_PROVENANCE.md", "04_DATA_MODEL.md"],
+      "decisions_required": ["D8"],
+      "implementation_phase": "Phase 0-3"
+    },
+    {
+      "file": "adr/0013-timeline-read-model.md",
+      "purpose": "ADR: direct RLS-scoped queries vs. materialized read-model for the Activity timeline.",
+      "status": "Proposed",
+      "evidence_dependencies": ["05_SYSTEM_ARCHITECTURE.md", "07_UX_INFORMATION_ARCHITECTURE.md"],
+      "decisions_required": [],
+      "implementation_phase": "Phase 1"
+    },
+    {
+      "file": "adr/0014-report-generation-architecture.md",
+      "purpose": "ADR: asynchronous queued report generation with mandatory human review before publish.",
+      "status": "Proposed",
+      "evidence_dependencies": ["07_UX_INFORMATION_ARCHITECTURE.md", "adr/0004-queue-and-job-processor.md"],
+      "decisions_required": [],
+      "implementation_phase": "Phase 5"
+    },
+    {
+      "file": "adr/0015-first-vertical-slice.md",
+      "purpose": "ADR: scope boundary of the first vertical slice (one project, one GitHub repo, one Vercel project).",
+      "status": "Proposed",
+      "evidence_dependencies": ["09_IMPLEMENTATION_ROADMAP.md"],
+      "decisions_required": ["D11"],
+      "implementation_phase": "Phase 0"
+    },
+    {
+      "file": "EXECUTIVE_SUMMARY_PT_BR.md",
+      "purpose": "18-point Portuguese-language executive summary of the full planning package.",
+      "status": "complete",
+      "evidence_dependencies": ["all prior documents"],
+      "decisions_required": [],
+      "implementation_phase": null
+    }
+  ]
+}
