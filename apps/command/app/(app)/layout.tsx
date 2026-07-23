@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { canViewFounderVault } from '@ksp/auth';
 import { NAV_GROUPS, MOBILE_PRIMARY } from '../../lib/nav';
 import { requireSession } from '../../lib/session';
+import { getServerSupabase } from '../../lib/supabase';
+import { getNotifications } from './data';
 import { Shell } from './_components/shell';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +20,8 @@ const ROLE_LABELS: Record<string, string> = {
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await requireSession();
   const showVault = canViewFounderVault(ctx);
+  const supabase = await getServerSupabase();
+  const notifications = supabase ? await getNotifications(supabase) : [];
 
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
@@ -32,7 +36,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Shell groups={groups} user={user} mobilePrimary={MOBILE_PRIMARY}>
+    <Shell groups={groups} user={user} mobilePrimary={MOBILE_PRIMARY} notifications={notifications}>
       {children}
     </Shell>
   );

@@ -1,0 +1,35 @@
+-- Phase C4 (Growth section) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: Founder CEO (Kauan), Executive Operations (Vanessa),
+-- a non-executive internal member (Eric), an unaffiliated user.
+--
+-- leads (Revenue) assertions:
+--   - insert requires owner_id = auth.uid() — Eric can create his own lead but
+--     not one owned by Vanessa.
+--   - update allows the owner or an executive; a different non-executive
+--     cannot update someone else's lead.
+--   - cross-organization denial: Eric cannot read or write another org's leads.
+--
+-- client_organizations / contacts / client_internal_notes (Clients) assertions:
+--   - insert/update on client_organizations and contacts require org
+--     membership only (no owner column on either table) — any internal
+--     member, executive or not, can create/update a client room or contact.
+--   - client_internal_notes insert requires created_by = auth.uid(); no
+--     update policy exists (append-only — corrections are a new note).
+--   - internal-note protection: a client-portal user (client_memberships,
+--     not organization_memberships) can read neither client_organizations nor
+--     client_internal_notes through this policy set — portal access to
+--     published client data goes through the separate api_portal path from
+--     migration 2, not through these internal-only policies.
+--
+-- products / campaigns / content_items (Products & Content) assertions:
+--   - all three are org-scoped for read/insert/update; delete is
+--     executive-only on all three (soft "archive" via active=false / status
+--     update is the non-executive path, not hard delete).
+--   - cross-organization denial holds for all three new tables.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising the new policies end-to-end. Verified by SQL review + the
+-- Supabase preview-branch migration check only.
+
+select 'growth section authorization regression plan present' as plan;

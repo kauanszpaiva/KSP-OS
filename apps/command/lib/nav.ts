@@ -26,8 +26,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Pulse', href: '/pulse', status: 'live', icon: 'pulse' },
       { label: 'Focus', href: '/focus', status: 'live', icon: 'focus' },
-      { label: 'Signals', href: '/signals', status: 'planned', icon: 'signals' },
-      { label: 'Decisions', href: '/decisions', status: 'planned', icon: 'decisions' }
+      { label: 'Signals', href: '/signals', status: 'live', icon: 'signals' },
+      { label: 'Decisions', href: '/decisions', status: 'live', icon: 'decisions' }
     ]
   },
   {
@@ -36,31 +36,31 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Outcomes', href: '/outcomes', status: 'live', icon: 'outcomes' },
       { label: 'Commitments', href: '/commitments', status: 'live', icon: 'commitments' },
-      { label: 'Workspace', href: '/workspace', status: 'planned', icon: 'workspace' },
-      { label: 'Missions', href: '/missions', status: 'planned', icon: 'missions' },
-      { label: 'Schedule', href: '/schedule', status: 'planned', icon: 'schedule' },
-      { label: 'Horizon', href: '/horizon', status: 'planned', icon: 'horizon' },
-      { label: 'Team', href: '/team', status: 'planned', icon: 'team' }
+      { label: 'Workspace', href: '/workspace', status: 'live', icon: 'workspace' },
+      { label: 'Missions', href: '/missions', status: 'live', icon: 'missions' },
+      { label: 'Schedule', href: '/schedule', status: 'live', icon: 'schedule' },
+      { label: 'Horizon', href: '/horizon', status: 'live', icon: 'horizon' },
+      { label: 'Team', href: '/team', status: 'live', icon: 'team' }
     ]
   },
   {
     key: 'growth',
     label: 'Growth',
     items: [
-      { label: 'Revenue', href: '/revenue', status: 'planned', icon: 'revenue' },
-      { label: 'Clients', href: '/clients', status: 'planned', icon: 'clients' },
-      { label: 'Products', href: '/products', status: 'planned', icon: 'products' },
-      { label: 'Content', href: '/content', status: 'planned', icon: 'content' }
+      { label: 'Revenue', href: '/revenue', status: 'live', icon: 'revenue' },
+      { label: 'Clients', href: '/clients', status: 'live', icon: 'clients' },
+      { label: 'Products', href: '/products', status: 'live', icon: 'products' },
+      { label: 'Content', href: '/content', status: 'live', icon: 'content' }
     ]
   },
   {
     key: 'control',
     label: 'Control',
     items: [
-      { label: 'Finance', href: '/finance', status: 'planned', icon: 'finance' },
-      { label: 'Software', href: '/software', status: 'planned', icon: 'software' },
-      { label: 'Knowledge', href: '/knowledge', status: 'planned', icon: 'knowledge' },
-      { label: 'Connections', href: '/connections', status: 'planned', icon: 'connections' }
+      { label: 'Finance', href: '/finance', status: 'live', icon: 'finance' },
+      { label: 'Software', href: '/software', status: 'live', icon: 'software' },
+      { label: 'Knowledge', href: '/knowledge', status: 'live', icon: 'knowledge' },
+      { label: 'Connections', href: '/connections', status: 'live', icon: 'connections' }
     ]
   },
   {

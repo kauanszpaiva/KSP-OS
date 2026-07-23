@@ -1,5 +1,31 @@
 import type { SupabaseClient } from '@ksp/database';
-import type { Commitment, CompanyOutcome, Proof } from '@ksp/database';
+import type {
+  ApprovalDecision,
+  ApprovalRequest,
+  Campaign,
+  ChartAccount,
+  ClientInternalNote,
+  ClientOrganization,
+  Comment,
+  Commitment,
+  CompanyOutcome,
+  Contact,
+  ContentItem,
+  DocumentRecord,
+  InboxItem,
+  IntegrationConnection,
+  JournalEntry,
+  Lead,
+  MissionDependency,
+  MissionMilestone,
+  Notification,
+  Product,
+  Project,
+  ProjectMembership,
+  Proof,
+  Subscription,
+  Task
+} from '@ksp/database';
 
 export interface MemberRef {
   id: string;
@@ -73,4 +99,431 @@ export async function getMyCommitments(supabase: SupabaseClient, userId: string)
   const { data: assignments } = await supabase.from('commitment_assignments').select('commitment_id').eq('profile_id', userId);
   const assigned = new Set(((assignments ?? []) as Array<{ commitment_id: string }>).map((a) => a.commitment_id));
   return all.filter((c) => c.owner_id === userId || assigned.has(c.id));
+}
+
+/* --------------------------------------------------------------- Phase C2 -- */
+
+export interface SignalView extends InboxItem {
+  creatorName: string;
+}
+
+export async function getSignals(supabase: SupabaseClient): Promise<SignalView[]> {
+  // inbox_owner_read RLS scopes rows to the executive (all) or the creator (own).
+  const [{ data: items }, { data: profiles }] = await Promise.all([
+    supabase.from('inbox_items').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  return ((items ?? []) as InboxItem[]).map((i) => ({
+    ...i,
+    creatorName: (i.created_by && nameById.get(i.created_by)) || 'Unknown'
+  }));
+}
+
+export interface DecisionView extends ApprovalRequest {
+  requesterName: string;
+  decisions: ApprovalDecision[];
+}
+
+export async function getDecisions(supabase: SupabaseClient): Promise<DecisionView[]> {
+  // approvals_executive_read RLS scopes rows to the executive (all) or the requester (own).
+  const [{ data: requests }, { data: profiles }, { data: decisions }] = await Promise.all([
+    supabase.from('approval_requests').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, display_name'),
+    supabase.from('approval_decisions').select('*').order('created_at', { ascending: false })
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  const decisionsByRequest = new Map<string, ApprovalDecision[]>();
+  for (const d of (decisions ?? []) as ApprovalDecision[]) {
+    const arr = decisionsByRequest.get(d.approval_request_id) ?? [];
+    arr.push(d);
+    decisionsByRequest.set(d.approval_request_id, arr);
+  }
+  return ((requests ?? []) as ApprovalRequest[]).map((r) => ({
+    ...r,
+    requesterName: nameById.get(r.requester_id) ?? 'Unknown',
+    decisions: decisionsByRequest.get(r.id) ?? []
+  }));
+}
+
+/* --------------------------------------------------------------- Phase C3 -- */
+
+export interface MissionView extends Project {
+  milestones: MissionMilestone[];
+  dependencies: MissionDependency[];
+  memberIds: string[];
+  commitmentCount: number;
+}
+
+export async function getMissions(supabase: SupabaseClient): Promise<MissionView[]> {
+  // projects_member_read RLS scopes rows to the executive (all) or an assigned member.
+  const [{ data: projects }, { data: milestones }, { data: dependencies }, { data: memberships }, { data: commitments }] =
+    await Promise.all([
+      supabase.from('projects').select('*').order('created_at', { ascending: false }),
+      supabase.from('mission_milestones').select('*').order('sort_order', { ascending: true }),
+      supabase.from('mission_dependencies').select('*'),
+      supabase.from('project_memberships').select('project_id, profile_id'),
+      supabase.from('commitments').select('id, outcome_id').not('outcome_id', 'is', null)
+    ]);
+
+  const milestonesByProject = new Map<string, MissionMilestone[]>();
+  for (const m of (milestones ?? []) as MissionMilestone[]) {
+    const arr = milestonesByProject.get(m.project_id) ?? [];
+    arr.push(m);
+    milestonesByProject.set(m.project_id, arr);
+  }
+  const dependenciesByProject = new Map<string, MissionDependency[]>();
+  for (const d of (dependencies ?? []) as MissionDependency[]) {
+    const arr = dependenciesByProject.get(d.project_id) ?? [];
+    arr.push(d);
+    dependenciesByProject.set(d.project_id, arr);
+  }
+  const membersByProject = new Map<string, string[]>();
+  for (const m of (memberships ?? []) as Array<{ project_id: string; profile_id: string }>) {
+    const arr = membersByProject.get(m.project_id) ?? [];
+    arr.push(m.profile_id);
+    membersByProject.set(m.project_id, arr);
+  }
+  void commitments; // reserved: commitments do not yet carry a mission/project link (Phase C3 follow-up).
+
+  return ((projects ?? []) as Project[]).map((p) => ({
+    ...p,
+    milestones: milestonesByProject.get(p.id) ?? [],
+    dependencies: dependenciesByProject.get(p.id) ?? [],
+    memberIds: membersByProject.get(p.id) ?? [],
+    commitmentCount: 0
+  }));
+}
+
+export async function getMissionMembers(supabase: SupabaseClient): Promise<ProjectMembership[]> {
+  const { data } = await supabase.from('project_memberships').select('*');
+  return (data ?? []) as ProjectMembership[];
+}
+
+/* ----------------------------------------------------------- Phase C3: Workspace -- */
+
+export interface TaskView extends Task {
+  ownerName: string;
+  projectName: string | null;
+}
+
+export async function getTasks(supabase: SupabaseClient): Promise<TaskView[]> {
+  // tasks_project_read RLS scopes rows to the executive (all), unassigned tasks, or an assigned project's members.
+  const [{ data: tasks }, { data: profiles }, { data: projects }] = await Promise.all([
+    supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, display_name'),
+    supabase.from('projects').select('id, name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  const projectNameById = new Map(((projects ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]));
+  return ((tasks ?? []) as Task[]).map((t) => ({
+    ...t,
+    ownerName: (t.owner_id && nameById.get(t.owner_id)) || 'Unassigned',
+    projectName: (t.project_id && projectNameById.get(t.project_id)) || null
+  }));
+}
+
+/* --------------------------------------------------------- Phase C3: Team -- */
+
+export interface TeamLoadView {
+  profileId: string;
+  displayName: string;
+  openCommitments: number;
+  openTasks: number;
+  missionCount: number;
+}
+
+/**
+ * v1 capacity signal: a simple open-item count per person, not hour-based
+ * allocation (no table tracks planned hours yet). Good enough to flag who is
+ * visibly overloaded; a real capacity model is a Phase C3 follow-up.
+ */
+export async function getTeamLoad(supabase: SupabaseClient): Promise<TeamLoadView[]> {
+  const [{ data: profiles }, { data: assignments }, { data: tasks }, { data: memberships }] = await Promise.all([
+    supabase.from('profiles').select('id, display_name'),
+    supabase.from('commitment_assignments').select('profile_id, commitment_id'),
+    supabase.from('tasks').select('owner_id, status'),
+    supabase.from('project_memberships').select('profile_id, project_id')
+  ]);
+
+  const commitmentIds = new Set(((assignments ?? []) as Array<{ commitment_id: string }>).map((a) => a.commitment_id));
+  const { data: openCommitments } = commitmentIds.size
+    ? await supabase.from('commitments').select('id').in('id', [...commitmentIds]).not('state', 'in', '(completed,archived,rejected)')
+    : { data: [] as Array<{ id: string }> };
+  const openCommitmentIds = new Set(((openCommitments ?? []) as Array<{ id: string }>).map((c) => c.id));
+
+  const load = new Map<string, TeamLoadView>();
+  for (const p of (profiles ?? []) as Array<{ id: string; display_name: string }>) {
+    load.set(p.id, { profileId: p.id, displayName: p.display_name, openCommitments: 0, openTasks: 0, missionCount: 0 });
+  }
+  for (const a of (assignments ?? []) as Array<{ profile_id: string; commitment_id: string }>) {
+    if (!openCommitmentIds.has(a.commitment_id)) continue;
+    const row = load.get(a.profile_id);
+    if (row) row.openCommitments += 1;
+  }
+  for (const t of (tasks ?? []) as Array<{ owner_id: string | null; status: string }>) {
+    if (!t.owner_id || t.status !== 'active') continue;
+    const row = load.get(t.owner_id);
+    if (row) row.openTasks += 1;
+  }
+  const missionsByProfile = new Set<string>();
+  for (const m of (memberships ?? []) as Array<{ profile_id: string; project_id: string }>) {
+    const key = `${m.profile_id}:${m.project_id}`;
+    if (missionsByProfile.has(key)) continue;
+    missionsByProfile.add(key);
+    const row = load.get(m.profile_id);
+    if (row) row.missionCount += 1;
+  }
+
+  return [...load.values()].sort((a, b) => b.openCommitments + b.openTasks - (a.openCommitments + a.openTasks));
+}
+
+/* --------------------------------------------------------------- Phase C4 -- */
+
+export interface LeadView extends Lead {
+  ownerName: string;
+  weightedValueMinor: number;
+}
+
+export async function getLeads(supabase: SupabaseClient): Promise<LeadView[]> {
+  const [{ data: leads }, { data: profiles }] = await Promise.all([
+    supabase.from('leads').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  return ((leads ?? []) as Lead[]).map((l) => ({
+    ...l,
+    ownerName: nameById.get(l.owner_id) ?? 'Unassigned',
+    weightedValueMinor: Math.round((l.expected_value_minor ?? 0) * ((l.probability ?? 0) / 100))
+  }));
+}
+
+export interface ClientView extends ClientOrganization {
+  contacts: Contact[];
+  notes: ClientInternalNote[];
+}
+
+export async function getClients(supabase: SupabaseClient): Promise<ClientView[]> {
+  const [{ data: clients }, { data: contacts }, { data: notes }] = await Promise.all([
+    supabase.from('client_organizations').select('*').order('created_at', { ascending: false }),
+    supabase.from('contacts').select('*'),
+    supabase.from('client_internal_notes').select('*').order('created_at', { ascending: false })
+  ]);
+  const contactsByClient = new Map<string, Contact[]>();
+  for (const c of (contacts ?? []) as Contact[]) {
+    if (!c.client_id) continue;
+    const arr = contactsByClient.get(c.client_id) ?? [];
+    arr.push(c);
+    contactsByClient.set(c.client_id, arr);
+  }
+  const notesByClient = new Map<string, ClientInternalNote[]>();
+  for (const n of (notes ?? []) as ClientInternalNote[]) {
+    const arr = notesByClient.get(n.client_organization_id) ?? [];
+    arr.push(n);
+    notesByClient.set(n.client_organization_id, arr);
+  }
+  return ((clients ?? []) as ClientOrganization[]).map((c) => ({
+    ...c,
+    contacts: contactsByClient.get(c.id) ?? [],
+    notes: notesByClient.get(c.id) ?? []
+  }));
+}
+
+export async function getProducts(supabase: SupabaseClient): Promise<Product[]> {
+  const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+  return (data ?? []) as Product[];
+}
+
+export interface ContentItemView extends ContentItem {
+  campaignName: string | null;
+}
+
+export async function getCampaigns(supabase: SupabaseClient): Promise<Campaign[]> {
+  const { data } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+  return (data ?? []) as Campaign[];
+}
+
+export async function getContentItems(supabase: SupabaseClient): Promise<ContentItemView[]> {
+  const [{ data: items }, { data: campaigns }] = await Promise.all([
+    supabase.from('content_items').select('*').order('publish_date', { ascending: true, nullsFirst: false }),
+    supabase.from('campaigns').select('id, name')
+  ]);
+  const nameById = new Map(((campaigns ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]));
+  return ((items ?? []) as ContentItem[]).map((i) => ({
+    ...i,
+    campaignName: (i.campaign_id && nameById.get(i.campaign_id)) || null
+  }));
+}
+
+/* --------------------------------------------------------------- Phase C5 -- */
+
+export interface DocumentView extends DocumentRecord {
+  projectName: string | null;
+  clientName: string | null;
+}
+
+export async function getDocuments(supabase: SupabaseClient): Promise<DocumentView[]> {
+  // documents_member_read RLS already hides `classification = 'restricted'` rows from non-executives.
+  const [{ data: docs }, { data: projects }, { data: clients }] = await Promise.all([
+    supabase.from('documents').select('*').order('created_at', { ascending: false }),
+    supabase.from('projects').select('id, name'),
+    supabase.from('client_organizations').select('id, display_name')
+  ]);
+  const projectNameById = new Map(((projects ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]));
+  const clientNameById = new Map(((clients ?? []) as Array<{ id: string; display_name: string }>).map((c) => [c.id, c.display_name]));
+  return ((docs ?? []) as DocumentRecord[]).map((d) => ({
+    ...d,
+    projectName: (d.project_id && projectNameById.get(d.project_id)) || null,
+    clientName: (d.client_id && clientNameById.get(d.client_id)) || null
+  }));
+}
+
+export async function getSoftwareTasks(supabase: SupabaseClient): Promise<TaskView[]> {
+  const all = await getTasks(supabase);
+  // v1 has no department dimension on projects/tasks — a task counts as
+  // "software" if it links a link (PR/deploy URL) or has none yet but is open,
+  // since there is no other signal to filter on. Documented simplification.
+  return all;
+}
+
+export async function getSubscriptions(supabase: SupabaseClient): Promise<Subscription[]> {
+  // subscriptions_executive_read RLS — empty for non-executives, not an error.
+  const { data } = await supabase.from('subscriptions').select('*').order('renewal_date', { ascending: true, nullsFirst: false });
+  return (data ?? []) as Subscription[];
+}
+
+export async function getIntegrationConnections(supabase: SupabaseClient): Promise<IntegrationConnection[]> {
+  // integrations_admin_read RLS — empty for non-executives, not an error.
+  const { data } = await supabase.from('integration_connections').select('*').order('provider', { ascending: true });
+  return (data ?? []) as IntegrationConnection[];
+}
+
+export interface FinanceOverview {
+  chartAccounts: ChartAccount[];
+  draftEntryCount: number;
+  postedEntryCount: number;
+  monthlySubscriptionBurnMinor: number;
+}
+
+/**
+ * Read-only aggregate over existing executive-gated finance tables. No
+ * posting, no new invariant, no write path — see the Phase C5 migration
+ * header and docs/rebuild/command/05_control_section.md for why the Journal
+ * Workbench and Subscription Console writes are deliberately not built here.
+ */
+export async function getFinanceOverview(supabase: SupabaseClient): Promise<FinanceOverview> {
+  const [{ data: accounts }, { data: entries }, { data: subs }] = await Promise.all([
+    supabase.from('chart_accounts').select('*').order('code', { ascending: true }),
+    supabase.from('journal_entries').select('status'),
+    supabase.from('subscriptions').select('cost_minor, billing_frequency, status')
+  ]);
+  const entryRows = (entries ?? []) as Array<{ status: string }>;
+  const subRows = (subs ?? []) as Array<{ cost_minor: number; billing_frequency: string; status: string }>;
+  const monthlyBurn = subRows
+    .filter((s) => s.status === 'active')
+    .reduce((sum, s) => sum + (s.billing_frequency === 'annual' ? Math.round(s.cost_minor / 12) : s.cost_minor), 0);
+
+  return {
+    chartAccounts: (accounts ?? []) as ChartAccount[],
+    draftEntryCount: entryRows.filter((e) => e.status === 'draft').length,
+    postedEntryCount: entryRows.filter((e) => e.status === 'posted').length,
+    monthlySubscriptionBurnMinor: monthlyBurn
+  };
+}
+
+/* --------------------------------------------------------------- Phase C6 -- */
+
+export async function getNotifications(supabase: SupabaseClient, limit = 20): Promise<Notification[]> {
+  // notifications_read RLS scopes rows to recipient_id = auth.uid() only.
+  const { data } = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(limit);
+  return (data ?? []) as Notification[];
+}
+
+export interface CommentView extends Comment {
+  authorName: string;
+}
+
+export async function getComments(supabase: SupabaseClient, objectTable: string, objectId: string): Promise<CommentView[]> {
+  const [{ data: comments }, { data: profiles }] = await Promise.all([
+    supabase
+      .from('comments')
+      .select('*')
+      .eq('object_table', objectTable)
+      .eq('object_id', objectId)
+      .order('created_at', { ascending: true }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  return ((comments ?? []) as Comment[]).map((c) => ({ ...c, authorName: nameById.get(c.author_id) ?? 'Unknown' }));
+}
+
+/** Bulk variant for list pages — one query instead of one per row. */
+export async function getCommentsForObjects(
+  supabase: SupabaseClient,
+  objectTable: string,
+  objectIds: string[]
+): Promise<Map<string, CommentView[]>> {
+  const empty = new Map<string, CommentView[]>();
+  if (objectIds.length === 0) return empty;
+  const [{ data: comments }, { data: profiles }] = await Promise.all([
+    supabase.from('comments').select('*').eq('object_table', objectTable).in('object_id', objectIds).order('created_at', { ascending: true }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  const byObject = new Map<string, CommentView[]>();
+  for (const c of (comments ?? []) as Comment[]) {
+    const view = { ...c, authorName: nameById.get(c.author_id) ?? 'Unknown' };
+    const arr = byObject.get(c.object_id) ?? [];
+    arr.push(view);
+    byObject.set(c.object_id, arr);
+  }
+  return byObject;
+}
+
+export interface SearchResult {
+  kind: 'outcome' | 'commitment' | 'mission' | 'client' | 'lead' | 'document';
+  id: string;
+  title: string;
+  href: string;
+}
+
+/**
+ * Fans out across live modules, each query using the same request-scoped
+ * client so every table's own RLS still applies — this never sees more than
+ * the caller already could by visiting each module directly.
+ */
+export async function searchAll(supabase: SupabaseClient, query: string): Promise<SearchResult[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const like = `%${q}%`;
+
+  const [outcomes, commitments, missions, clients, leads, documents] = await Promise.all([
+    supabase.from('company_outcomes').select('id, title').ilike('title', like).limit(5),
+    supabase.from('commitments').select('id, title').ilike('title', like).limit(5),
+    supabase.from('projects').select('id, name').ilike('name', like).limit(5),
+    supabase.from('client_organizations').select('id, display_name').ilike('display_name', like).limit(5),
+    supabase.from('leads').select('id, name').ilike('name', like).limit(5),
+    supabase.from('documents').select('id, title').ilike('title', like).limit(5)
+  ]);
+
+  const results: SearchResult[] = [];
+  for (const o of (outcomes.data ?? []) as Array<{ id: string; title: string }>) {
+    results.push({ kind: 'outcome', id: o.id, title: o.title, href: '/outcomes' });
+  }
+  for (const c of (commitments.data ?? []) as Array<{ id: string; title: string }>) {
+    results.push({ kind: 'commitment', id: c.id, title: c.title, href: '/commitments' });
+  }
+  for (const m of (missions.data ?? []) as Array<{ id: string; name: string }>) {
+    results.push({ kind: 'mission', id: m.id, title: m.name, href: '/missions' });
+  }
+  for (const c of (clients.data ?? []) as Array<{ id: string; display_name: string }>) {
+    results.push({ kind: 'client', id: c.id, title: c.display_name, href: '/clients' });
+  }
+  for (const l of (leads.data ?? []) as Array<{ id: string; name: string }>) {
+    results.push({ kind: 'lead', id: l.id, title: l.name, href: '/revenue' });
+  }
+  for (const d of (documents.data ?? []) as Array<{ id: string; title: string }>) {
+    results.push({ kind: 'document', id: d.id, title: d.title, href: '/knowledge' });
+  }
+  return results;
 }

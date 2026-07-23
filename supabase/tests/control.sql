@@ -1,0 +1,41 @@
+-- Phase C5 (Control section) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: Founder CEO (Kauan), Executive Operations (Vanessa),
+-- a non-executive internal member (Eric), an unaffiliated user.
+--
+-- documents (Knowledge) assertions:
+--   - insert requires org membership only (any internal member can add a
+--     document record); update (including reclassification) is
+--     executive-only, so Eric cannot self-escalate a document's
+--     classification to something more visible.
+--   - documents_member_read (migration 1, unchanged) still hides
+--     `classification = 'restricted'` rows from non-executives — confirm
+--     this phase's new insert policy cannot be used to create a restricted
+--     row and then read it back as a non-executive (the read policy, not
+--     the insert policy, is what should block that).
+--
+-- subscriptions / integration_connections (Connections) assertions:
+--   - insert/update are executive-only on both, matching their existing
+--     executive-only read policies (migration 1) — Eric cannot create,
+--     read, or update either.
+--   - finance protection: subscriptions is a cost commitment, not general
+--     Growth-section data — confirm it stays executive-only, unlike the
+--     org-wide write access granted to client_organizations/contacts in C4.
+--
+-- tasks.link (Software) assertions:
+--   - the new column carries no new RLS surface — the existing
+--     tasks_update policy (Phase C3) already covers writes to it; confirm
+--     a task in a project Eric cannot access still hides its link field
+--     the same way the rest of the row is hidden.
+--
+-- Finance (deliberately NOT touched) assertions:
+--   - finance protection: chart_accounts/journal_entries/journal_lines
+--     remain executive-only SELECT with NO insert/update policy added by
+--     this migration — confirm no new write path exists on any of the
+--     three finance tables as a result of this phase.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising the new policies end-to-end. Verified by SQL review + the
+-- Supabase preview-branch migration check only.
+
+select 'control section authorization regression plan present' as plan;

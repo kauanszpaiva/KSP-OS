@@ -1,0 +1,30 @@
+-- Phase C2 (Signals & Decisions) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: Founder CEO (Kauan), Executive Operations (Vanessa),
+-- a non-executive internal member (Eric), an unaffiliated user, a suspended user.
+--
+-- inbox_items (Signals) assertions:
+--   - insert requires created_by = auth.uid() in the caller's own org (inbox_items_insert).
+--   - update is allowed for the creator or an executive; a different non-executive
+--     member cannot triage someone else's signal (inbox_items_update).
+--   - cross-organization denial: Eric cannot read or write another org's signals.
+--
+-- approval_requests / approval_decisions (Decisions) assertions:
+--   - insert requires requester_id = auth.uid() (approval_requests_insert); Eric can
+--     request a decision for himself but not on Vanessa's behalf.
+--   - only an executive may update approval_requests directly
+--     (approval_requests_update); Eric's direct update attempt is denied.
+--   - no self-approval: reused from the foundation policy — Vanessa cannot approve
+--     her own request even though she is an executive (no_self_approval_insert).
+--   - status-sync trigger: after Kauan (executive, non-requester) inserts an
+--     'approved' decision on Vanessa's pending_approval request, the request's
+--     status becomes 'approved' without a second client write
+--     (apply_approval_decision trigger).
+--   - a second decision on an already-decided request does not revert its status
+--     (the trigger's `and status = 'pending_approval'` guard).
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising the trigger end-to-end. Verified by SQL review only, consistent
+-- with the existing operational-slice test's stated boundaries.
+
+select 'signals and decisions authorization regression plan present' as plan;

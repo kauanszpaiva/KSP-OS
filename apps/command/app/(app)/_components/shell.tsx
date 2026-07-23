@@ -4,7 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Avatar, Icon, IconButton, ThemeToggle, cx, type IconName } from '@ksp/ui';
+import type { Notification } from '@ksp/database';
 import type { NavGroup, NavItem } from '../../../lib/nav';
+import { CommandPalette, CommandPaletteTrigger } from './command-palette';
+import { NotificationsMenu } from './notifications-menu';
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
@@ -72,11 +75,13 @@ export function Shell({
   groups,
   user,
   mobilePrimary,
+  notifications,
   children
 }: {
   groups: NavGroup[];
   user: { displayName: string; email: string; role: string };
   mobilePrimary: NavItem[];
+  notifications: Notification[];
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -95,6 +100,7 @@ export function Shell({
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden bg-canvas text-ink">
+      <CommandPalette />
       {/* Desktop sidebar */}
       <aside
         className={cx(
@@ -184,6 +190,8 @@ export function Shell({
           </span>
 
           <div className="ml-auto flex items-center gap-1.5">
+            <CommandPaletteTrigger />
+
             <details className="group relative">
               <summary className="inline-flex h-9 cursor-pointer select-none items-center gap-2 rounded-lg bg-brand px-3 text-[13px] font-medium text-on-brand shadow-card transition-colors duration-fast hover:bg-brand-strong marker:hidden [&::-webkit-details-marker]:hidden">
                 <Icon name="plus" className="h-4 w-4" />
@@ -192,11 +200,12 @@ export function Shell({
               <div className="absolute right-0 z-30 mt-2 w-52 origin-top-right animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-pop">
                 <MenuLink href="/commitments" icon="commitments" label="New commitment" />
                 <MenuLink href="/outcomes" icon="outcomes" label="New outcome" />
+                <MenuLink href="/signals" icon="signals" label="Quick capture" />
                 <MenuLink href="/founder-vault" icon="vault" label="Vault entry" />
               </div>
             </details>
 
-            <IconButton icon="bell" label="Notifications" />
+            <NotificationsMenu notifications={notifications} />
             <ThemeToggle />
 
             <details className="group relative">

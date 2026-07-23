@@ -1,9 +1,10 @@
 import Link from 'next/link';
+import { isExecutive } from '@ksp/auth';
 import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate, isOverdue } from '../../../lib/format';
-import { getActivity, getCommitments, getOutcomes, type CommitmentView } from '../data';
+import { getActivity, getCommitments, getDecisions, getOutcomes, getSignals, type CommitmentView } from '../data';
 import { EmptyState, PageHeader, Panel, Rail, SectionLabel } from '../_components/ui';
 
 function attentionReason(c: CommitmentView): { reason: string; tone: 'risk' | 'warn' | 'brand' } | null {
@@ -23,12 +24,18 @@ export default async function PulsePage() {
   const outcomes = supabase ? await getOutcomes(supabase) : [];
   const commitments = supabase ? await getCommitments(supabase) : [];
   const activity = supabase ? await getActivity(supabase, 7) : [];
+  const signals = supabase ? await getSignals(supabase) : [];
+  const decisions = supabase ? await getDecisions(supabase) : [];
 
   const active = outcomes.filter((o) => o.state === 'active');
   const live = commitments.filter((c) => !['completed', 'archived', 'rejected'].includes(c.state));
   const overdue = live.filter((c) => isOverdue(c.due_date));
   const awaiting = live.filter((c) => c.state === 'proof_submitted');
   const avg = active.length ? Math.round(active.reduce((s, o) => s + o.progress, 0) / active.length) : 0;
+
+  const exec = isExecutive(ctx);
+  const signalsToTriage = signals.filter((s) => s.triage_status === 'new').length;
+  const decisionsWaitingOnYou = exec ? decisions.filter((d) => d.status === 'pending_approval' && d.requester_id !== ctx.user.id).length : 0;
 
   const RANK = { risk: 0, warn: 1, brand: 2 } as const;
   const attention = live
@@ -105,17 +112,33 @@ export default async function PulsePage() {
             {/* Flow figures + outcome rails */}
             <div className="space-y-7">
               <div>
-                <SectionLabel>Flow</SectionLabel>
+                <SectionLabel
+                  right={
+                    (signalsToTriage > 0 || decisionsWaitingOnYou > 0) && (
+                      <span className="text-[12px] font-medium text-warn">Waiting on you</span>
+                    )
+                  }
+                >
+                  Flow
+                </SectionLabel>
                 <Panel className="divide-y divide-line">
                   {[
-                    { label: 'In flight', value: live.length, tone: '' },
-                    { label: 'Overdue', value: overdue.length, tone: overdue.length ? 'text-risk' : '' },
-                    { label: 'Awaiting review', value: awaiting.length, tone: awaiting.length ? 'text-warn' : '' }
+                    { label: 'In flight', value: live.length, tone: '', href: '/commitments' },
+                    { label: 'Overdue', value: overdue.length, tone: overdue.length ? 'text-risk' : '', href: '/commitments' },
+                    { label: 'Awaiting review', value: awaiting.length, tone: awaiting.length ? 'text-warn' : '', href: '/commitments' },
+                    { label: 'Signals to triage', value: signalsToTriage, tone: signalsToTriage ? 'text-warn' : '', href: '/signals' },
+                    ...(exec
+                      ? [{ label: 'Decisions waiting on you', value: decisionsWaitingOnYou, tone: decisionsWaitingOnYou ? 'text-warn' : '', href: '/decisions' }]
+                      : [])
                   ].map((row) => (
-                    <div key={row.label} className="flex items-center justify-between px-4 py-3">
+                    <Link
+                      key={row.label}
+                      href={row.href}
+                      className="flex items-center justify-between px-4 py-3 transition-colors duration-fast hover:bg-surface-2"
+                    >
                       <span className="text-[13px] text-ink-2">{row.label}</span>
                       <span className={`tnum text-xl font-semibold ${row.tone || 'text-ink'}`}>{row.value}</span>
-                    </div>
+                    </Link>
                   ))}
                 </Panel>
               </div>

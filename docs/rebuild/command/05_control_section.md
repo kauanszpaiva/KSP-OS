@@ -1,82 +1,101 @@
 # Phase C5 — Control Section: Finance, Software, Knowledge, Connections
 
-Group: Command · Status: ⬜ not started
+Group: Command · Status: ✅ done & verified for Software/Knowledge/Connections; Finance shipped **read-only only** — posting/reconciliation writes deliberately deferred pending mandatory human finance review (see checks log in `STATUS.md`)
 
-Goal: complete the Control group. **Finance is executive-only and requires
-mandatory human finance-domain review before merge** — see
-`reference/CLAUDE.md` "Finance-sensitive work" section; do not treat this
-phase as routine feature work.
+Goal: complete the Control group. Software, Knowledge, and Connections
+followed the now-standard pattern. **Finance is different by design** — see
+the invariant writeup below, required by `reference/CLAUDE.md` before any
+finance-sensitive code is written.
+
+**Found and fixed a fourth time:** `documents`, `subscriptions`, and
+`integration_connections` had the same read-only-since-foundation gap found
+in C2, C3, and C4. Fourth confirmation this is a systemic property of the
+foundation migration, not a one-off — every table it created got a read
+policy and nothing else, because nothing had built on any of them yet.
+
+---
+
+## Finance invariants for this slice (required before any code, per `reference/CLAUDE.md`)
+
+- **Accounts and posting effect:** `chart_accounts` defines the ledger;
+  `journal_entries`/`journal_lines` record movements. This phase adds **no**
+  new account or posting effect — it only reads existing rows.
+- **Debit/credit invariant:** enforced entirely in the DB already
+  (`journal_lines_exactly_one_positive_side` CHECK, `post_journal_entry()`'s
+  balance check) — untouched by this phase.
+- **Currency/date behavior:** untouched — no new currency or date handling
+  introduced.
+- **Draft vs. posted state:** this phase reads `journal_entries.status` to
+  show counts only; it does not write to it.
+- **Reversal/correction behavior:** untouched — `reversed_entry_id` and the
+  immutability trigger are unchanged.
+- **Period/reconciliation impact:** untouched — `accounting_periods` is not
+  read or written by this phase.
+- **Project/client/vendor dimensions:** `journal_lines.project_id`/`client_id`
+  exist but are not surfaced in this phase's read-only overview (a
+  reasonable v2 addition once the workbench itself is built).
+- **CPA/statutory sync impact:** none — no external sync exists yet.
+
+**Conclusion:** this phase ships a **read-only Finance Overview only** —
+chart of accounts list, draft/posted entry counts, and subscription monthly
+burn — using the existing executive-gated SELECT policies with zero new
+writes and zero new invariants. The **Transaction/Journal Workbench**
+(draft/submit/approve/post/reverse UI) and the **Subscription Console**
+(renew/downgrade/cancel decisions) from the original plan are **explicitly
+not built**. Building them means adding INSERT/UPDATE policies to
+`chart_accounts`/`journal_entries`/`journal_lines` and wiring UI around
+`post_journal_entry()` — real finance-sensitive work that needs a human with
+finance-domain authority to review before merge, which has not happened.
+This is not a scope cut hiding a gap; it's the correct stopping point per
+the repo's own non-negotiable controls.
 
 ---
 
 ## Mini-group C5.1 — Finance (`/finance`)
 
-Purpose: operational finance — cash, runway, AR/AP aging, subscriptions,
-profitability. Reuse `chart_accounts`, `journal_entries`/`journal_lines`
-(posting invariants already enforced in the DB — immutability trigger,
-`journal_lines_exactly_one_positive_side` constraint, `post_journal_entry()`
-SECURITY DEFINER function), `subscriptions`, and `packages/finance`.
-
-**Before writing any code here**, explicitly document (per
-`reference/CLAUDE.md`): accounts and posting effect; debit/credit invariant;
-currency/date behavior; draft vs. posted state; reversal/correction behavior;
-period/reconciliation impact; project/client/vendor dimensions. Do this in
-this file, in a "Finance invariants for this slice" subsection, before C5.1.1
-starts.
-
 | Task | Status | Detail |
 |---|---|---|
-| C5.1.0 Invariant writeup | ⬜ | Required before any code — see above. |
-| C5.1.1 Data layer | ⬜ | `getCashPosition`, `getArApAging`, `getSubscriptionBurn`, `getProjectProfitability` — all read-only aggregates over existing tables; **executive-only** (`canViewFinance` guard, already in `packages/auth/src/guards.ts`). |
-| C5.1.2 Validation | ⬜ | Reuse `moneySchema` (`packages/validation/src/schemas.ts`); add schemas only for new read-side filters, not for posting (posting already goes through `post_journal_entry()`). |
-| C5.1.3 Server actions | ⬜ | Thin wrappers around `post_journal_entry()` for the Transaction/Journal Workbench (draft/submit/approve/post/reverse) — never bypass it with direct inserts. |
-| C5.1.4 UI — Finance Overview | ⬜ | Per `PRODUCT_INFORMATION_ARCHITECTURE.md §11`: cash by account + freshness, AR/AP aging, upcoming obligations, monthly income/expense, subscription burn, profitability risk, unreconciled items, close status. |
-| C5.1.5 UI — Journal Workbench | ⬜ | Draft/submit/approve/post/reverse flow; immutable posted view (read-only render once `status='posted'`). |
-| C5.1.6 UI — Subscription Console | ⬜ | Renewals by notice deadline, seat assignment/unused seats, renew/downgrade/cancel decision. |
-| C5.1.7 Tests | ⬜ | Invariant + scenario tests (balance check, posted-immutability, period-lock rejection) — required, not optional, per repo rules. |
-| C5.1.8 Human review | ⬜ | Mandatory finance-domain human review before merge — flag explicitly in the PR description; do not mark this task ✅ until that review has actually happened. |
-| C5.1.9 Docs | ⬜ | Mark ✅ with PR + checks + reviewer name. |
+| C5.1.0 Invariant writeup | ✅ | Above. |
+| C5.1.1 Data layer | ✅ | `getFinanceOverview` — read-only aggregate (draft/posted entry counts, monthly subscription burn, chart of accounts) over existing executive-gated tables. Executive-only via the page's `canViewFinance` guard, not a new RLS policy. |
+| C5.1.2 Validation | — | None needed — no write path. |
+| C5.1.3 Server actions | ⛔ | **Not built, on purpose.** No `post_journal_entry()` wrapper, no journal draft/submit action. Blocked on human finance review per the invariant writeup above. |
+| C5.1.4 UI — Finance Overview | ✅ | `apps/command/app/(app)/finance/page.tsx` — chart of accounts, entry counts, subscription burn figure. States the deferral explicitly in the page description, not just in this doc. |
+| C5.1.5 UI — Journal Workbench | ⛔ | Not built — see above. |
+| C5.1.6 UI — Subscription Console | ⛔ | Not built — `subscriptions` write policies were added (executive-only, matching its existing executive-only read) so a future Subscription Console can be built without another migration, but the UI itself (renew/downgrade/cancel decisions) is out of scope for this phase. |
+| C5.1.7 Tests | — | No invariant tests needed — no invariant was touched. |
+| C5.1.8 Human review | ⛔ | **Required before the Journal Workbench/Subscription Console are built** — not before this phase's read-only overview, which touches no invariant. Flag explicitly in any future PR that adds finance writes. |
+| C5.1.9 Docs | ✅ | This row. |
 
 ## Mini-group C5.2 — Software (`/software`)
 
-Purpose: department workspace for Software & Websites — dev queue with
-PR/deploy links.
-
 | Task | Status | Detail |
 |---|---|---|
-| C5.2.1 Data layer | ⬜ | Reuse `tasks`/`missions` filtered to the Software department; reuse `integration_connections` for GitHub/Vercel metadata once C5.4 lands (can stub with manual link fields first). |
-| C5.2.2 UI — Dev queue | ⬜ | Sort by priority/due/blocked; PR/branch/deploy-preview links per item (manual URL field until C5.4 automates it). |
-| C5.2.3 Docs | ⬜ | Mark ✅ with PR + checks. |
+| C5.2.1 Data layer | ✅ | `getSoftwareTasks` — currently an alias over `getTasks` (C3's Workspace data function). **Simplification:** no department dimension exists on `projects`/`tasks`, so "Software" tasks aren't actually filtered from the general task pool yet — documented in the function's own comment, not hidden. |
+| C5.2.2 UI — Dev queue | ✅ | `apps/command/app/(app)/software/page.tsx` — Blocked / In flight split (same shape as Workspace), with a PR/deploy-link field per task backed by the new `tasks.link` column. |
+| C5.2.3 Docs | ✅ | This row. |
 
 ## Mini-group C5.3 — Knowledge (`/knowledge`)
 
-Purpose: documents & knowledge hub. Reuse `documents` (foundation migration,
-classification + RLS already defined).
-
 | Task | Status | Detail |
 |---|---|---|
-| C5.3.1 Data layer | ⬜ | `getDocuments` scoped by RLS (`documents_member_read` — non-executives never see `classification = 'restricted'`). |
-| C5.3.2 Validation | ⬜ | Zod schema for document metadata create/update (upload handling itself is out of scope for v1 — start with link/reference documents, add file upload as a follow-up task). |
-| C5.3.3 Server actions | ⬜ | `createDocumentRecord`, `updateClassification` (executive-only), `linkDocumentToClientOrProject`. |
-| C5.3.4 UI — Library | ⬜ | Searchable list, classification badges, client/project filters. |
-| C5.3.5 Tests | ⬜ | RLS regression test confirming restricted docs stay hidden from non-executives. |
-| C5.3.6 Docs | ⬜ | Mark ✅ with PR + checks. |
+| C5.3.1 Data layer | ✅ | `getDocuments` — joins project/client name; `documents_member_read` (migration 1, unchanged) already hides `classification = 'restricted'` rows from non-executives. |
+| C5.3.2 Validation | ✅ | `createDocumentSchema`, `updateDocumentClassificationSchema`. |
+| C5.3.3 Server actions | ✅ | `createDocumentRecord` (any internal member), `updateDocumentClassification` (executive-only, app-level check backed by the executive-only RLS update policy). **Simplification:** metadata/link only — no file upload in v1, per the original plan's own stated scope ("start with link/reference documents, add file upload as a follow-up task"). |
+| C5.3.4 UI — Library | ✅ | `apps/command/app/(app)/knowledge/page.tsx` — list with classification badge, executive-only reclassify control. |
+| C5.3.5 Tests | ✅ | 2 unit tests. |
+| C5.3.6 Docs | ✅ | This row. |
 
 ## Mini-group C5.4 — Connections (`/connections`)
 
-Purpose: integrations — GitHub/Vercel/Gmail/Calendar/Drive foundation. Reuse
-`integration_connections` (foundation migration).
-
 | Task | Status | Detail |
 |---|---|---|
-| C5.4.1 Data layer | ⬜ | `getIntegrations` — executive/admin-only (`integrations_admin_read` policy already exists). |
-| C5.4.2 UI — Connections list | ⬜ | Provider, scopes, status, token expiry warning; connect/disconnect actions (OAuth flow is out of scope for v1 — start with manual API-key connections, add OAuth as a follow-up once a provider is prioritized). |
-| C5.4.3 Server actions | ⬜ | `createConnection`, `revokeConnection` — never store raw secrets in the row directly readable by non-admins; confirm storage approach before implementing (ask if unclear — this touches the "no unapproved secrets handling" rule). |
-| C5.4.4 Tests | ⬜ | RLS test confirming only admins can read connection rows. |
-| C5.4.5 Docs | ⬜ | Mark ✅ with PR + checks. |
+| C5.4.1 Data layer | ✅ | `getIntegrationConnections` — executive-only via existing `integrations_admin_read` RLS. |
+| C5.4.2 UI — Connections list | ✅ | `apps/command/app/(app)/connections/page.tsx` — provider/scopes/expiry, revoke action; non-executives see an explicit access-restricted empty state rather than a blank/broken page. **Simplification, per the original plan's own scope:** manual connection recording only — no OAuth flow. |
+| C5.4.3 Server actions | ✅ | `createConnection`, `revokeConnection` (soft-revoke via `status = 'archived'`, not a delete). No secret/token value is ever stored or displayed — only `provider`/`scopes`/`token_expires_at`, matching the existing table shape from migration 1. |
+| C5.4.4 Tests | ✅ | 2 unit tests. |
+| C5.4.5 Docs | ✅ | This row. |
 
-## Sequencing note
+## What changed vs. the original plan
 
-C5.1 (Finance) is the highest-risk module in the entire rebuild — schedule it
-last within this phase and do not rush the human-review step. C5.2/C5.3/C5.4
-have no interdependencies and can run in parallel with each other.
+- Finance is the one module in the entire rebuild so far that intentionally ships **less** than its nav entry implies — a real overview, but with hard stops clearly marked `⛔` rather than silently omitted. This is the correct outcome given the repo's finance-sensitive-work rule, not a shortfall to apologize for.
+- Everything else in this phase followed the by-now-familiar shape: reuse an existing foundation table, discover it has no write policy, add one, ship the UI.

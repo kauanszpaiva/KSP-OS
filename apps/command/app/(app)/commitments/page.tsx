@@ -4,11 +4,12 @@ import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate, isOverdue } from '../../../lib/format';
-import { getCommitments, getMembers, getOutcomes, type CommitmentView } from '../data';
+import { getCommitments, getCommentsForObjects, getMembers, getOutcomes, type CommentView, type CommitmentView } from '../data';
 import { EmptyState, PageHeader, Panel, Rail, SectionLabel, StatePill } from '../_components/ui';
 import { CommitmentForm, DecisionForm, ProgressForm, ProofForm } from '../_components/forms';
+import { CommentThread } from '../_components/comment-thread';
 
-function Row({ c, canOperate, canDecide }: { c: CommitmentView; canOperate: boolean; canDecide: boolean }) {
+function Row({ c, canOperate, canDecide, comments }: { c: CommitmentView; canOperate: boolean; canDecide: boolean; comments: CommentView[] }) {
   const overdue = isOverdue(c.due_date) && c.state !== 'completed';
   const pendingProof = c.proofs.find((p) => !p.accepted_at);
   const acceptedProof = c.proofs.find((p) => p.accepted_at);
@@ -65,6 +66,10 @@ function Row({ c, canOperate, canDecide }: { c: CommitmentView; canOperate: bool
             <DecisionForm commitmentId={c.id} proofId={(pendingProof ?? acceptedProof)?.id} />
           </div>
         )}
+
+        <div className="border-t border-line pt-3">
+          <CommentThread objectTable="commitments" objectId={c.id} comments={comments} />
+        </div>
       </div>
     </details>
   );
@@ -76,7 +81,8 @@ function Group({
   canDecideAll,
   userId,
   exec,
-  delay
+  delay,
+  commentsByCommitment
 }: {
   title: string;
   items: CommitmentView[];
@@ -84,6 +90,7 @@ function Group({
   userId: string;
   exec: boolean;
   delay: number;
+  commentsByCommitment: Map<string, CommentView[]>;
 }) {
   if (items.length === 0) return null;
   return (
@@ -97,7 +104,13 @@ function Group({
           <span>Progress</span>
         </div>
         {items.map((c) => (
-          <Row key={c.id} c={c} canOperate={exec || c.owner_id === userId} canDecide={canDecideAll} />
+          <Row
+            key={c.id}
+            c={c}
+            canOperate={exec || c.owner_id === userId}
+            canDecide={canDecideAll}
+            comments={commentsByCommitment.get(c.id) ?? []}
+          />
         ))}
       </Panel>
     </Reveal>
@@ -110,6 +123,9 @@ export default async function CommitmentsPage() {
   const commitments = supabase ? await getCommitments(supabase) : [];
   const members = supabase ? await getMembers(supabase, ctx.user.id) : [];
   const outcomes = supabase ? (await getOutcomes(supabase)).filter((o) => o.state === 'active') : [];
+  const commentsByCommitment = supabase
+    ? await getCommentsForObjects(supabase, 'commitments', commitments.map((c) => c.id))
+    : new Map<string, CommentView[]>();
 
   const exec = isExecutive(ctx);
   const canCreate = canPerform(ctx.membership, 'project.manage', { organizationId: ctx.organizationId, classification: 'internal' }).allowed;
@@ -145,9 +161,9 @@ export default async function CommitmentsPage() {
         />
       ) : (
         <div className="space-y-8">
-          <Group title="In review" items={review} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={0} />
-          <Group title="Active" items={activeWork} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={60} />
-          <Group title="Closed" items={closed} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={120} />
+          <Group title="In review" items={review} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={0} commentsByCommitment={commentsByCommitment} />
+          <Group title="Active" items={activeWork} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={60} commentsByCommitment={commentsByCommitment} />
+          <Group title="Closed" items={closed} canDecideAll={exec} userId={ctx.user.id} exec={exec} delay={120} commentsByCommitment={commentsByCommitment} />
         </div>
       )}
     </div>
