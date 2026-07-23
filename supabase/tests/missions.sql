@@ -1,0 +1,35 @@
+-- Phase C3 (Missions & Workspace) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: Founder CEO (Kauan), Executive Operations (Vanessa),
+-- a non-executive internal member (Eric) not yet on any project, an
+-- unaffiliated user.
+--
+-- projects / project_memberships / tasks assertions:
+--   - insert requires org membership only (projects_insert) — projects has no
+--     owner column, so the creating action must also insert a
+--     project_memberships row for the creator in the same transaction, or the
+--     mission becomes invisible to them (projects_update/read both gate on
+--     can_access_project, which reads project_memberships).
+--   - self-enrollment: a non-executive can insert their own
+--     project_memberships row (profile_id = auth.uid()) but not one for
+--     someone else; only an executive can insert on another profile's behalf.
+--   - tasks insert/update follow can_access_project the same way; an
+--     unaffiliated project has its tasks invisible and un-writable to Eric
+--     until he is added.
+--   - cross-organization denial: Eric cannot read or write another org's
+--     missions, milestones, dependencies, or tasks.
+--
+-- mission_milestones / mission_dependencies assertions:
+--   - read/write require can_access_project(project_id) or executive.
+--   - mission_dependencies read is granted if the caller can access EITHER
+--     side of the edge, so a blocked team sees what it is waiting on even
+--     without membership on the upstream mission — verify this is intentional
+--     and not an over-broad read (documented decision, not a bug).
+--   - a project cannot depend on itself (CHECK constraint, not just app-level
+--     validation — confirm the DB rejects it even if the client is bypassed).
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising the new policies end-to-end. Verified by SQL review + the
+-- Supabase preview-branch migration check (green as of this PR) only.
+
+select 'missions and workspace authorization regression plan present' as plan;

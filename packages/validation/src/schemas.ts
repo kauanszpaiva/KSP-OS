@@ -43,3 +43,54 @@ export const recordDecisionSchema = z.object({
   decision: z.enum(['approved', 'rejected']),
   comments: z.string().max(1000).optional().or(z.literal(''))
 });
+
+/** Phase C3 — Missions (projects / project_memberships / mission_milestones / mission_dependencies). */
+export const createMissionSchema = z.object({
+  name: z.string().min(2).max(160),
+  projectType: z.string().min(1).max(80),
+  clientId: uuid.optional()
+});
+
+export const updateMissionHealthSchema = z.object({
+  id: uuid,
+  health: z.enum(['unknown', 'on_track', 'at_risk', 'off_track']),
+  nextAction: z.string().max(300).optional().or(z.literal(''))
+});
+
+export const createMilestoneSchema = z.object({
+  projectId: uuid,
+  title: z.string().min(2).max(200),
+  phase: z.string().max(80).optional().or(z.literal('')),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal(''))
+});
+
+export const updateMilestoneStatusSchema = z.object({
+  id: uuid,
+  status: z.enum(['pending', 'in_progress', 'done', 'at_risk'])
+});
+
+export const addDependencySchema = z
+  .object({
+    projectId: uuid,
+    dependsOnProjectId: uuid,
+    note: z.string().max(500).optional().or(z.literal(''))
+  })
+  .superRefine((v, ctx) => {
+    if (v.projectId === v.dependsOnProjectId) {
+      ctx.addIssue({ code: 'custom', message: 'a_mission_cannot_depend_on_itself', path: ['dependsOnProjectId'] });
+    }
+  });
+
+/** Phase C3 — Workspace (tasks). */
+export const createTaskSchema = z.object({
+  title: z.string().min(2).max(200),
+  projectId: uuid.optional(),
+  ownerId: uuid.optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal(''))
+});
+
+export const updateTaskStatusSchema = z.object({
+  id: uuid,
+  status: z.enum(['active', 'archived']).optional(),
+  blocked: z.coerce.boolean().optional()
+});

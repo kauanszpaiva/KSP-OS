@@ -5,15 +5,22 @@ import { getAuthContext, canManageOutcomes, isExecutive, type AuthContext } from
 import type { SupabaseClient } from '@ksp/database';
 import { canPerform } from '@ksp/permissions';
 import {
+  addDependencySchema,
   createCommitmentSchema,
   createDecisionRequestSchema,
+  createMilestoneSchema,
+  createMissionSchema,
   createOutcomeSchema,
   createSignalSchema,
+  createTaskSchema,
   decideCompletionSchema,
   recordDecisionSchema,
   submitProofSchema,
   triageSignalSchema,
-  updateProgressSchema
+  updateMilestoneStatusSchema,
+  updateMissionHealthSchema,
+  updateProgressSchema,
+  updateTaskStatusSchema
 } from '@ksp/validation';
 import { getServerSupabase } from '../../lib/supabase';
 
@@ -485,5 +492,214 @@ export async function recordDecision(_prev: ActionResult, form: FormData): Promi
 
   await record(supabase, ctx, 'decision.recorded', 'approval_requests', parsed.data.approvalRequestId, `Decision: ${parsed.data.decision}`);
   revalidatePath('/decisions');
+  return { ok: true };
+}
+
+/* --------------------------------------------------------------- Phase C3 -- */
+
+export async function createMission(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const decision = canPerform(ctx.membership, 'project.manage', { organizationId: ctx.organizationId, classification: 'internal' });
+  if (!decision.allowed) return { ok: false, error: 'You are not permitted to create missions.' };
+
+  const parsed = createMissionSchema.safeParse({
+    name: form.get('name'),
+    projectType: form.get('projectType'),
+    clientId: form.get('clientId') || undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('projects')
+    .insert({
+      organization_id: ctx.organizationId,
+      client_id: parsed.data.clientId ?? null,
+      name: parsed.data.name,
+      project_type: parsed.data.projectType,
+      health: 'unknown',
+      status: 'active'
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the mission.' };
+
+  // The creator must join their own mission or it becomes invisible to them
+  // (project_memberships gates read access via can_access_project).
+  await supabase.from('project_memberships').insert({
+    organization_id: ctx.organizationId,
+    project_id: data.id,
+    profile_id: ctx.user.id,
+    role: ctx.internalRoles[0] ?? 'contractor'
+  });
+
+  await record(supabase, ctx, 'mission.created', 'projects', data.id, `Created mission: ${parsed.data.name}`);
+  revalidatePath('/missions');
+  revalidatePath('/workspace');
+  return { ok: true };
+}
+
+export async function updateMissionHealth(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateMissionHealthSchema.safeParse({
+    id: form.get('id'),
+    health: form.get('health'),
+    nextAction: form.get('nextAction') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const patch: Record<string, unknown> = { health: parsed.data.health };
+  if (parsed.data.nextAction) patch.next_action = parsed.data.nextAction;
+  const { error } = await supabase.from('projects').update(patch).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the mission (check your access).' };
+
+  await record(supabase, ctx, 'mission.health_changed', 'projects', parsed.data.id, `Health set to ${parsed.data.health}`);
+  revalidatePath('/missions');
+  return { ok: true };
+}
+
+export async function createMilestone(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createMilestoneSchema.safeParse({
+    projectId: form.get('projectId'),
+    title: form.get('title'),
+    phase: form.get('phase') ?? undefined,
+    dueDate: form.get('dueDate') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('mission_milestones')
+    .insert({
+      organization_id: ctx.organizationId,
+      project_id: parsed.data.projectId,
+      title: parsed.data.title,
+      phase: parsed.data.phase || null,
+      due_date: parsed.data.dueDate || null,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not add the milestone (check your access).' };
+
+  await record(supabase, ctx, 'milestone.created', 'mission_milestones', data.id, `Milestone: ${parsed.data.title}`);
+  revalidatePath('/missions');
+  return { ok: true };
+}
+
+export async function updateMilestoneStatus(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateMilestoneStatusSchema.safeParse({ id: form.get('id'), status: form.get('status') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('mission_milestones').update({ status: parsed.data.status }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the milestone (check your access).' };
+
+  await record(supabase, ctx, 'milestone.status_changed', 'mission_milestones', parsed.data.id, `Milestone moved to ${parsed.data.status}`);
+  revalidatePath('/missions');
+  revalidatePath('/schedule');
+  revalidatePath('/horizon');
+  return { ok: true };
+}
+
+export async function addMissionDependency(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = addDependencySchema.safeParse({
+    projectId: form.get('projectId'),
+    dependsOnProjectId: form.get('dependsOnProjectId'),
+    note: form.get('note') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('mission_dependencies')
+    .insert({
+      organization_id: ctx.organizationId,
+      project_id: parsed.data.projectId,
+      depends_on_project_id: parsed.data.dependsOnProjectId,
+      note: parsed.data.note || null,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) {
+    if (error.message.includes('duplicate key') || error.message.includes('unique')) {
+      return { ok: false, error: 'This dependency already exists.' };
+    }
+    return { ok: false, error: 'Could not add the dependency (check your access).' };
+  }
+
+  await record(supabase, ctx, 'mission.dependency_added', 'mission_dependencies', data.id, 'Dependency added');
+  revalidatePath('/missions');
+  return { ok: true };
+}
+
+/* --------------------------------------------------------- Phase C3: Workspace -- */
+
+export async function createTask(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createTaskSchema.safeParse({
+    title: form.get('title'),
+    projectId: form.get('projectId') || undefined,
+    ownerId: form.get('ownerId') || undefined,
+    dueDate: form.get('dueDate') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('tasks')
+    .insert({
+      organization_id: ctx.organizationId,
+      project_id: parsed.data.projectId ?? null,
+      owner_id: parsed.data.ownerId ?? ctx.user.id,
+      title: parsed.data.title,
+      due_date: parsed.data.dueDate || null
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the task (check your access to the mission).' };
+
+  await record(supabase, ctx, 'task.created', 'tasks', data.id, `Task: ${parsed.data.title}`);
+  revalidatePath('/workspace');
+  return { ok: true };
+}
+
+export async function updateTaskStatus(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateTaskStatusSchema.safeParse({
+    id: form.get('id'),
+    status: form.get('status') || undefined,
+    blocked: form.get('blocked') || undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.status) patch.status = parsed.data.status;
+  if (parsed.data.blocked !== undefined) patch.blocked = parsed.data.blocked;
+  const { error } = await supabase.from('tasks').update(patch).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the task (check your access).' };
+
+  await record(supabase, ctx, 'task.updated', 'tasks', parsed.data.id, 'Task updated');
+  revalidatePath('/workspace');
   return { ok: true };
 }

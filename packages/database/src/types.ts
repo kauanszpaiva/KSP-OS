@@ -171,3 +171,68 @@ export interface ApprovalDecision {
   comments: string | null;
   created_at: string;
 }
+
+/* --------------------------------------------------------- Phase C3 -- */
+
+export interface Project {
+  id: string;
+  organization_id: string;
+  client_id: string | null;
+  name: string;
+  project_type: string;
+  health: string;
+  budget_minor: number | null;
+  currency: string | null;
+  next_action: string | null;
+  status: RecordStatus;
+  created_at: string;
+  archived_at: string | null;
+}
+
+export interface ProjectMembership {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  profile_id: string;
+  role: string;
+  effective_until: string | null;
+}
+
+export type MilestoneStatus = 'pending' | 'in_progress' | 'done' | 'at_risk';
+
+export interface MissionMilestone {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  title: string;
+  phase: string | null;
+  due_date: string | null;
+  status: MilestoneStatus;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface MissionDependency {
+  id: string;
+  organization_id: string;
+  project_id: string;
+  depends_on_project_id: string;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface Task {
+  id: string;
+  organization_id: string;
+  project_id: string | null;
+  owner_id: string | null;
+  title: string;
+  due_date: string | null;
+  blocked: boolean;
+  client_visible: boolean;
+  classification: 'public' | 'internal' | 'confidential' | 'restricted';
+  status: RecordStatus;
+  created_at: string;
+}

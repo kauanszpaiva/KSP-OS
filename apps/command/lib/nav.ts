@@ -36,11 +36,11 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Outcomes', href: '/outcomes', status: 'live', icon: 'outcomes' },
       { label: 'Commitments', href: '/commitments', status: 'live', icon: 'commitments' },
-      { label: 'Workspace', href: '/workspace', status: 'planned', icon: 'workspace' },
-      { label: 'Missions', href: '/missions', status: 'planned', icon: 'missions' },
-      { label: 'Schedule', href: '/schedule', status: 'planned', icon: 'schedule' },
-      { label: 'Horizon', href: '/horizon', status: 'planned', icon: 'horizon' },
-      { label: 'Team', href: '/team', status: 'planned', icon: 'team' }
+      { label: 'Workspace', href: '/workspace', status: 'live', icon: 'workspace' },
+      { label: 'Missions', href: '/missions', status: 'live', icon: 'missions' },
+      { label: 'Schedule', href: '/schedule', status: 'live', icon: 'schedule' },
+      { label: 'Horizon', href: '/horizon', status: 'live', icon: 'horizon' },
+      { label: 'Team', href: '/team', status: 'live', icon: 'team' }
     ]
   },
   {
