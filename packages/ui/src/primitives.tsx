@@ -1,0 +1,223 @@
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
+import { Icon, type IconName } from './icons';
+
+/** Tiny classnames joiner — no dependency needed. */
+export function cx(...parts: Array<string | false | null | undefined>): string {
+  return parts.filter(Boolean).join(' ');
+}
+
+/* --------------------------------------------------------------- Button -- */
+
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonSize = 'sm' | 'md' | 'lg';
+
+const BUTTON_BASE =
+  'inline-flex select-none items-center justify-center gap-2 rounded-lg font-medium whitespace-nowrap transition-[background-color,color,transform,box-shadow] duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50';
+
+const BUTTON_VARIANT: Record<ButtonVariant, string> = {
+  primary: 'bg-brand text-on-brand shadow-card hover:bg-brand-strong',
+  secondary: 'border border-line-2 bg-surface text-ink-2 hover:bg-surface-2 hover:text-ink',
+  ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+  danger: 'bg-risk text-white shadow-card hover:brightness-110'
+};
+
+const BUTTON_SIZE: Record<ButtonSize, string> = {
+  sm: 'h-8 px-3 text-[13px]',
+  md: 'h-9 px-4 text-[13px]',
+  lg: 'h-11 px-5 text-sm'
+};
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  icon?: IconName;
+  loading?: boolean;
+}
+
+export function Button({ variant = 'primary', size = 'md', icon, loading, className, children, disabled, ...props }: ButtonProps) {
+  return (
+    <button
+      type={props.type ?? 'button'}
+      disabled={disabled || loading}
+      className={cx(BUTTON_BASE, BUTTON_VARIANT[variant], BUTTON_SIZE[size], className)}
+      {...props}
+    >
+      {loading ? <Spinner className="h-4 w-4" /> : icon ? <Icon name={icon} className="h-4 w-4" /> : null}
+      {children}
+    </button>
+  );
+}
+
+export function IconButton({
+  icon,
+  label,
+  size = 'md',
+  variant = 'ghost',
+  className,
+  ...props
+}: { icon: IconName; label: string; size?: 'sm' | 'md'; variant?: 'ghost' | 'secondary' } & ButtonHTMLAttributes<HTMLButtonElement>) {
+  const dim = size === 'sm' ? 'h-8 w-8' : 'h-9 w-9';
+  const look =
+    variant === 'secondary'
+      ? 'border border-line-2 bg-surface text-ink-2 hover:bg-surface-2 hover:text-ink'
+      : 'text-ink-3 hover:bg-surface-2 hover:text-ink';
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={cx(
+        'inline-flex items-center justify-center rounded-lg transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-focus',
+        dim,
+        look,
+        className
+      )}
+      {...props}
+    >
+      <Icon name={icon} className={size === 'sm' ? 'h-[17px] w-[17px]' : 'h-[18px] w-[18px]'} />
+    </button>
+  );
+}
+
+/* ----------------------------------------------------------------- Card -- */
+
+export function Card({
+  children,
+  className,
+  interactive = false,
+  as: Tag = 'div',
+  ...props
+}: { children: ReactNode; className?: string; interactive?: boolean; as?: 'div' | 'section' | 'article' | 'li' } & HTMLAttributes<HTMLElement>) {
+  return (
+    <Tag
+      className={cx(
+        'rounded-xl border border-line bg-surface shadow-card',
+        interactive && 'transition-[transform,box-shadow,border-color] duration-fast ease-standard hover:-translate-y-0.5 hover:border-line-2 hover:shadow-pop',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+/* ---------------------------------------------------------------- Badge -- */
+
+export type Tone = 'neutral' | 'brand' | 'accent' | 'good' | 'warn' | 'risk';
+
+const BADGE_TONE: Record<Tone, string> = {
+  neutral: 'bg-surface-2 text-ink-2',
+  brand: 'bg-brand-tint text-brand',
+  accent: 'bg-accent-tint text-accent-strong',
+  good: 'bg-good-tint text-good',
+  warn: 'bg-warn-tint text-warn',
+  risk: 'bg-risk-tint text-risk'
+};
+
+export function Badge({ tone = 'neutral', children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
+  return (
+    <span className={cx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-medium', BADGE_TONE[tone], className)}>
+      {children}
+    </span>
+  );
+}
+
+export function Dot({ tone = 'neutral', className }: { tone?: Tone; className?: string }) {
+  const map: Record<Tone, string> = {
+    neutral: 'bg-ink-4',
+    brand: 'bg-brand',
+    accent: 'bg-accent',
+    good: 'bg-good',
+    warn: 'bg-warn',
+    risk: 'bg-risk'
+  };
+  return <span className={cx('inline-block h-1.5 w-1.5 rounded-full', map[tone], className)} aria-hidden />;
+}
+
+/* --------------------------------------------------------------- Avatar -- */
+
+const AVATAR_HUES = ['bg-brand', 'bg-accent', 'bg-good', 'bg-warn', 'bg-risk'];
+
+export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
+  const initials =
+    name
+      .split(' ')
+      .map((p) => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || '?';
+  const hue = AVATAR_HUES[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % AVATAR_HUES.length];
+  const dim = size === 'sm' ? 'h-7 w-7 text-[10px]' : size === 'lg' ? 'h-10 w-10 text-[13px]' : 'h-8 w-8 text-[11px]';
+  const onHue = hue === 'bg-accent' ? 'text-on-accent' : 'text-on-brand';
+  return (
+    <span className={cx('inline-flex shrink-0 items-center justify-center rounded-full font-semibold', dim, hue, onHue)} aria-hidden>
+      {initials}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------ Skeleton / Spinner -- */
+
+export function Skeleton({ className }: { className?: string }) {
+  return <span className={cx('skeleton block rounded-md', className)} aria-hidden />;
+}
+
+export function Spinner({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={cx('animate-spin', className)} aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------ EmptyState -- */
+
+export function EmptyState({ icon, title, hint, action }: { icon?: IconName; title: string; hint?: string; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-line-2 bg-surface/60 px-6 py-12 text-center">
+      {icon && (
+        <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-2 text-ink-3">
+          <Icon name={icon} className="h-5 w-5" />
+        </span>
+      )}
+      <p className="text-sm font-medium text-ink">{title}</p>
+      {hint && <p className="mt-1 max-w-sm text-[13px] text-ink-3">{hint}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- Segmented -- */
+
+export interface SegmentedItem {
+  value: string;
+  label: string;
+  icon?: IconName;
+}
+
+export function Segmented({ items, value, onValueChange }: { items: SegmentedItem[]; value: string; onValueChange: (value: string) => void }) {
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-lg border border-line bg-surface-2 p-0.5">
+      {items.map((item) => {
+        const active = item.value === value;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => onValueChange(item.value)}
+            className={cx(
+              'inline-flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13px] font-medium transition-colors duration-fast',
+              active ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink'
+            )}
+          >
+            {item.icon && <Icon name={item.icon} className="h-4 w-4" />}
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

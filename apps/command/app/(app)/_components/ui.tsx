@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Icon, type IconName } from '@ksp/ui';
 
 /* ---------------------------------------------------------------- layout -- */
 
@@ -34,7 +35,7 @@ export function Panel({
   className?: string;
   as?: 'section' | 'div' | 'article' | 'aside';
 }) {
-  return <Tag className={`rounded-lg border border-line bg-surface ${className}`}>{children}</Tag>;
+  return <Tag className={`rounded-xl border border-line bg-surface shadow-card ${className}`}>{children}</Tag>;
 }
 
 export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
@@ -46,11 +47,16 @@ export function SectionLabel({ children, right }: { children: ReactNode; right?:
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({ icon, title, hint }: { icon?: IconName; title: string; hint?: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-line-2 bg-surface/50 px-5 py-8">
+    <div className="animate-fade-in rounded-xl border border-dashed border-line-2 bg-surface/50 px-5 py-8 text-center">
+      {icon && (
+        <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-2 text-ink-3">
+          <Icon name={icon} className="h-5 w-5" />
+        </span>
+      )}
       <p className="text-sm font-medium text-ink-2">{title}</p>
-      {hint && <p className="mt-1 max-w-md text-[13px] text-ink-3">{hint}</p>}
+      {hint && <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-3">{hint}</p>}
     </div>
   );
 }
@@ -63,7 +69,7 @@ export function Rail({ value, tone = 'brand' }: { value: number; tone?: 'brand' 
   const fill = tone === 'good' ? 'bg-good' : tone === 'warn' ? 'bg-warn' : tone === 'risk' ? 'bg-risk' : 'bg-brand';
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-line" role="presentation">
-      <div className={`h-full rounded-full ${fill}`} style={{ width: `${pct}%` }} />
+      <div className={`h-full rounded-full transition-[width] duration-slow ease-standard ${fill}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -76,18 +82,19 @@ export function Ring({ value, size = 68, stroke = 6 }: { value: number; size?: n
   const off = c * (1 - pct / 100);
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" role="img" aria-label={`${pct}% complete`}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e5eaf1" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-line" strokeWidth={stroke} />
       <circle
         cx={size / 2}
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="#1f4e79"
+        className={pct >= 100 ? 'stroke-accent' : 'stroke-brand'}
         strokeWidth={stroke}
         strokeLinecap="round"
         strokeDasharray={c}
         strokeDashoffset={off}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: 'stroke-dashoffset var(--motion-slow) var(--ease-standard)' }}
       />
       <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" className="tnum fill-ink text-[15px] font-semibold">
         {pct}

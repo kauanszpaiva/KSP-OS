@@ -1,3 +1,4 @@
+import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { daysUntil, formatDate, isOverdue } from '../../../lib/format';
@@ -57,17 +58,17 @@ export default async function FocusPage() {
       />
 
       {mine.length === 0 ? (
-        <EmptyState title="Nothing on your runway." hint="Commitments you own or are assigned to will appear here, ordered by when they are due." />
+        <EmptyState icon="focus" title="Nothing on your runway." hint="Commitments you own or are assigned to will appear here, ordered by when they are due." />
       ) : (
         <div className="relative pl-6">
           {/* the spine */}
           <span className="absolute bottom-2 left-[7px] top-2 w-px bg-line" aria-hidden />
           <div className="space-y-8">
-            {BANDS.map((band) => {
+            {BANDS.map((band, bandIndex) => {
               const items = mine.filter(band.match);
               if (items.length === 0) return null;
               return (
-                <section key={band.key}>
+                <Reveal as="section" key={band.key} delay={bandIndex * 60}>
                   <div className="relative mb-3">
                     <span className={`absolute -left-[22px] top-1 h-3 w-3 rounded-full ring-4 ring-canvas ${band.accent}`} aria-hidden />
                     <h2 className="text-[13px] font-semibold text-ink">{band.label}</h2>
@@ -75,7 +76,10 @@ export default async function FocusPage() {
                   </div>
                   <div className="space-y-2">
                     {items.map((c) => (
-                      <article key={c.id} className="relative rounded-lg border border-line bg-surface px-4 py-3">
+                      <article
+                        key={c.id}
+                        className="relative rounded-lg border border-line bg-surface px-4 py-3 transition-[border-color,box-shadow] duration-fast hover:border-line-2 hover:shadow-card"
+                      >
                         <span className="absolute -left-[19px] top-5 h-2 w-2 rounded-full border-2 border-canvas bg-ink-4" aria-hidden />
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -94,7 +98,7 @@ export default async function FocusPage() {
                       </article>
                     ))}
                   </div>
-                </section>
+                </Reveal>
               );
             })}
           </div>

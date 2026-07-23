@@ -1,23 +1,30 @@
 import { canManageOutcomes } from '@ksp/auth';
 import type { CompanyOutcome } from '@ksp/database';
+import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getMembers, getOutcomes } from '../data';
 import { EmptyState, PageHeader, Panel, Ring, SectionLabel, SlotMeter, StatePill } from '../_components/ui';
 import { OutcomeForm, OutcomeStateForm } from '../_components/forms';
 
-function Lane({ outcome, canManage }: { outcome: CompanyOutcome | null; canManage: boolean }) {
+function Lane({ outcome, canManage, delay }: { outcome: CompanyOutcome | null; canManage: boolean; delay: number }) {
   if (!outcome) {
     return (
-      <div className="flex min-h-[188px] flex-col items-center justify-center rounded-lg border border-dashed border-line-2 bg-surface/40 p-5 text-center">
+      <Reveal
+        delay={delay}
+        className="flex min-h-[188px] flex-col items-center justify-center rounded-xl border border-dashed border-line-2 bg-surface/40 p-5 text-center transition-colors duration-fast hover:bg-surface/70"
+      >
         <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-line-2 text-ink-4">+</span>
         <p className="text-[13px] font-medium text-ink-3">Open slot</p>
         <p className="mt-0.5 text-[12px] text-ink-4">Capacity for one more company outcome.</p>
-      </div>
+      </Reveal>
     );
   }
   return (
-    <div className="flex min-h-[188px] flex-col rounded-lg border border-line bg-surface p-5">
+    <Reveal
+      delay={delay}
+      className="flex min-h-[188px] flex-col rounded-xl border border-line bg-surface p-5 shadow-card transition-[border-color,box-shadow] duration-fast hover:border-line-2 hover:shadow-pop"
+    >
       <div className="flex items-start gap-4">
         <Ring value={outcome.progress} />
         <div className="min-w-0 flex-1">
@@ -35,7 +42,7 @@ function Lane({ outcome, canManage }: { outcome: CompanyOutcome | null; canManag
           <OutcomeStateForm id={outcome.id} target="completed">Complete</OutcomeStateForm>
         </div>
       )}
-    </div>
+    </Reveal>
   );
 }
 
@@ -71,7 +78,7 @@ export default async function OutcomesPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         {slots.map((o, i) => (
-          <Lane key={o?.id ?? `slot-${i}`} outcome={o} canManage={canManage} />
+          <Lane key={o?.id ?? `slot-${i}`} outcome={o} canManage={canManage} delay={i * 60} />
         ))}
       </div>
 

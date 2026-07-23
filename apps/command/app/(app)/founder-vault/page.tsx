@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { canViewFounderVault } from '@ksp/auth';
+import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate } from '../../../lib/format';
@@ -37,11 +38,11 @@ export default async function FounderVaultPage() {
       </Panel>
 
       {entries.length === 0 ? (
-        <EmptyState title="Your vault is empty." hint="Only you can ever see what you write here." />
+        <EmptyState icon="vault" title="Your vault is empty." hint="Only you can ever see what you write here." />
       ) : (
         <div className="space-y-8">
-          {entries.map((e) => (
-            <article key={e.id} className="grid grid-cols-[64px_1fr] gap-4 border-l border-line pl-5">
+          {entries.map((e, i) => (
+            <Reveal as="article" key={e.id} delay={Math.min(i, 8) * 40} className="grid grid-cols-[64px_1fr] gap-4 border-l border-line pl-5">
               <time className="tnum pt-1 text-[11.5px] uppercase tracking-wide text-ink-4">{formatDate(e.created_at)}</time>
               <div>
                 <div className="flex items-baseline gap-2">
@@ -50,7 +51,7 @@ export default async function FounderVaultPage() {
                 </div>
                 {e.body && <p className="mt-1.5 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-2">{e.body}</p>}
               </div>
-            </article>
+            </Reveal>
           ))}
         </div>
       )}

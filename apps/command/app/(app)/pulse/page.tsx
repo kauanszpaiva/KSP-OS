@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Reveal } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate, isOverdue } from '../../../lib/format';
@@ -43,11 +44,11 @@ export default async function PulsePage() {
       <PageHeader eyebrow="Command" title="Pulse" description="Everything the company should grasp in under two minutes." />
 
       {!hasData ? (
-        <EmptyState title="The company graph is empty." hint="Set company outcomes and create the first commitments to bring Pulse to life." />
+        <EmptyState icon="pulse" title="The company graph is empty." hint="Set company outcomes and create the first commitments to bring Pulse to life." />
       ) : (
         <div className="space-y-9">
           {/* Editorial status sentence — the narrative, not a metric card. */}
-          <div className="border-l-2 border-brand pl-5">
+          <Reveal className="border-l-2 border-brand pl-5">
             <p className="font-display text-[22px] leading-snug text-ink sm:text-[26px]">
               {active.length} of 3 outcome slots are active at{' '}
               <span className="tnum font-semibold">{avg}%</span> average progress, with{' '}
@@ -67,9 +68,9 @@ export default async function PulsePage() {
                 '.'
               )}
             </p>
-          </div>
+          </Reveal>
 
-          <div className="grid gap-8 lg:grid-cols-[1.55fr_1fr]">
+          <Reveal delay={60} className="grid gap-8 lg:grid-cols-[1.55fr_1fr]">
             {/* Attention ledger — ranked, not a board */}
             <div>
               <SectionLabel right={<Link href="/commitments" className="text-[12px] font-medium text-brand hover:underline">All commitments</Link>}>
@@ -82,7 +83,10 @@ export default async function PulsePage() {
               ) : (
                 <ol className="overflow-hidden rounded-lg border border-line bg-surface">
                   {attention.map(({ c, a }, i) => (
-                    <li key={c.id} className={`flex items-center gap-4 px-4 py-3 ${i > 0 ? 'border-t border-line' : ''}`}>
+                    <li
+                      key={c.id}
+                      className={`flex items-center gap-4 px-4 py-3 transition-colors duration-fast hover:bg-surface-2 ${i > 0 ? 'border-t border-line' : ''}`}
+                    >
                       <span className={`h-8 w-0.5 shrink-0 rounded-full ${TONE_BAR[a.tone]}`} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14px] font-medium text-ink">{c.title}</p>
@@ -137,11 +141,11 @@ export default async function PulsePage() {
                 )}
               </div>
             </div>
-          </div>
+          </Reveal>
 
           {/* Since you were away */}
           {activity.length > 0 && (
-            <div>
+            <Reveal delay={120}>
               <SectionLabel>Since you were away</SectionLabel>
               <ol className="space-y-0">
                 {activity.map((e, i) => (
@@ -157,7 +161,7 @@ export default async function PulsePage() {
                   </li>
                 ))}
               </ol>
-            </div>
+            </Reveal>
           )}
         </div>
       )}

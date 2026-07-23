@@ -4,7 +4,8 @@ import { useActionState } from 'react';
 import { createVaultEntry, type ActionResult } from '../actions';
 
 const initial: ActionResult = { ok: false };
-const field = 'mt-1 w-full rounded-md border border-line-2 bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-4 focus:border-brand';
+const field =
+  'mt-1 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-4 transition-colors duration-fast focus:border-brand focus:outline-none focus:shadow-focus';
 const label = 'block text-[12px] font-medium text-ink-2';
 
 export function VaultForm() {
@@ -32,7 +33,11 @@ export function VaultForm() {
         <textarea id="v-body" name="body" rows={3} className={field} />
       </div>
       {!state.ok && state.error && <p className="text-[13px] text-risk">{state.error}</p>}
-      <button type="submit" disabled={pending} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep disabled:opacity-50">
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-canvas shadow-card transition-[background-color,transform] duration-fast active:scale-[0.98] hover:bg-brand disabled:opacity-50"
+      >
         {pending ? 'Saving…' : 'Save to vault'}
       </button>
     </form>
