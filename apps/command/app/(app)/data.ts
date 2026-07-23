@@ -153,17 +153,35 @@ export interface MissionView extends Project {
   dependencies: MissionDependency[];
   memberIds: string[];
   commitmentCount: number;
+  /** Display name of the linked client organization, if any (projects.client_id). */
+  clientName: string | null;
+}
+
+/** Lightweight client picker option — id + display name only (no contacts/notes join). */
+export interface ClientRef {
+  id: string;
+  displayName: string;
+}
+
+export async function getClientRefs(supabase: SupabaseClient): Promise<ClientRef[]> {
+  const { data } = await supabase
+    .from('client_organizations')
+    .select('id, display_name')
+    .eq('status', 'active')
+    .order('display_name', { ascending: true });
+  return ((data ?? []) as Array<{ id: string; display_name: string }>).map((c) => ({ id: c.id, displayName: c.display_name }));
 }
 
 export async function getMissions(supabase: SupabaseClient): Promise<MissionView[]> {
   // projects_member_read RLS scopes rows to the executive (all) or an assigned member.
-  const [{ data: projects }, { data: milestones }, { data: dependencies }, { data: memberships }, { data: commitments }] =
+  const [{ data: projects }, { data: milestones }, { data: dependencies }, { data: memberships }, { data: commitments }, { data: clients }] =
     await Promise.all([
       supabase.from('projects').select('*').order('created_at', { ascending: false }),
       supabase.from('mission_milestones').select('*').order('sort_order', { ascending: true }),
       supabase.from('mission_dependencies').select('*'),
       supabase.from('project_memberships').select('project_id, profile_id'),
-      supabase.from('commitments').select('id, outcome_id').not('outcome_id', 'is', null)
+      supabase.from('commitments').select('id, outcome_id').not('outcome_id', 'is', null),
+      supabase.from('client_organizations').select('id, display_name')
     ]);
 
   const milestonesByProject = new Map<string, MissionMilestone[]>();
@@ -184,6 +202,7 @@ export async function getMissions(supabase: SupabaseClient): Promise<MissionView
     arr.push(m.profile_id);
     membersByProject.set(m.project_id, arr);
   }
+  const clientNameById = new Map(((clients ?? []) as Array<{ id: string; display_name: string }>).map((c) => [c.id, c.display_name]));
   void commitments; // reserved: commitments do not yet carry a mission/project link (Phase C3 follow-up).
 
   return ((projects ?? []) as Project[]).map((p) => ({
@@ -191,7 +210,8 @@ export async function getMissions(supabase: SupabaseClient): Promise<MissionView
     milestones: milestonesByProject.get(p.id) ?? [],
     dependencies: dependenciesByProject.get(p.id) ?? [],
     memberIds: membersByProject.get(p.id) ?? [],
-    commitmentCount: 0
+    commitmentCount: 0,
+    clientName: (p.client_id && clientNameById.get(p.client_id)) || null
   }));
 }
 
@@ -276,6 +296,45 @@ export async function getTeamLoad(supabase: SupabaseClient): Promise<TeamLoadVie
   }
 
   return [...load.values()].sort((a, b) => b.openCommitments + b.openTasks - (a.openCommitments + a.openTasks));
+}
+
+/* ----------------------------------------------------- Phase C7: Member admin -- */
+
+export interface MemberAdminView {
+  profileId: string;
+  displayName: string;
+  email: string;
+  role: string;
+  suspended: boolean;
+}
+
+/**
+ * One row per internal member with their role and suspension state, for the
+ * executive-only access panel. member_read RLS scopes organization_memberships
+ * to the caller's org; a profile with several role rows is collapsed to one
+ * (the role column is what updateMemberRole mutates).
+ */
+export async function getMembersAdmin(supabase: SupabaseClient): Promise<MemberAdminView[]> {
+  const [{ data: memberships }, { data: profiles }] = await Promise.all([
+    supabase.from('organization_memberships').select('profile_id, internal_role, suspended_at').not('internal_role', 'is', null),
+    supabase.from('profiles').select('id, display_name, email')
+  ]);
+  const profileById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string; email: string | null }>).map((p) => [p.id, p]));
+  const seen = new Set<string>();
+  const rows: MemberAdminView[] = [];
+  for (const m of (memberships ?? []) as Array<{ profile_id: string; internal_role: string; suspended_at: string | null }>) {
+    if (seen.has(m.profile_id)) continue;
+    seen.add(m.profile_id);
+    const p = profileById.get(m.profile_id);
+    rows.push({
+      profileId: m.profile_id,
+      displayName: p?.display_name ?? 'Unknown',
+      email: p?.email ?? '',
+      role: m.internal_role,
+      suspended: Boolean(m.suspended_at)
+    });
+  }
+  return rows.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 /* --------------------------------------------------------------- Phase C4 -- */

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Donut, Reveal, Segmented } from '@ksp/ui';
+import { Donut, Icon, Reveal, Segmented } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import type { ClientView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
-import { ClientForm, ClientHealthForm, ClientNoteForm, ContactForm } from './growth-forms';
+import { ClientEditForm, ClientHealthForm, ClientNoteForm, ContactForm } from './growth-forms';
 
 function ClientCard({ client, delay }: { client: ClientView; delay: number }) {
   return (
@@ -13,11 +13,21 @@ function ClientCard({ client, delay }: { client: ClientView; delay: number }) {
       <Panel className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-[15px] font-semibold text-ink">{client.display_name}</h3>
+            <h3 className="font-display text-[15px] font-semibold text-ink">{client.display_name}</h3>
             <p className="mt-0.5 truncate text-[12px] text-ink-3">{client.legal_name}</p>
           </div>
           <ClientHealthForm id={client.id} currentHealth={client.relationship_health} />
         </div>
+
+        <details className="group/edit mt-3">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] font-medium text-ink-3 transition-colors duration-fast marker:hidden hover:text-brand [&::-webkit-details-marker]:hidden">
+            <Icon name="sliders" className="h-3.5 w-3.5" />
+            Edit details
+          </summary>
+          <div className="animate-fade-slide-up mt-3 rounded-lg border border-line bg-surface-2/50 p-3">
+            <ClientEditForm id={client.id} legalName={client.legal_name} displayName={client.display_name} />
+          </div>
+        </details>
 
         <div className="mt-4 border-t border-line pt-4">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Contacts</p>

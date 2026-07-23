@@ -9,11 +9,30 @@ import {
   createProductSchema,
   toggleProductActiveSchema,
   updateClientHealthSchema,
+  updateClientSchema,
   updateContentStatusSchema,
   updateLeadStatusSchema
 } from './schemas';
 
 const uuidA = '11111111-1111-1111-1111-111111111111';
+
+describe('updateClientSchema', () => {
+  it('accepts an id-only patch', () => {
+    expect(updateClientSchema.safeParse({ id: uuidA }).success).toBe(true);
+  });
+
+  it('accepts a display-name-only edit', () => {
+    expect(updateClientSchema.safeParse({ id: uuidA, displayName: 'Bez Group' }).success).toBe(true);
+  });
+
+  it('rejects a display name that is too short', () => {
+    expect(updateClientSchema.safeParse({ id: uuidA, displayName: 'B' }).success).toBe(false);
+  });
+
+  it('rejects a missing id', () => {
+    expect(updateClientSchema.safeParse({ displayName: 'Bez Group' }).success).toBe(false);
+  });
+});
 
 describe('createLeadSchema', () => {
   it('accepts a lead with a next action', () => {

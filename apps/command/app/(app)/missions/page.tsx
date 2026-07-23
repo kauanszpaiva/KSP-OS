@@ -1,6 +1,6 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getMissions } from '../data';
+import { getClientRefs, getMissions } from '../data';
 import { EmptyState, PageHeader } from '../_components/ui';
 import { MissionForm } from '../_components/mission-workspace-forms';
 import { MissionsView } from '../_components/missions-view';
@@ -8,7 +8,7 @@ import { MissionsView } from '../_components/missions-view';
 export default async function MissionsPage() {
   await requireSession();
   const supabase = await getServerSupabase();
-  const missions = supabase ? await getMissions(supabase) : [];
+  const [missions, clients] = supabase ? await Promise.all([getMissions(supabase), getClientRefs(supabase)]) : [[], []];
 
   return (
     <div>
@@ -23,14 +23,14 @@ export default async function MissionsPage() {
           + New mission
         </summary>
         <div className="animate-fade-slide-up border-t border-line p-4">
-          <MissionForm />
+          <MissionForm clients={clients} />
         </div>
       </details>
 
       {missions.length === 0 ? (
         <EmptyState icon="missions" title="No missions yet." hint="Create one to group commitments and milestones under a shared objective." />
       ) : (
-        <MissionsView missions={missions} />
+        <MissionsView missions={missions} clients={clients} />
       )}
     </div>
   );

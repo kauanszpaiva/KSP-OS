@@ -1,13 +1,17 @@
+import { isExecutive } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getTeamLoad } from '../data';
+import { getMembersAdmin, getTeamLoad } from '../data';
 import { PageHeader } from '../_components/ui';
 import { TeamView } from '../_components/team-view';
 
 export default async function TeamPage() {
-  await requireSession();
+  const ctx = await requireSession();
+  const canManage = isExecutive(ctx);
   const supabase = await getServerSupabase();
-  const load = supabase ? await getTeamLoad(supabase) : [];
+  const [load, members] = supabase
+    ? await Promise.all([getTeamLoad(supabase), canManage ? getMembersAdmin(supabase) : Promise.resolve([])])
+    : [[], []];
 
   return (
     <div>
@@ -16,7 +20,7 @@ export default async function TeamPage() {
         title="Team"
         description="A simple capacity signal — open commitments and tasks per person. Not hour-based allocation yet."
       />
-      <TeamView load={load} />
+      <TeamView load={load} members={members} canManage={canManage} currentUserId={ctx.user.id} />
     </div>
   );
 }

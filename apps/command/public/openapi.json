@@ -1,0 +1,78 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "KSP Command OS — Read API",
+    "version": "1.0.0",
+    "description": "Read-only, RLS-scoped access to KSP Command OS for AI connectors (ChatGPT Actions / Claude MCP). Every request runs as the authenticated user; it never returns more than that user can see in the app. Write actions are intentionally not exposed here."
+  },
+  "servers": [{ "url": "https://REPLACE-WITH-YOUR-COMMAND-HOST/api/v1", "description": "Command app v1 API (replace host)" }],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "The authenticated user, their organization, and internal roles.",
+        "responses": { "200": { "description": "Current user", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Me" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/missions": {
+      "get": {
+        "operationId": "listMissions",
+        "summary": "Missions (projects) visible to the user, with client, milestones, and dependencies.",
+        "responses": { "200": { "description": "Missions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/clients": {
+      "get": {
+        "operationId": "listClients",
+        "summary": "Client organizations visible to the user, with contacts and internal notes.",
+        "responses": { "200": { "description": "Clients", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/tasks": {
+      "get": {
+        "operationId": "listTasks",
+        "summary": "Workspace tasks visible to the user, with owner and project names.",
+        "responses": { "200": { "description": "Tasks", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/outcomes": {
+      "get": {
+        "operationId": "listOutcomes",
+        "summary": "Company outcomes visible to the user.",
+        "responses": { "200": { "description": "Outcomes", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/commitments": {
+      "get": {
+        "operationId": "listCommitments",
+        "summary": "Commitments visible to the user, with owner names and proofs.",
+        "responses": { "200": { "description": "Commitments", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "A Supabase user access token. The request runs as that user with their RLS in force." }
+    },
+    "responses": {
+      "Unauthorized": { "description": "Missing/invalid token, or the user has no active internal membership.", "content": { "application/json": { "schema": { "type": "object", "properties": { "error": { "type": "string" } } } } } }
+    },
+    "schemas": {
+      "Me": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "email": { "type": "string" },
+          "displayName": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "roles": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "DataList": {
+        "type": "object",
+        "properties": { "data": { "type": "array", "items": { "type": "object", "additionalProperties": true } } }
+      }
+    }
+  }
+}

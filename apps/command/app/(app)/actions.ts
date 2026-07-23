@@ -28,15 +28,19 @@ import {
   reassignTaskSchema,
   recordDecisionSchema,
   revokeConnectionSchema,
+  setMemberSuspendedSchema,
   submitProofSchema,
   toggleProductActiveSchema,
   triageSignalSchema,
   updateClientHealthSchema,
   updateContentStatusSchema,
   updateDocumentClassificationSchema,
+  updateClientSchema,
   updateLeadStatusSchema,
+  updateMemberRoleSchema,
   updateMilestoneStatusSchema,
   updateMissionHealthSchema,
+  updateMissionSchema,
   updateProgressSchema,
   updateTaskLinkSchema,
   updateTaskStatusSchema
@@ -638,6 +642,40 @@ export async function updateMissionHealth(_prev: ActionResult, form: FormData): 
   return { ok: true };
 }
 
+export async function updateMission(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const decision = canPerform(ctx.membership, 'project.manage', { organizationId: ctx.organizationId, classification: 'internal' });
+  if (!decision.allowed) return { ok: false, error: 'You are not permitted to edit missions.' };
+
+  const parsed = updateMissionSchema.safeParse({
+    id: form.get('id'),
+    name: form.get('name') ?? undefined,
+    projectType: form.get('projectType') ?? undefined,
+    nextAction: form.get('nextAction') ?? undefined,
+    clientId: form.get('clientId') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+  if (parsed.data.projectType !== undefined) patch.project_type = parsed.data.projectType;
+  if (parsed.data.nextAction !== undefined) patch.next_action = parsed.data.nextAction || null;
+  // Empty string clears the link; a uuid sets it; `undefined` leaves it untouched.
+  if (parsed.data.clientId !== undefined) patch.client_id = parsed.data.clientId || null;
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await supabase.from('projects').update(patch).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the mission (check your access).' };
+
+  await record(supabase, ctx, 'mission.updated', 'projects', parsed.data.id, `Updated mission details`);
+  revalidatePath('/missions');
+  revalidatePath('/workspace');
+  return { ok: true };
+}
+
 export async function createMilestone(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const gate = await authed();
   if ('error' in gate) return { ok: false, error: gate.error };
@@ -904,6 +942,94 @@ export async function updateClientHealth(_prev: ActionResult, form: FormData): P
 
   await record(supabase, ctx, 'client.health_changed', 'client_organizations', parsed.data.id, `Health set to ${parsed.data.relationshipHealth}`);
   revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function updateClient(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateClientSchema.safeParse({
+    id: form.get('id'),
+    legalName: form.get('legalName') ?? undefined,
+    displayName: form.get('displayName') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.legalName !== undefined) patch.legal_name = parsed.data.legalName;
+  if (parsed.data.displayName !== undefined) patch.display_name = parsed.data.displayName;
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await supabase.from('client_organizations').update(patch).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the client (check your access).' };
+
+  await record(supabase, ctx, 'client.updated', 'client_organizations', parsed.data.id, `Updated client details`);
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
+/**
+ * Member management (executive-only). Changing another member's role is an
+ * access.grant-class action; the app gate is isExecutive (matching every other
+ * executive mutation here), the DB backstop is the executive-only UPDATE policy
+ * on organization_memberships, and the last-founder invariant is enforced by a
+ * DB trigger. An executive cannot change their own role or suspend themselves,
+ * to avoid self-lockout. Both `role` (legacy app_role) and `internal_role` are
+ * kept in sync so getAuthContext (which reads internal_role) sees the change.
+ */
+export async function updateMemberRole(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can manage member roles.' };
+
+  const parsed = updateMemberRoleSchema.safeParse({ profileId: form.get('profileId'), role: form.get('role') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  if (parsed.data.profileId === ctx.user.id) return { ok: false, error: 'You cannot change your own role.' };
+
+  const { error } = await supabase
+    .from('organization_memberships')
+    .update({ role: parsed.data.role, internal_role: parsed.data.role })
+    .eq('organization_id', ctx.organizationId)
+    .eq('profile_id', parsed.data.profileId);
+  if (error) {
+    const msg = /last active founder/i.test(error.message) ? 'The organization must keep at least one active founder.' : 'Could not update the member (check your access).';
+    return { ok: false, error: msg };
+  }
+
+  await record(supabase, ctx, 'member.role_changed', 'organization_memberships', parsed.data.profileId, `Role set to ${parsed.data.role}`);
+  revalidatePath('/team');
+  return { ok: true };
+}
+
+export async function setMemberSuspended(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can suspend or reactivate members.' };
+
+  const parsed = setMemberSuspendedSchema.safeParse({ profileId: form.get('profileId'), suspended: form.get('suspended') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  if (parsed.data.profileId === ctx.user.id) return { ok: false, error: 'You cannot suspend yourself.' };
+
+  const { error } = await supabase
+    .from('organization_memberships')
+    .update({ suspended_at: parsed.data.suspended ? new Date().toISOString() : null })
+    .eq('organization_id', ctx.organizationId)
+    .eq('profile_id', parsed.data.profileId);
+  if (error) {
+    const msg = /last active founder/i.test(error.message) ? 'The organization must keep at least one active founder.' : 'Could not update the member (check your access).';
+    return { ok: false, error: msg };
+  }
+
+  await record(supabase, ctx, parsed.data.suspended ? 'member.suspended' : 'member.reactivated', 'organization_memberships', parsed.data.profileId, parsed.data.suspended ? 'Member suspended' : 'Member reactivated');
+  revalidatePath('/team');
   return { ok: true };
 }
 

@@ -8,9 +8,10 @@
   color-scheme: light;
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
-  --canvas: 247 247 250;
+  --canvas: 245 245 249;
   --surface: 255 255 255;
   --surface-2: 244 244 248;
+  --surface-3: 236 236 242;
   --overlay: 17 18 23;
 
   --ink: 26 27 33;
@@ -38,8 +39,9 @@
   --risk: 168 42 34;
   --risk-tint: 247 233 231;
 
-  --shadow-card: 0 1px 2px rgb(17 18 23 / 0.06), 0 1px 3px rgb(17 18 23 / 0.04);
-  --shadow-pop: 0 12px 32px rgb(17 18 23 / 0.16);
+  --shadow-card: 0 1px 1px rgb(17 18 23 / 0.04), 0 3px 8px -2px rgb(17 18 23 / 0.08);
+  --shadow-pop: 0 4px 12px -2px rgb(17 18 23 / 0.1), 0 16px 40px -8px rgb(17 18 23 / 0.22);
+  --shadow-brand: 0 4px 14px -4px rgb(139 47 201 / 0.4);
 
   --motion-fast: 120ms;
   --motion: 200ms;
@@ -51,9 +53,10 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --canvas: 15 16 21;
+  --canvas: 13 14 18;
   --surface: 22 23 29;
   --surface-2: 30 31 38;
+  --surface-3: 38 40 48;
   --overlay: 0 0 0;
 
   --ink: 236 237 242;
@@ -81,8 +84,9 @@
   --risk: 232 116 106;
   --risk-tint: 54 30 28;
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 1px 3px rgb(0 0 0 / 0.3);
-  --shadow-pop: 0 16px 40px rgb(0 0 0 / 0.55);
+  --shadow-card: 0 1px 1px rgb(0 0 0 / 0.5), 0 3px 8px -2px rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 16px 40px -8px rgb(0 0 0 / 0.7);
+  --shadow-brand: 0 4px 16px -4px rgb(178 122 255 / 0.45);
 }
 
 /* ------------------------------------------------------------------- base -- */

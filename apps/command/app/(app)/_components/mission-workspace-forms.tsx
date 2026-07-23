@@ -8,11 +8,12 @@ import {
   createTask,
   reassignTask,
   updateMilestoneStatus,
+  updateMission,
   updateMissionHealth,
   updateTaskStatus,
   type ActionResult
 } from '../actions';
-import type { MemberRef } from '../data';
+import type { ClientRef, MemberRef } from '../data';
 
 const initial: ActionResult = { ok: false };
 
@@ -29,7 +30,7 @@ function FormError({ state }: { state: ActionResult }) {
   return <p className="text-[13px] text-risk">{state.error}</p>;
 }
 
-export function MissionForm() {
+export function MissionForm({ clients = [] }: { clients?: ClientRef[] }) {
   const [state, action, pending] = useActionState(createMission, initial);
   return (
     <form action={action} className="space-y-3">
@@ -37,14 +38,25 @@ export function MissionForm() {
         <label className={label} htmlFor="m-name">Mission name</label>
         <input id="m-name" name="name" className={field} placeholder="Website relaunch" required />
       </div>
-      <div>
-        <label className={label} htmlFor="m-type">Type</label>
-        <select id="m-type" name="projectType" className={field} defaultValue="engagement">
-          <option value="engagement">Client engagement</option>
-          <option value="product">Product</option>
-          <option value="campaign">Campaign</option>
-          <option value="internal">Internal</option>
-        </select>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className={label} htmlFor="m-type">Type</label>
+          <select id="m-type" name="projectType" className={field} defaultValue="engagement">
+            <option value="engagement">Client engagement</option>
+            <option value="product">Product</option>
+            <option value="campaign">Campaign</option>
+            <option value="internal">Internal</option>
+          </select>
+        </div>
+        <div>
+          <label className={label} htmlFor="m-client">Client</label>
+          <select id="m-client" name="clientId" className={field} defaultValue="">
+            <option value="">No client (internal)</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.displayName}</option>
+            ))}
+          </select>
+        </div>
       </div>
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
@@ -67,6 +79,53 @@ export function MissionHealthForm({ id, currentHealth }: { id: string; currentHe
       </select>
       <button type="submit" disabled={pending} className={ghostBtn}>Update</button>
       <FormError state={state} />
+    </form>
+  );
+}
+
+export function MissionEditForm({
+  mission,
+  clients = []
+}: {
+  mission: { id: string; name: string; project_type: string; client_id: string | null; next_action: string | null };
+  clients?: ClientRef[];
+}) {
+  const [state, action, pending] = useActionState(updateMission, initial);
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="id" value={mission.id} />
+      <div>
+        <label className={label} htmlFor={`me-name-${mission.id}`}>Mission name</label>
+        <input id={`me-name-${mission.id}`} name="name" className={field} defaultValue={mission.name} required />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className={label} htmlFor={`me-type-${mission.id}`}>Type</label>
+          <select id={`me-type-${mission.id}`} name="projectType" className={field} defaultValue={mission.project_type}>
+            <option value="engagement">Client engagement</option>
+            <option value="product">Product</option>
+            <option value="campaign">Campaign</option>
+            <option value="internal">Internal</option>
+          </select>
+        </div>
+        <div>
+          <label className={label} htmlFor={`me-client-${mission.id}`}>Client</label>
+          <select id={`me-client-${mission.id}`} name="clientId" className={field} defaultValue={mission.client_id ?? ''}>
+            <option value="">No client (internal)</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.displayName}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className={label} htmlFor={`me-next-${mission.id}`}>Next action</label>
+        <input id={`me-next-${mission.id}`} name="nextAction" className={field} defaultValue={mission.next_action ?? ''} placeholder="What moves this forward" />
+      </div>
+      <FormError state={state} />
+      <button type="submit" className={primaryBtn} disabled={pending}>
+        {pending ? 'Saving…' : 'Save changes'}
+      </button>
     </form>
   );
 }

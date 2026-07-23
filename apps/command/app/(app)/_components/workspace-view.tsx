@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Reveal, Segmented } from '@ksp/ui';
+import { useRouter } from 'next/navigation';
+import { Avatar, AvatarStack, Reveal, Segmented } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
 import type { CommentView, MemberRef, TaskView } from '../data';
+import { updateTaskStatus } from '../actions';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { Board, type BoardColumn } from './board-view';
 import { CalendarView, type CalendarItem } from './calendar-view';
@@ -15,17 +17,21 @@ function TaskRow({ task, members, comments }: { task: TaskView; members: MemberR
   return (
     <details className="group border-t border-line transition-colors duration-fast first:border-t-0 hover:bg-surface-2/60 open:bg-canvas/60">
       <summary className="flex flex-wrap cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-medium text-ink">{task.title}</p>
-          <p className="mt-0.5 text-[12px] text-ink-3">
-            {task.ownerName}
-            {task.projectName ? ` · ${task.projectName}` : ''}
-            {task.due_date && <span className={overdue ? 'text-risk' : ''}> · due {formatDate(task.due_date)}</span>}
-            {task.blocked && <span className="text-risk"> · blocked</span>}
-            {comments.length > 0 && <span> · {comments.length} comment{comments.length === 1 ? '' : 's'}</span>}
-          </p>
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <Avatar name={task.ownerName} size="sm" />
+          <div className="min-w-0">
+            <p className="truncate text-[14px] font-medium text-ink">{task.title}</p>
+            <p className="mt-0.5 text-[12px] text-ink-3">
+              {task.ownerName}
+              {task.projectName ? ` · ${task.projectName}` : ''}
+              {task.due_date && <span className={overdue ? 'text-risk' : ''}> · due {formatDate(task.due_date)}</span>}
+              {task.blocked && <span className="text-risk"> · blocked</span>}
+              {comments.length > 0 && <span> · {comments.length} comment{comments.length === 1 ? '' : 's'}</span>}
+            </p>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-2">
+          {comments.length > 0 && <AvatarStack names={[task.ownerName, ...comments.map((c) => c.authorName)]} size="sm" />}
           <TaskStatusForm id={task.id} blocked={task.blocked} />
           <CompleteTaskForm id={task.id} />
         </div>
@@ -101,26 +107,50 @@ function ListView({
  * behavior.
  */
 function BoardViewForWorkspace({ tasks, commentsByTask }: { tasks: TaskView[]; commentsByTask: Map<string, CommentView[]> }) {
+  const router = useRouter();
   const columns: BoardColumn<TaskView>[] = [
     { value: 'blocked', label: 'Blocked', items: tasks.filter((t) => t.status === 'active' && t.blocked) },
     { value: 'open', label: 'Open', items: tasks.filter((t) => t.status === 'active' && !t.blocked) },
     { value: 'done', label: 'Done', items: tasks.filter((t) => t.status !== 'active') }
   ];
 
+  // Dragging a card to a column maps to the same task mutation the inline
+  // controls use (mark done / block / unblock), then refreshes the server
+  // components so RLS-scoped data re-renders. A same-column drop never fires.
+  async function moveTask(task: TaskView, toColumn: string) {
+    const fd = new FormData();
+    fd.set('id', task.id);
+    if (toColumn === 'done') {
+      fd.set('status', 'archived');
+    } else if (toColumn === 'blocked') {
+      fd.set('status', 'active');
+      fd.set('blocked', 'true');
+    } else {
+      fd.set('status', 'active');
+      fd.set('blocked', 'false');
+    }
+    await updateTaskStatus({ ok: false }, fd);
+    router.refresh();
+  }
+
   return (
     <Board
       columns={columns}
+      onDropItem={moveTask}
       renderCard={(task) => {
         const overdue = isOverdue(task.due_date);
         const comments = commentsByTask.get(task.id) ?? [];
         return (
           <div className="space-y-2">
             <p className="truncate text-[13px] font-medium text-ink">{task.title}</p>
-            <p className="truncate text-[11px] text-ink-3">
-              {task.ownerName}
-              {task.projectName ? ` · ${task.projectName}` : ''}
-              {comments.length > 0 && ` · ${comments.length} comment${comments.length === 1 ? '' : 's'}`}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <Avatar name={task.ownerName} size="sm" />
+              <p className="min-w-0 truncate text-[11px] text-ink-3">
+                {task.ownerName}
+                {task.projectName ? ` · ${task.projectName}` : ''}
+                {comments.length > 0 && ` · ${comments.length} comment${comments.length === 1 ? '' : 's'}`}
+              </p>
+            </div>
             {task.due_date && (
               <p className={`tnum text-[11px] ${overdue ? 'font-medium text-risk' : 'text-ink-4'}`}>due {formatDate(task.due_date)}</p>
             )}
