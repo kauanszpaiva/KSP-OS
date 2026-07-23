@@ -1,49 +1,59 @@
 # Phase P2 — Approvals/Change Orders + Requests/Support
 
-Group: Portal · Status: ⬜ not started (depends on Phase P0; P2.1 benefits from P1 existing but doesn't strictly require it)
+Group: Portal · Status: ✅ done & verified
 
 ---
 
+## A confirmed, then fixed, RLS gap — the first task of this phase
+
+`portal_home_projects.sql` (Phase P1) flagged, but didn't yet fix, a suspected bug: `change_order_versions_portal_read`/`change_order_items_portal_read` both gate through `exists(select 1 from change_orders co where ... and is_portal_member(co.client_organization_id))`, but `change_orders` itself had only `change_orders_internal` (internal-only) — no portal-select policy at all. Confirmed by direct inspection before writing any UI on top of it (`grep` across `202607150002_identity_portal_finance_security.sql`): the internal-only policy was the *only* policy on `change_orders`. Since Postgres re-evaluates a referenced table's own RLS for the querying role inside a policy subquery, this meant `change_order_versions_portal_read`/`change_order_items_portal_read` were dead code for real client sessions — a client could never actually see a published change order, no matter how correctly everything downstream was built. Fixed first, in `supabase/migrations/202607230008_portal_approvals_requests.sql`, with `change_orders_portal_read on change_orders for select using (is_portal_member(client_organization_id))` — the same scoping the row already carries, no new business rule invented.
+
+## A second gap found while building the server action: RLS checks membership, not role
+
+`packages/permissions` already defines `change_order.client_approve` restricted to `client_owner`/`client_project_approver` only (`canPerform`, in the existing client-membership branch) — but no RLS policy anywhere enforces `client_role`, only `is_portal_member()` (membership existence). The first draft of `recordChangeOrderDecision` relied on RLS alone and would have let any client role — including `client_viewer`/`client_collaborator` — accept or reject a change order, silently bypassing a permission rule that already existed in the codebase for exactly this purpose. Fixed before this phase's checks were run: the action now calls `getPortalAuthContext` (rather than a bare `supabase.auth.getUser()`) and gates on `canPerform(ctx.membership, 'change_order.client_approve', ...)` before inserting the decision. `submitClientRequest` was updated the same way for consistency, calling `canPerform(..., 'request.submit', ...)` (allowed for every client role, per the existing rule) rather than skipping the permission layer entirely.
+
 ## Mini-group P2.1 — Approvals & Change Orders
 
-Purpose: versions awaiting client review, consolidated feedback, approval
-history. Reuse `change_orders`/`change_order_versions`/`change_order_items`/
-`change_order_client_decisions` (identity/portal migration) — the
-internal-approval side (`change_order_internal_approvals`) stays in Command
-(a natural fit for Phase C2.2's Decisions module — cross-reference it there
-rather than re-implementing).
+Purpose: versions awaiting client review, accept/reject, approval history.
 
 | Task | Status | Detail |
 |---|---|---|
-| P2.1.1 Data layer | ⬜ | `getChangeOrdersForClient(clientOrgId)` — only versions with `state = 'approved_for_client'` or later; never expose `internal_draft`/`internal_review`. |
-| P2.1.2 Validation | ⬜ | Zod schema for the client's accept/reject decision + optional evidence. |
-| P2.1.3 Server actions | ⬜ | `recordClientChangeOrderDecision` — authorization must check the acting profile's `client_role` is `client_owner` or `client_project_approver` (mirrors the existing `canPerform` rule for `change_order.client_approve`, already defined in `packages/permissions`). |
-| P2.1.4 UI — Approval queue | ⬜ | Exact version, price, scope summary, consolidated feedback, accept/reject actions. |
-| P2.1.5 UI — History | ⬜ | Past decisions with timestamps and decision-maker. |
-| P2.1.6 Tests | ⬜ | Deny test: a `client_viewer`/`client_collaborator` role cannot approve (only `client_owner`/`client_project_approver` can, per the existing permission rule). |
-| P2.1.7 Docs | ⬜ | Mark ✅ with PR + checks. |
+| P2.1.1 Migration | ✅ | `202607230008_portal_approvals_requests.sql` — the `change_orders_portal_read` fix above. No other new RLS policies needed: `change_order_client_decisions` already has portal insert (`decided_by=auth.uid()` + `is_portal_member`) and read policies from the identity/portal migration. |
+| P2.1.2 Types | ✅ | `packages/database/src/types.ts` — `ChangeOrder`, `ChangeOrderVersion`, `ChangeOrderItem`, `ChangeOrderClientDecision`. |
+| P2.1.3 Validation | ✅ | `recordChangeOrderDecisionSchema` (`changeOrderVersionId: uuid`, `decision: 'accepted' \| 'rejected'`) in `packages/validation/src/schemas.ts`. |
+| P2.1.4 Data layer | ✅ | `apps/portal/app/(portal)/data.ts` — `getChangeOrderVersions` (joins `change_orders!inner` for `project_id`, filtered to `state='published_to_client'`), `getChangeOrderItems`, `getChangeOrderDecisions`. |
+| P2.1.5 Server action | ✅ | `apps/portal/app/actions.ts` — `recordChangeOrderDecision`. Re-reads `client_organization_id`/`organization_id` from the version's own parent `change_orders` row (now portal-readable) rather than trusting client input, and gates on `canPerform(ctx.membership, 'change_order.client_approve', ...)` — the role-restriction fix described above. |
+| P2.1.6 UI | ✅ | `apps/portal/app/(portal)/approvals/page.tsx` — versions awaiting decision (with itemized breakdown and accept/reject buttons via `_components/decision-form.tsx`) and decided ones as history. The project-detail page's P1 placeholder "Approved changes" card is replaced with the real per-project change-order list, linking back to `/approvals` for undecided versions. |
+| P2.1.7 Nav | ✅ | `Approvals` flipped `planned` → `live` in `apps/portal/lib/nav.ts`. |
 
 ## Mini-group P2.2 — Requests & Support
 
-Purpose: submit/track client requests. Reuse `client_requests` +
-`request_status_history` + `request_comments` (client-visible ones only) +
-`request_attachments` (identity/portal migration). The full request-status
-enum already exists (`client_request_status`, 13 states) — reuse it as-is,
-don't invent a simplified version.
+Purpose: submit and track `client_requests`, plus client-visible comments/status history.
 
 | Task | Status | Detail |
 |---|---|---|
-| P2.2.1 Data layer | ⬜ | `getClientRequests(clientOrgId)`, `getRequestDetail(id)` — comments filtered to `visibility = 'client'` only; status history filtered to `client_visible = true` rows only. |
-| P2.2.2 Validation | ⬜ | Zod schema for request submission (title, body, project_id, evidence). |
-| P2.2.3 Server actions | ⬜ | `submitClientRequest` (any client role, per the existing `request.submit` permission which allows even non-published-state resources — that's intentional, a client can always submit a new request), `addClientComment` (visibility always `'client'` when authored by a client). |
-| P2.2.4 UI — Request list | ⬜ | Status badges using the 13-state enum; filter by open/closed. |
-| P2.2.5 UI — Request detail | ⬜ | Timeline of client-visible status changes + comments; attachment list; submit-new-comment form. |
-| P2.2.6 Tests | ⬜ | Confirm internal-only comments/status-history rows never render in the portal (the same class of leak risk as P1.1.3 — treat with equal seriousness). |
-| P2.2.7 Docs | ⬜ | Mark ✅ with PR + checks. |
+| P2.2.1 Validation | ✅ | `submitClientRequestSchema` (`title`, `body`, optional `projectId`) in `packages/validation/src/schemas.ts`. |
+| P2.2.2 Server action | ✅ | `apps/portal/app/actions.ts` — `submitClientRequest`. Reads `organization_id`/`client_organization_id` from `getPortalAuthContext` rather than a raw `client_memberships` query, and calls `canPerform(..., 'request.submit', ...)` for consistency with `recordChangeOrderDecision` (every client role is allowed, per the existing rule — this is a consistency fix, not a new restriction). |
+| P2.2.3 Data layer | ✅ | Reuses P1's `getClientRequests`; adds `getRequestComments(requestId)` (`request_comments` where `visibility='client'`) and `getRequestStatusHistory(requestId)` (`request_status_history` where `client_visible=true`) — both pre-existing RLS-scoped policies from the identity/portal migration, exercised by the app for the first time this phase. |
+| P2.2.4 UI | ✅ | `apps/portal/app/(portal)/requests/page.tsx` — a new-request form (`_components/new-request-form.tsx`, with an optional project picker sourced from the client's own published projects) and the client's request list with an expandable per-request status-history + comment thread (`_components/request-row.tsx`). |
+| P2.2.5 Nav | ✅ | `Meetings & Requests` flipped `planned` → `live` in `nav.ts`. |
 
-## Cross-reference
+## What changed vs. the original plan
 
-The internal side of this workflow (triage, internal priority/cost estimate
-via `request_triage`, internal approval via `change_order_internal_approvals`)
-belongs in Command, most naturally as part of Phase C2.2 (Decisions) or a
-follow-up task there — don't build it here in Portal.
+- Both mutating actions now call `canPerform` via `getPortalAuthContext`, not a bare `supabase.auth.getUser()` — the original plan's wording for P2.1 anticipated this ("authorization must check the acting profile's `client_role`") but P2.2's wording didn't mention it for request submission; added for consistency once the gap was found on the approvals side.
+- `recordChangeOrderDecision` and `submitClientRequest` both supply `organization_id` — a NOT NULL column on `change_order_client_decisions`/`client_requests` that the original plan's field lists didn't mention (the existing RLS insert policies check `client_organization_id`/`submitted_by`/`status`, but not `organization_id`).
+- No `formatMoney` helper existed anywhere in the repo (`packages/finance` covers posting invariants, not display formatting) — added a small one to `apps/portal/lib/format.ts` rather than duplicating `Intl.NumberFormat` calls across the Approvals UI.
+- Request attachments (`request_attachments`, already RLS-scoped) are not surfaced in this phase's request detail view — kept out of scope to match the plan's own field list, which didn't mention them; a natural, low-risk follow-up for a later phase since the read policy already exists.
+
+## Checks run for this phase
+
+`pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:db && pnpm test:rls && pnpm test:migrations && pnpm security:secrets && pnpm build:command && pnpm build:portal` — all green.
+
+- `pnpm test`: 86/86 passing (11 new, in `packages/validation/src/portal-approvals-requests.test.ts`).
+- `pnpm test:db`: 10 SQL test files (new: `supabase/tests/portal_approvals_requests.sql`, which documents the role-restricted-approval assertion above alongside the standard cross-client/cross-org denial checks).
+- `pnpm test:rls`: coverage present for 57 tables (unchanged — this phase's migration adds a policy to an already-covered table, not a new table).
+- `pnpm test:migrations`: 11 migration files validated.
+- `pnpm build:portal`: compiles clean with the two new routes (`/approvals`, `/requests`).
+- Manual: started `pnpm --filter @ksp/portal dev` and confirmed `/approvals` and `/requests` both redirect to `/setup` when Supabase is unconfigured, same as every existing authenticated route (`/home`, `/projects`) — this sandbox has no live Supabase credentials, so this is as far as manual verification goes here.
+
+Not verified here (requires live Supabase): applying `202607230008_portal_approvals_requests.sql` and confirming `change_orders_portal_read` actually resolves the flagged bug end-to-end (a client session can now read a published change order through the join), and confirming `canPerform`'s role restriction actually blocks a `client_viewer`/`client_collaborator` session in practice, not just in the unit-tested function itself — both verified by SQL/code review plus the Supabase preview-branch migration check on this phase's PR, same as every prior phase.

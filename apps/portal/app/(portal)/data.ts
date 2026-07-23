@@ -1,4 +1,15 @@
-import type { ClientPublication, ClientRequest, ClientUpdate, MissionMilestone, SupabaseClient } from '@ksp/database';
+import type {
+  ChangeOrderClientDecision,
+  ChangeOrderItem,
+  ChangeOrderVersion,
+  ClientPublication,
+  ClientRequest,
+  ClientUpdate,
+  MissionMilestone,
+  RequestComment,
+  RequestStatusHistory,
+  SupabaseClient
+} from '@ksp/database';
 
 /** Requests in one of these statuses need the client to act — surfaced on Home. */
 const NEEDS_CLIENT_ACTION: ClientRequest['status'][] = ['needs_client_information', 'awaiting_client_approval', 'client_review'];
@@ -65,4 +76,58 @@ export async function getUpdatesForProject(supabase: SupabaseClient, projectId: 
     publicationTitle: u.client_publications?.title ?? 'Update',
     projectId: u.client_publications?.project_id ?? null
   }));
+}
+
+/* --------------------------------------------------------- Phase P2 -- */
+
+export interface ChangeOrderVersionView extends ChangeOrderVersion {
+  changeOrderId: string;
+  projectId: string;
+}
+
+/**
+ * Joins through change_orders for project_id — RLS on change_order_versions
+ * itself (state='published_to_client' + is_portal_member via change_orders)
+ * is what actually scopes the rows; this join only shapes the response.
+ */
+export async function getChangeOrderVersions(supabase: SupabaseClient): Promise<ChangeOrderVersionView[]> {
+  const { data } = await supabase
+    .from('change_order_versions')
+    .select('*, change_orders!inner(project_id)')
+    .eq('state', 'published_to_client')
+    .order('created_at', { ascending: false });
+  return ((data ?? []) as Array<ChangeOrderVersion & { change_orders: { project_id: string } }>).map((v) => ({
+    ...v,
+    changeOrderId: v.change_order_id,
+    projectId: v.change_orders.project_id
+  }));
+}
+
+export async function getChangeOrderItems(supabase: SupabaseClient, versionIds: string[]): Promise<ChangeOrderItem[]> {
+  if (versionIds.length === 0) return [];
+  const { data } = await supabase.from('change_order_items').select('*').in('change_order_version_id', versionIds);
+  return (data ?? []) as ChangeOrderItem[];
+}
+
+export async function getChangeOrderDecisions(supabase: SupabaseClient): Promise<ChangeOrderClientDecision[]> {
+  const { data } = await supabase.from('change_order_client_decisions').select('*').order('created_at', { ascending: false });
+  return (data ?? []) as ChangeOrderClientDecision[];
+}
+
+export async function getRequestComments(supabase: SupabaseClient, requestId: string): Promise<RequestComment[]> {
+  const { data } = await supabase
+    .from('request_comments')
+    .select('*')
+    .eq('client_request_id', requestId)
+    .order('created_at', { ascending: true });
+  return (data ?? []) as RequestComment[];
+}
+
+export async function getRequestStatusHistory(supabase: SupabaseClient, requestId: string): Promise<RequestStatusHistory[]> {
+  const { data } = await supabase
+    .from('request_status_history')
+    .select('*')
+    .eq('client_request_id', requestId)
+    .order('created_at', { ascending: true });
+  return (data ?? []) as RequestStatusHistory[];
 }
