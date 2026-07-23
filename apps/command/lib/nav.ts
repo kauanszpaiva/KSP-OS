@@ -32,6 +32,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Execution',
     items: [
       { label: 'Outcomes', href: '/outcomes', status: 'live' },
+      { label: 'Workspace', href: '/workspace', status: 'live' },
       { label: 'Commitments', href: '/commitments', status: 'live' },
       { label: 'Missions', href: '/missions', status: 'planned' },
       { label: 'Schedule', href: '/schedule', status: 'planned' },
@@ -69,6 +70,6 @@ export const NAV_GROUPS: NavGroup[] = [
 export const MOBILE_PRIMARY: NavItem[] = [
   { label: 'Pulse', href: '/pulse', status: 'live' },
   { label: 'Focus', href: '/focus', status: 'live' },
-  { label: 'Signals', href: '/signals', status: 'planned' },
+  { label: 'Workspace', href: '/workspace', status: 'live' },
   { label: 'Commitments', href: '/commitments', status: 'live' }
 ];
