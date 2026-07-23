@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:command": "pnpm --filter @ksp/command dev",
-    "dev:portal": "pnpm --filter @ksp/portal dev -- --port 3001",
+    "dev:portal": "pnpm --filter @ksp/portal dev --port 3001",
     "build": "turbo build",
     "build:command": "pnpm --filter @ksp/command build",
     "build:portal": "pnpm --filter @ksp/portal build",

@@ -1,0 +1,61 @@
+-- Phase P0 (Portal foundation) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: an internal member (Eric), an invited client contact
+-- (Client A, email matching a live invitation), a second client contact with
+-- no invitation at all (Client B), a member of a different organization
+-- (cross-organization denial).
+--
+-- accept_portal_invitation(token_hash) assertions:
+--   - happy path: Client A, signed in with the invited email, calling the
+--     function with the correct token_hash gets back the invitation's
+--     client_organization_id, a new client_memberships row is created with
+--     the invitation's organization_id/client_organization_id/role, and the
+--     invitation's accepted_by/accepted_at are set to Client A/now().
+--   - invitation_not_found: an unknown token_hash (or Client B's own,
+--     unrelated attempt) raises invitation_not_found, no row is written to
+--     client_memberships.
+--   - invitation_revoked: an invitation with revoked_at set is rejected even
+--     with a correct token_hash and matching email.
+--   - invitation_already_accepted: calling the function twice with the same
+--     token_hash succeeds once, then raises invitation_already_accepted on
+--     the second call — no duplicate client_memberships row (also covered by
+--     the table's own unique(client_organization_id, profile_id, role)
+--     constraint as a second line of defense).
+--   - invitation_expired: an invitation whose expires_at is in the past is
+--     rejected even with a correct token_hash and matching email.
+--   - invitation_email_mismatch: Client B, signed in with a different email
+--     than the invitation's, cannot accept Client A's invitation even with
+--     the correct token_hash — this is the "no self-escalation" guarantee
+--     for this flow, equivalent to the no-self-approval rule already
+--     enforced elsewhere in the schema.
+--   - role fidelity: the created client_memberships row's role always
+--     matches the invitation's initial_role — the function never accepts a
+--     client-supplied role, only the value already stored on the invitation.
+--
+-- client_memberships / portal_invitations RLS (unchanged, pre-existing)
+-- assertions:
+--   - client_membership_self_or_internal: Client A can read only their own
+--     client_memberships rows; cannot read Client B's or another client
+--     organization's rows.
+--   - cross-organization denial: a member of a different organization
+--     cannot read client_memberships/portal_invitations rows scoped to this
+--     organization, even knowing a row id.
+--   - portal_invitations remains internal-member-only for direct table
+--     access (select/insert/update/delete) — Client A cannot read or write
+--     portal_invitations directly, only through accept_portal_invitation.
+--
+-- Portal route-guard assertions (application-level, not RLS, but load-bearing
+-- for this phase):
+--   - a Command-only user (active organization_memberships, zero
+--     client_memberships) reaching any (portal) route is redirected to
+--     /login by requirePortalSession, since getPortalAuthContext returns
+--     null for them.
+--   - a client whose only client_memberships row is suspended (suspended_at
+--     set) or expired (effective_until in the past) is treated the same as
+--     "no active access" — requirePortalSession redirects to /login.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising accept_portal_invitation end-to-end. Verified by SQL review +
+-- the Supabase preview-branch migration check only.
+
+select 'portal foundation authorization regression plan present' as plan;
