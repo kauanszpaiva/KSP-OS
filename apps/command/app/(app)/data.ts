@@ -2,11 +2,18 @@ import type { SupabaseClient } from '@ksp/database';
 import type {
   ApprovalDecision,
   ApprovalRequest,
+  Campaign,
+  ClientInternalNote,
+  ClientOrganization,
   Commitment,
   CompanyOutcome,
+  Contact,
+  ContentItem,
   InboxItem,
+  Lead,
   MissionDependency,
   MissionMilestone,
+  Product,
   Project,
   ProjectMembership,
   Proof,
@@ -262,4 +269,81 @@ export async function getTeamLoad(supabase: SupabaseClient): Promise<TeamLoadVie
   }
 
   return [...load.values()].sort((a, b) => b.openCommitments + b.openTasks - (a.openCommitments + a.openTasks));
+}
+
+/* --------------------------------------------------------------- Phase C4 -- */
+
+export interface LeadView extends Lead {
+  ownerName: string;
+  weightedValueMinor: number;
+}
+
+export async function getLeads(supabase: SupabaseClient): Promise<LeadView[]> {
+  const [{ data: leads }, { data: profiles }] = await Promise.all([
+    supabase.from('leads').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+  const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
+  return ((leads ?? []) as Lead[]).map((l) => ({
+    ...l,
+    ownerName: nameById.get(l.owner_id) ?? 'Unassigned',
+    weightedValueMinor: Math.round((l.expected_value_minor ?? 0) * ((l.probability ?? 0) / 100))
+  }));
+}
+
+export interface ClientView extends ClientOrganization {
+  contacts: Contact[];
+  notes: ClientInternalNote[];
+}
+
+export async function getClients(supabase: SupabaseClient): Promise<ClientView[]> {
+  const [{ data: clients }, { data: contacts }, { data: notes }] = await Promise.all([
+    supabase.from('client_organizations').select('*').order('created_at', { ascending: false }),
+    supabase.from('contacts').select('*'),
+    supabase.from('client_internal_notes').select('*').order('created_at', { ascending: false })
+  ]);
+  const contactsByClient = new Map<string, Contact[]>();
+  for (const c of (contacts ?? []) as Contact[]) {
+    if (!c.client_id) continue;
+    const arr = contactsByClient.get(c.client_id) ?? [];
+    arr.push(c);
+    contactsByClient.set(c.client_id, arr);
+  }
+  const notesByClient = new Map<string, ClientInternalNote[]>();
+  for (const n of (notes ?? []) as ClientInternalNote[]) {
+    const arr = notesByClient.get(n.client_organization_id) ?? [];
+    arr.push(n);
+    notesByClient.set(n.client_organization_id, arr);
+  }
+  return ((clients ?? []) as ClientOrganization[]).map((c) => ({
+    ...c,
+    contacts: contactsByClient.get(c.id) ?? [],
+    notes: notesByClient.get(c.id) ?? []
+  }));
+}
+
+export async function getProducts(supabase: SupabaseClient): Promise<Product[]> {
+  const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+  return (data ?? []) as Product[];
+}
+
+export interface ContentItemView extends ContentItem {
+  campaignName: string | null;
+}
+
+export async function getCampaigns(supabase: SupabaseClient): Promise<Campaign[]> {
+  const { data } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+  return (data ?? []) as Campaign[];
+}
+
+export async function getContentItems(supabase: SupabaseClient): Promise<ContentItemView[]> {
+  const [{ data: items }, { data: campaigns }] = await Promise.all([
+    supabase.from('content_items').select('*').order('publish_date', { ascending: true, nullsFirst: false }),
+    supabase.from('campaigns').select('id, name')
+  ]);
+  const nameById = new Map(((campaigns ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]));
+  return ((items ?? []) as ContentItem[]).map((i) => ({
+    ...i,
+    campaignName: (i.campaign_id && nameById.get(i.campaign_id)) || null
+  }));
 }

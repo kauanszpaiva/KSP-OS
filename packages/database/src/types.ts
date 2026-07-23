@@ -236,3 +236,101 @@ export interface Task {
   status: RecordStatus;
   created_at: string;
 }
+
+/* --------------------------------------------------------- Phase C4 -- */
+
+export interface Lead {
+  id: string;
+  organization_id: string;
+  owner_id: string;
+  name: string;
+  source: string | null;
+  expected_value_minor: number | null;
+  currency: string | null;
+  probability: number | null;
+  target_close_date: string | null;
+  next_action: string | null;
+  status: RecordStatus;
+  created_at: string;
+}
+
+export interface ClientOrganization {
+  id: string;
+  organization_id: string;
+  legal_name: string;
+  display_name: string;
+  relationship_health: string;
+  status: RecordStatus;
+  created_at: string;
+  created_by: string | null;
+  archived_at: string | null;
+}
+
+export interface Contact {
+  id: string;
+  organization_id: string;
+  client_id: string | null;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  client_visible: boolean;
+  classification: 'public' | 'internal' | 'confidential' | 'restricted';
+  created_at: string;
+}
+
+export interface ClientInternalNote {
+  id: string;
+  organization_id: string;
+  client_organization_id: string;
+  body: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface Product {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  price_minor: number | null;
+  currency: string | null;
+  category: string | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface Campaign {
+  id: string;
+  organization_id: string;
+  client_id: string | null;
+  name: string;
+  objective: string | null;
+  audience: string | null;
+  channel: string | null;
+  budget_minor: number | null;
+  currency: string | null;
+  status: RecordStatus;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type ContentStatus = 'idea' | 'drafting' | 'internal_review' | 'client_review' | 'approved' | 'scheduled' | 'published';
+
+export interface ContentItem {
+  id: string;
+  organization_id: string;
+  campaign_id: string | null;
+  client_id: string | null;
+  title: string;
+  channel: string;
+  publish_date: string | null;
+  status: ContentStatus;
+  brief_ready: boolean;
+  asset_ready: boolean;
+  rights_cleared: boolean;
+  caption_ready: boolean;
+  link: string | null;
+  created_by: string | null;
+  created_at: string;
+}

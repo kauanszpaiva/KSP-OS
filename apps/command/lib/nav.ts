@@ -47,10 +47,10 @@ export const NAV_GROUPS: NavGroup[] = [
     key: 'growth',
     label: 'Growth',
     items: [
-      { label: 'Revenue', href: '/revenue', status: 'planned', icon: 'revenue' },
-      { label: 'Clients', href: '/clients', status: 'planned', icon: 'clients' },
-      { label: 'Products', href: '/products', status: 'planned', icon: 'products' },
-      { label: 'Content', href: '/content', status: 'planned', icon: 'content' }
+      { label: 'Revenue', href: '/revenue', status: 'live', icon: 'revenue' },
+      { label: 'Clients', href: '/clients', status: 'live', icon: 'clients' },
+      { label: 'Products', href: '/products', status: 'live', icon: 'products' },
+      { label: 'Content', href: '/content', status: 'live', icon: 'content' }
     ]
   },
   {

@@ -5,18 +5,29 @@ import { getAuthContext, canManageOutcomes, isExecutive, type AuthContext } from
 import type { SupabaseClient } from '@ksp/database';
 import { canPerform } from '@ksp/permissions';
 import {
+  addClientNoteSchema,
   addDependencySchema,
+  createCampaignSchema,
+  createClientSchema,
   createCommitmentSchema,
+  createContactSchema,
+  createContentItemSchema,
   createDecisionRequestSchema,
+  createLeadSchema,
   createMilestoneSchema,
   createMissionSchema,
   createOutcomeSchema,
+  createProductSchema,
   createSignalSchema,
   createTaskSchema,
   decideCompletionSchema,
   recordDecisionSchema,
   submitProofSchema,
+  toggleProductActiveSchema,
   triageSignalSchema,
+  updateClientHealthSchema,
+  updateContentStatusSchema,
+  updateLeadStatusSchema,
   updateMilestoneStatusSchema,
   updateMissionHealthSchema,
   updateProgressSchema,
@@ -701,5 +712,293 @@ export async function updateTaskStatus(_prev: ActionResult, form: FormData): Pro
 
   await record(supabase, ctx, 'task.updated', 'tasks', parsed.data.id, 'Task updated');
   revalidatePath('/workspace');
+  return { ok: true };
+}
+
+/* --------------------------------------------------------------- Phase C4 -- */
+
+export async function createLead(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createLeadSchema.safeParse({
+    name: form.get('name'),
+    source: form.get('source') ?? undefined,
+    expectedValueMinor: form.get('expectedValueMinor') || undefined,
+    probability: form.get('probability') || undefined,
+    targetCloseDate: form.get('targetCloseDate') ?? undefined,
+    nextAction: form.get('nextAction') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('leads')
+    .insert({
+      organization_id: ctx.organizationId,
+      owner_id: ctx.user.id,
+      name: parsed.data.name,
+      source: parsed.data.source || null,
+      expected_value_minor: parsed.data.expectedValueMinor ?? null,
+      probability: parsed.data.probability ?? null,
+      target_close_date: parsed.data.targetCloseDate || null,
+      next_action: parsed.data.nextAction || null,
+      status: 'active'
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the lead.' };
+
+  await record(supabase, ctx, 'lead.created', 'leads', data.id, `Lead: ${parsed.data.name}`);
+  revalidatePath('/revenue');
+  return { ok: true };
+}
+
+export async function updateLeadStatus(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateLeadStatusSchema.safeParse({
+    id: form.get('id'),
+    status: form.get('status'),
+    nextAction: form.get('nextAction') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const patch: Record<string, unknown> = { status: parsed.data.status };
+  if (parsed.data.nextAction) patch.next_action = parsed.data.nextAction;
+  const { error } = await supabase.from('leads').update(patch).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the lead (check your access).' };
+
+  await record(supabase, ctx, 'lead.status_changed', 'leads', parsed.data.id, `Lead moved to ${parsed.data.status}`);
+  revalidatePath('/revenue');
+  return { ok: true };
+}
+
+export async function createClient(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createClientSchema.safeParse({ legalName: form.get('legalName'), displayName: form.get('displayName') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('client_organizations')
+    .insert({
+      organization_id: ctx.organizationId,
+      legal_name: parsed.data.legalName,
+      display_name: parsed.data.displayName,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the client.' };
+
+  await record(supabase, ctx, 'client.created', 'client_organizations', data.id, `Client: ${parsed.data.displayName}`);
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function updateClientHealth(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateClientHealthSchema.safeParse({ id: form.get('id'), relationshipHealth: form.get('relationshipHealth') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase
+    .from('client_organizations')
+    .update({ relationship_health: parsed.data.relationshipHealth })
+    .eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the client (check your access).' };
+
+  await record(supabase, ctx, 'client.health_changed', 'client_organizations', parsed.data.id, `Health set to ${parsed.data.relationshipHealth}`);
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function createContact(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createContactSchema.safeParse({
+    clientId: form.get('clientId'),
+    name: form.get('name'),
+    email: form.get('email') ?? undefined,
+    phone: form.get('phone') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('contacts')
+    .insert({
+      organization_id: ctx.organizationId,
+      client_id: parsed.data.clientId,
+      name: parsed.data.name,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not add the contact.' };
+
+  await record(supabase, ctx, 'contact.created', 'contacts', data.id, `Contact: ${parsed.data.name}`);
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function addClientNote(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = addClientNoteSchema.safeParse({ clientId: form.get('clientId'), body: form.get('body') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('client_internal_notes')
+    .insert({
+      organization_id: ctx.organizationId,
+      client_organization_id: parsed.data.clientId,
+      body: parsed.data.body,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not add the note.' };
+
+  // Internal notes are excluded from company/client-facing activity by design.
+  await record(supabase, ctx, 'client.note_added', 'client_internal_notes', data.id, 'Internal note added');
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function createProduct(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createProductSchema.safeParse({
+    name: form.get('name'),
+    description: form.get('description') ?? undefined,
+    priceMinor: form.get('priceMinor') || undefined,
+    category: form.get('category') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('products')
+    .insert({
+      organization_id: ctx.organizationId,
+      name: parsed.data.name,
+      description: parsed.data.description || null,
+      price_minor: parsed.data.priceMinor ?? null,
+      category: parsed.data.category || null,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the product.' };
+
+  await record(supabase, ctx, 'product.created', 'products', data.id, `Product: ${parsed.data.name}`);
+  revalidatePath('/products');
+  return { ok: true };
+}
+
+export async function toggleProductActive(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = toggleProductActiveSchema.safeParse({ id: form.get('id'), active: form.get('active') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('products').update({ active: parsed.data.active }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the product (check your access).' };
+
+  await record(supabase, ctx, 'product.toggled', 'products', parsed.data.id, parsed.data.active ? 'Activated' : 'Archived');
+  revalidatePath('/products');
+  return { ok: true };
+}
+
+export async function createCampaign(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createCampaignSchema.safeParse({
+    name: form.get('name'),
+    objective: form.get('objective') ?? undefined,
+    channel: form.get('channel') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('campaigns')
+    .insert({
+      organization_id: ctx.organizationId,
+      name: parsed.data.name,
+      objective: parsed.data.objective || null,
+      channel: parsed.data.channel || null,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the campaign.' };
+
+  await record(supabase, ctx, 'campaign.created', 'campaigns', data.id, `Campaign: ${parsed.data.name}`);
+  revalidatePath('/content');
+  return { ok: true };
+}
+
+export async function createContentItem(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createContentItemSchema.safeParse({
+    campaignId: form.get('campaignId') || undefined,
+    title: form.get('title'),
+    channel: form.get('channel'),
+    publishDate: form.get('publishDate') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('content_items')
+    .insert({
+      organization_id: ctx.organizationId,
+      campaign_id: parsed.data.campaignId ?? null,
+      title: parsed.data.title,
+      channel: parsed.data.channel,
+      publish_date: parsed.data.publishDate || null,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the content item.' };
+
+  await record(supabase, ctx, 'content.created', 'content_items', data.id, `Content: ${parsed.data.title}`);
+  revalidatePath('/content');
+  return { ok: true };
+}
+
+export async function updateContentStatus(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateContentStatusSchema.safeParse({ id: form.get('id'), status: form.get('status') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('content_items').update({ status: parsed.data.status }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the content item (check your access).' };
+
+  await record(supabase, ctx, 'content.status_changed', 'content_items', parsed.data.id, `Content moved to ${parsed.data.status}`);
+  revalidatePath('/content');
   return { ok: true };
 }

@@ -143,7 +143,15 @@ const STATE_TONE: Record<string, Tone> = {
   at_risk: 'warn',
   off_track: 'risk',
   done: 'good',
-  pending: 'neutral'
+  pending: 'neutral',
+  healthy: 'good',
+  watch: 'warn',
+  idea: 'neutral',
+  drafting: 'neutral',
+  internal_review: 'warn',
+  client_review: 'warn',
+  scheduled: 'brand',
+  published: 'good'
 };
 
 const TONE_CLASS: Record<Tone, { dot: string; text: string }> = {
