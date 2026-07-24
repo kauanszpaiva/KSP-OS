@@ -20,7 +20,9 @@
     "test:e2e": "node scripts/check-e2e-placeholders.mjs",
     "e2e": "playwright test --config e2e/playwright.config.ts",
     "security:secrets": "node scripts/check-secrets.mjs",
-    "provision:user": "node scripts/provision-internal-user.mjs"
+    "provision:user": "node scripts/provision-internal-user.mjs",
+    "provision:portal": "node scripts/provision-portal-user.mjs",
+    "seed:everton": "node scripts/seed-everton.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.18.0",
