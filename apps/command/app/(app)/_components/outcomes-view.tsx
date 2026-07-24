@@ -6,6 +6,8 @@ import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
 import type { MemberRef } from '../data';
 import { EmptyState, Panel, Ring, SectionLabel, StatePill } from './ui';
 import { OutcomeForm, OutcomeStateForm } from './forms';
+import { DeleteButton } from './crud-forms';
+import { deleteOutcome } from '../actions';
 
 function Lane({ outcome, canManage, delay }: { outcome: CompanyOutcome | null; canManage: boolean; delay: number }) {
   if (!outcome) {
@@ -37,9 +39,10 @@ function Lane({ outcome, canManage, delay }: { outcome: CompanyOutcome | null; c
       </div>
       {outcome.description && <p className="mt-3 line-clamp-2 text-[13px] text-ink-2">{outcome.description}</p>}
       {canManage && (
-        <div className="mt-auto flex gap-1 border-t border-line pt-3">
+        <div className="mt-auto flex items-center gap-1 border-t border-line pt-3">
           <OutcomeStateForm id={outcome.id} target="paused">Pause</OutcomeStateForm>
           <OutcomeStateForm id={outcome.id} target="completed">Complete</OutcomeStateForm>
+          <span className="ml-auto"><DeleteButton action={deleteOutcome} id={outcome.id} label="Delete" iconOnly confirmText={`Delete outcome "${outcome.title}"?`} /></span>
         </div>
       )}
     </Reveal>
@@ -80,8 +83,11 @@ function CardsView({
                     <p className="truncate text-[13.5px] font-medium text-ink">{o.title}</p>
                     <div className="mt-0.5"><StatePill state={o.state} /></div>
                   </div>
-                  {canManage && active.length < 3 && (
-                    <OutcomeStateForm id={o.id} target="active">Reactivate</OutcomeStateForm>
+                  {canManage && (
+                    <div className="flex items-center gap-1">
+                      {active.length < 3 && <OutcomeStateForm id={o.id} target="active">Reactivate</OutcomeStateForm>}
+                      <DeleteButton action={deleteOutcome} id={o.id} label="Delete" iconOnly confirmText={`Delete outcome "${o.title}"?`} />
+                    </div>
                   )}
                 </div>
               ))}

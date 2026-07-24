@@ -32,7 +32,7 @@ export default function LoginPage() {
   }
 
   const field =
-    'mt-1 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-sm text-ink transition-colors duration-fast focus:border-brand focus:outline-none focus:shadow-focus';
+    'mt-1 w-full rounded-lg border border-line-2 bg-surface px-3.5 py-2.5 text-[15px] text-ink transition-[border-color,box-shadow] duration-fast focus:border-brand focus:outline-none focus:shadow-focus';
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas px-4">
@@ -62,11 +62,11 @@ export default function LoginPage() {
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
               <label htmlFor="email" className="block text-[12px] font-medium text-ink-2">Email</label>
-              <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
+              <input id="email" type="email" required autoComplete="email" inputMode="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
             </div>
             <div>
               <label htmlFor="password" className="block text-[12px] font-medium text-ink-2">Password</label>
-              <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className={field} />
+              <input id="password" type="password" required autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className={field} />
             </div>
             {error && <p className="text-[13px] text-risk">{error}</p>}
             <button

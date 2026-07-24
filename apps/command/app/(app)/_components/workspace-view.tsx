@@ -11,6 +11,8 @@ import { Board, type BoardColumn } from './board-view';
 import { CalendarView, type CalendarItem } from './calendar-view';
 import { CompleteTaskForm, TaskReassignForm, TaskStatusForm } from './mission-workspace-forms';
 import { CommentThread } from './comment-thread';
+import { DeleteButton } from './crud-forms';
+import { deleteTask } from '../actions';
 
 function TaskRow({ task, members, comments }: { task: TaskView; members: MemberRef[]; comments: CommentView[] }) {
   const overdue = isOverdue(task.due_date);
@@ -37,7 +39,10 @@ function TaskRow({ task, members, comments }: { task: TaskView; members: MemberR
         </div>
       </summary>
       <div className="space-y-3 px-4 pb-4">
-        <TaskReassignForm id={task.id} ownerId={task.owner_id} members={members} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TaskReassignForm id={task.id} ownerId={task.owner_id} members={members} />
+          <DeleteButton action={deleteTask} id={task.id} label="Delete task" confirmText={`Delete task "${task.title}"? This can't be undone.`} />
+        </div>
         <div className="border-t border-line pt-3">
           <CommentThread objectTable="tasks" objectId={task.id} comments={comments} />
         </div>

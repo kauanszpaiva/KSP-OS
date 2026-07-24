@@ -7,6 +7,8 @@ import type { ClientRef, MissionView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { TimelineView, type TimelineDependency, type TimelineItem } from './schedule-view';
 import { DependencyForm, MilestoneForm, MilestoneStatusForm, MissionEditForm, MissionHealthForm } from './mission-workspace-forms';
+import { DeleteButton } from './crud-forms';
+import { deleteMilestone, deleteMission } from '../actions';
 
 function MissionCard({ mission, allMissions, clients, delay }: { mission: MissionView; allMissions: MissionView[]; clients: ClientRef[]; delay: number }) {
   return (
@@ -27,7 +29,10 @@ function MissionCard({ mission, allMissions, clients, delay }: { mission: Missio
               {mission.project_type.replace(/_/g, ' ')} · {mission.memberIds.length} member{mission.memberIds.length === 1 ? '' : 's'}
             </p>
           </div>
-          <StatePill state={mission.health} />
+          <div className="flex items-center gap-2">
+            <StatePill state={mission.health} />
+            <DeleteButton action={deleteMission} id={mission.id} label="Delete" iconOnly confirmText={`Delete mission "${mission.name}"? This can't be undone.`} />
+          </div>
         </div>
 
         <MissionHealthForm id={mission.id} currentHealth={mission.health} />
@@ -58,7 +63,10 @@ function MissionCard({ mission, allMissions, clients, delay }: { mission: Missio
                     {m.phase && <span className="ml-1.5 text-[11px] text-ink-4">· {m.phase}</span>}
                     {m.due_date && <span className="ml-1.5 tnum text-[11px] text-ink-4">· {formatDate(m.due_date)}</span>}
                   </span>
-                  <MilestoneStatusForm id={m.id} currentStatus={m.status} />
+                  <span className="flex shrink-0 items-center gap-1">
+                    <MilestoneStatusForm id={m.id} currentStatus={m.status} />
+                    <DeleteButton action={deleteMilestone} id={m.id} label="Delete milestone" iconOnly />
+                  </span>
                 </li>
               ))}
             </ul>

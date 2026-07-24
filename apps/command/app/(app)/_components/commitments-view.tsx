@@ -7,6 +7,8 @@ import type { CommentView, CommitmentView } from '../data';
 import { EmptyState, Panel, Rail, SectionLabel, StatePill } from './ui';
 import { DecisionForm, ProgressForm, ProofForm } from './forms';
 import { CommentThread } from './comment-thread';
+import { DeleteButton } from './crud-forms';
+import { deleteCommitment } from '../actions';
 import { TimelineView, type TimelineItem } from './schedule-view';
 
 function Row({ c, canOperate, canDecide, comments }: { c: CommitmentView; canOperate: boolean; canDecide: boolean; comments: CommentView[] }) {
@@ -40,6 +42,11 @@ function Row({ c, canOperate, canDecide, comments }: { c: CommitmentView; canOpe
           <span>State: <StatePill state={c.state} /></span>
           {c.requires_proof && <span>Proof required</span>}
           {c.context && <span className="text-ink-2">{c.context}</span>}
+          {canDecide && (
+            <span className="ml-auto">
+              <DeleteButton action={deleteCommitment} id={c.id} label="Delete" confirmText={`Delete commitment "${c.title}"?`} />
+            </span>
+          )}
         </div>
 
         {c.proofs.length > 0 && (
