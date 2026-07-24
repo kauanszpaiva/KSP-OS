@@ -6,6 +6,8 @@ import { formatDate } from '../../../lib/format';
 import type { ClientView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { ClientEditForm, ClientHealthForm, ClientNoteForm, ContactForm } from './growth-forms';
+import { DeleteButton } from './crud-forms';
+import { deleteClient, deleteContact } from '../actions';
 
 function ClientCard({ client, delay }: { client: ClientView; delay: number }) {
   return (
@@ -16,7 +18,10 @@ function ClientCard({ client, delay }: { client: ClientView; delay: number }) {
             <h3 className="font-display text-[15px] font-semibold text-ink">{client.display_name}</h3>
             <p className="mt-0.5 truncate text-[12px] text-ink-3">{client.legal_name}</p>
           </div>
-          <ClientHealthForm id={client.id} currentHealth={client.relationship_health} />
+          <div className="flex items-center gap-2">
+            <ClientHealthForm id={client.id} currentHealth={client.relationship_health} />
+            <DeleteButton action={deleteClient} id={client.id} label="Delete" iconOnly confirmText={`Delete client "${client.display_name}"? This can't be undone.`} />
+          </div>
         </div>
 
         <details className="group/edit mt-3">
@@ -36,9 +41,12 @@ function ClientCard({ client, delay }: { client: ClientView; delay: number }) {
           ) : (
             <ul className="mb-2 space-y-1 text-[13px] text-ink-2">
               {client.contacts.map((c) => (
-                <li key={c.id}>
-                  {c.name}
-                  {c.email ? ` · ${c.email}` : ''}
+                <li key={c.id} className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate">
+                    {c.name}
+                    {c.email ? ` · ${c.email}` : ''}
+                  </span>
+                  <DeleteButton action={deleteContact} id={c.id} label="Remove contact" iconOnly />
                 </li>
               ))}
             </ul>

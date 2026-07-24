@@ -1,5 +1,7 @@
 import { z } from 'zod';
 export const uuid = z.string().uuid();
+/** Minimal `{ id }` payload — shared by delete/archive-style actions. */
+export const idParamSchema = z.object({ id: uuid });
 /**
  * A "true"/"false" form-field string parsed to a real boolean. `z.coerce.boolean()`
  * is a footgun here: JS's `Boolean("false")` is `true` (any non-empty string is

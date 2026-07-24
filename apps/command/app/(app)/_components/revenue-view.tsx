@@ -7,6 +7,8 @@ import type { LeadView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { Board, type BoardColumn } from './board-view';
 import { LeadStatusForm } from './growth-forms';
+import { DeleteButton } from './crud-forms';
+import { deleteLead } from '../actions';
 
 function money(minor: number): string {
   return (minor / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -36,6 +38,7 @@ function ListView({ leads }: { leads: LeadView[] }) {
                   {l.probability != null && <span className="text-ink-4"> · {l.probability}%</span>}
                 </span>
                 <LeadStatusForm id={l.id} target="archived">Close</LeadStatusForm>
+                <DeleteButton action={deleteLead} id={l.id} label="Delete" iconOnly confirmText={`Delete lead "${l.name}"?`} />
               </div>
             </div>
           ))}
@@ -49,7 +52,10 @@ function ListView({ leads }: { leads: LeadView[] }) {
             {closed.map((l) => (
               <div key={l.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <span className="truncate text-[13.5px] font-medium text-ink">{l.name}</span>
-                <StatePill state={l.status} />
+                <div className="flex items-center gap-2">
+                  <StatePill state={l.status} />
+                  <DeleteButton action={deleteLead} id={l.id} label="Delete" iconOnly confirmText={`Delete lead "${l.name}"?`} />
+                </div>
               </div>
             ))}
           </Panel>

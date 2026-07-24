@@ -5,6 +5,8 @@ import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
 import type { Product } from '@ksp/database';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { ProductActiveForm } from './growth-forms';
+import { DeleteButton } from './crud-forms';
+import { deleteProduct } from '../actions';
 
 function money(minor: number): string {
   return (minor / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -26,8 +28,9 @@ function GridView({ products }: { products: Product[] }) {
               </div>
               {p.category && <p className="mt-1 text-[11.5px] uppercase tracking-wide text-ink-4">{p.category}</p>}
               {p.description && <p className="mt-2 line-clamp-2 text-[13px] text-ink-2">{p.description}</p>}
-              <div className="mt-3 border-t border-line pt-3">
+              <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
                 <ProductActiveForm id={p.id} active={p.active} />
+                <DeleteButton action={deleteProduct} id={p.id} label="Delete" iconOnly confirmText={`Delete product "${p.name}"?`} />
               </div>
             </Panel>
           ))}
@@ -41,7 +44,10 @@ function GridView({ products }: { products: Product[] }) {
             {archived.map((p) => (
               <div key={p.id} className="flex items-center justify-between px-4 py-3">
                 <span className="truncate text-[13.5px] font-medium text-ink-2">{p.name}</span>
-                <ProductActiveForm id={p.id} active={p.active} />
+                <div className="flex items-center gap-1">
+                  <ProductActiveForm id={p.id} active={p.active} />
+                  <DeleteButton action={deleteProduct} id={p.id} label="Delete" iconOnly confirmText={`Delete product "${p.name}"?`} />
+                </div>
               </div>
             ))}
           </Panel>

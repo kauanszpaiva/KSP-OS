@@ -23,6 +23,7 @@ import {
   createSignalSchema,
   createTaskSchema,
   decideCompletionSchema,
+  idParamSchema,
   markNotificationReadSchema,
   postCommentSchema,
   reassignTaskSchema,
@@ -120,6 +121,57 @@ async function notify(
 
 function firstIssue(error: { issues?: Array<{ message: string }> }): string {
   return error.issues?.[0]?.message ?? 'Invalid input.';
+}
+
+/**
+ * Executive-scoped delete shared by every entity's delete action. RLS is the
+ * real backstop (each table has an is_executive DELETE policy); the app gate
+ * gives a clean message and the audit trail. A friendly error covers the
+ * common "row still has linked records" foreign-key case.
+ */
+async function executiveDelete(form: FormData, table: string, verb: string, paths: string[]): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can delete records.' };
+  const parsed = idParamSchema.safeParse({ id: form.get('id') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const { error } = await supabase.from(table).delete().eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not delete — it may still have linked records, or you lack access.' };
+  await record(supabase, ctx, verb, table, parsed.data.id, `Deleted from ${table}`);
+  for (const p of paths) revalidatePath(p);
+  return { ok: true };
+}
+
+export async function deleteTask(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'tasks', 'task.deleted', ['/workspace']);
+}
+export async function deleteMission(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'projects', 'mission.deleted', ['/missions', '/workspace']);
+}
+export async function deleteClient(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'client_organizations', 'client.deleted', ['/clients']);
+}
+export async function deleteContact(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'contacts', 'contact.deleted', ['/clients']);
+}
+export async function deleteComment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'comments', 'comment.deleted', ['/workspace', '/commitments']);
+}
+export async function deleteMilestone(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'mission_milestones', 'milestone.deleted', ['/missions']);
+}
+export async function deleteProduct(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'products', 'product.deleted', ['/products']);
+}
+export async function deleteLead(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'leads', 'lead.deleted', ['/revenue']);
+}
+export async function deleteOutcome(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'company_outcomes', 'outcome.deleted', ['/outcomes']);
+}
+export async function deleteCommitment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  return executiveDelete(form, 'commitments', 'commitment.deleted', ['/commitments']);
 }
 
 export async function createVaultEntry(_prev: ActionResult, form: FormData): Promise<ActionResult> {
