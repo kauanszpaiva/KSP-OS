@@ -3,7 +3,7 @@
   "info": {
     "title": "KSP Command OS — Read API",
     "version": "1.0.0",
-    "description": "Read-only, RLS-scoped access to KSP Command OS for AI connectors (ChatGPT Actions / Claude MCP). Every request runs as the authenticated user; it never returns more than that user can see in the app. Write actions are intentionally not exposed here."
+    "description": "RLS-scoped access to KSP Command OS for AI connectors (ChatGPT Actions / Claude MCP). Every request runs as the authenticated user; it never returns or changes more than that user could in the app. Writes are limited to low-risk internal actions (create task, add comment, create mission); sensitive/material actions (finance, access grants, deploys, publishing to clients) are intentionally not exposed."
   },
   "servers": [{ "url": "https://REPLACE-WITH-YOUR-COMMAND-HOST/api/v1", "description": "Command app v1 API (replace host)" }],
   "security": [{ "bearerAuth": [] }],
@@ -20,6 +20,22 @@
         "operationId": "listMissions",
         "summary": "Missions (projects) visible to the user, with client, milestones, and dependencies.",
         "responses": { "200": { "description": "Missions", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "post": {
+        "operationId": "createMission",
+        "summary": "Create a mission (requires project.manage). Low-risk internal write.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object", "required": ["name", "projectType"],
+            "properties": {
+              "name": { "type": "string" },
+              "projectType": { "type": "string", "enum": ["engagement", "product", "campaign", "internal"] },
+              "clientId": { "type": "string", "description": "Optional client organization id to link." }
+            }
+          } } }
+        },
+        "responses": { "201": { "$ref": "#/components/responses/Created" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "description": "Not permitted." } }
       }
     },
     "/clients": {
@@ -34,6 +50,42 @@
         "operationId": "listTasks",
         "summary": "Workspace tasks visible to the user, with owner and project names.",
         "responses": { "200": { "description": "Tasks", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "post": {
+        "operationId": "createTask",
+        "summary": "Create a workspace task. Low-risk internal write.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object", "required": ["title"],
+            "properties": {
+              "title": { "type": "string" },
+              "projectId": { "type": "string", "description": "Optional mission/project id." },
+              "ownerId": { "type": "string", "description": "Optional owner profile id; defaults to the caller." },
+              "startDate": { "type": "string", "format": "date" },
+              "dueDate": { "type": "string", "format": "date" }
+            }
+          } } }
+        },
+        "responses": { "201": { "$ref": "#/components/responses/Created" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
+    "/comments": {
+      "post": {
+        "operationId": "postComment",
+        "summary": "Add a comment to any object (e.g. a task or commitment). Low-risk internal write.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object", "required": ["objectTable", "objectId", "body"],
+            "properties": {
+              "objectTable": { "type": "string", "description": "e.g. 'tasks', 'commitments'." },
+              "objectId": { "type": "string" },
+              "body": { "type": "string" }
+            }
+          } } }
+        },
+        "responses": { "201": { "$ref": "#/components/responses/Created" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
     "/outcomes": {
@@ -56,7 +108,9 @@
       "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "A Supabase user access token. The request runs as that user with their RLS in force." }
     },
     "responses": {
-      "Unauthorized": { "description": "Missing/invalid token, or the user has no active internal membership.", "content": { "application/json": { "schema": { "type": "object", "properties": { "error": { "type": "string" } } } } } }
+      "Unauthorized": { "description": "Missing/invalid token, or the user has no active internal membership.", "content": { "application/json": { "schema": { "type": "object", "properties": { "error": { "type": "string" } } } } } },
+      "BadRequest": { "description": "Invalid input.", "content": { "application/json": { "schema": { "type": "object", "properties": { "error": { "type": "string" } } } } } },
+      "Created": { "description": "Created.", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "id": { "type": "string" } } } } } }
     },
     "schemas": {
       "Me": {
