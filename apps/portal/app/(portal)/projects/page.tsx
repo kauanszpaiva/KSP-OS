@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Card, EmptyState, Reveal } from '@ksp/ui';
+import { Card, EmptyState, ProgressBar, Reveal } from '@ksp/ui';
 import { getServerSupabase } from '../../../lib/supabase';
 import { requirePortalSession } from '../../../lib/session';
 import { formatDate } from '../../../lib/format';
@@ -42,10 +42,16 @@ export default async function PortalProjectsPage() {
                 <Card interactive className="p-5">
                   <p className="truncate text-[15px] font-semibold text-ink">{p.title}</p>
                   <p className="mt-1 line-clamp-2 text-[13px] text-ink-3">{p.summary}</p>
-                  <div className="mt-4 flex items-center justify-between text-[12px] text-ink-4">
-                    <span>Updated {formatDate(p.published_at)}</span>
-                    {pct !== null && <span className="tnum font-medium text-ink-2">{pct}% complete</span>}
-                  </div>
+                  {pct !== null && (
+                    <div className="mt-4">
+                      <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
+                        <span className="font-medium uppercase tracking-wide text-ink-4">Progress</span>
+                        <span className="tnum font-semibold text-ink-2">{pct}%</span>
+                      </div>
+                      <ProgressBar value={pct} />
+                    </div>
+                  )}
+                  <div className="mt-4 text-[12px] text-ink-4">Updated {formatDate(p.published_at)}</div>
                 </Card>
               </Link>
             );
