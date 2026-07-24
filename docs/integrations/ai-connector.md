@@ -93,12 +93,15 @@ with `KSP_API_BASE` and `KSP_ACCESS_TOKEN` in its env.
 schemas, honour `canPerform` where the module does, and audit every write.
 Sensitive/material actions are deliberately excluded.
 
-**Sensitive/material writes stay A3 (design, not built):** to ever let the
-connector touch finance, access grants, deploys, or publish-to-client, a write
-request must create a **pending action** the operator confirms in-app before it
-executes — never auto-applied — and the change must satisfy the Integration
-Standard + Release Gate. That approval loop can reuse the existing
-`approval_requests` module (the `agent_autonomy` approval type already exists).
+**Sensitive/material actions — propose, never execute (A3):** the connector
+cannot run finance, access-grant, deploy, or publish-to-client actions. Instead
+`POST /api/v1/proposals` files an **approval request** (into the existing
+`approval_requests` module) that a human decides in the Decisions tab — the AI
+proposes, a person approves and carries it out. Nothing material happens
+autonomously. Wiring an *approved* proposal to auto-execute the underlying
+mutation is a further step that still needs the full A3 sign-off (executive +
+security/domain owner, canary, kill-switch test) and the Integration Standard +
+Release Gate before it ships.
 
 ## Approval gates (need a human decision before proceeding)
 

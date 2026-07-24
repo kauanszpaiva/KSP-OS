@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createTokenClient, type SupabaseClient } from '@ksp/database';
 import { getAuthContext, type AuthContext } from '@ksp/auth';
 import { canPerform } from '@ksp/permissions';
-import { createMissionSchema, createTaskSchema, postCommentSchema } from '@ksp/validation';
+import { createDecisionRequestSchema, createMissionSchema, createTaskSchema, postCommentSchema } from '@ksp/validation';
 import { getClients, getCommitments, getMissions, getOutcomes, getTasks } from '../../../(app)/data';
 
 /**
@@ -17,8 +17,10 @@ import { getClients, getCommitments, getMissions, getOutcomes, getTasks } from '
  * Reads (GET) cover the live modules. Writes (POST) are restricted to
  * LOW-RISK, reversible, internal actions (create task, add comment, create
  * mission) — the A1/A2 tier per reference/CLAUDE.md. Sensitive/material actions
- * (finance, access grants, deploys, publishing to a client) are NOT exposed
- * here; those remain A3/human-gated by design. See
+ * are NOT executed here. Instead the connector can PROPOSE one via
+ * `POST /api/v1/proposals`, which files an approval_request a human decides in
+ * the Decisions module — the A3 pattern (human approval before anything
+ * material happens), with no autonomous execution. See
  * docs/integrations/ai-connector.md.
  */
 export const dynamic = 'force-dynamic';
@@ -189,9 +191,41 @@ export async function POST(request: Request, { params }: { params: Promise<{ res
       await audit(supabase, ctx, 'mission.created', 'projects', data.id, `Created mission: ${parsed.data.name}`);
       return NextResponse.json({ ok: true, id: data.id }, { status: 201 });
     }
+    case 'proposals': {
+      // A3: the connector cannot execute a sensitive/material action — it files
+      // an approval request that a human decides in the Decisions module. This
+      // is the only way the connector touches anything beyond the low-risk set,
+      // and it never auto-executes.
+      const parsed = createDecisionRequestSchema.safeParse({
+        approvalType: body.approvalType,
+        riskLevel: body.riskLevel,
+        amountMinor: body.amountMinor || undefined,
+        dueAt: body.dueAt || undefined
+      });
+      if (!parsed.success) return badRequest(firstIssue(parsed.error));
+      const { error, data } = await supabase
+        .from('approval_requests')
+        .insert({
+          organization_id: ctx.organizationId,
+          requester_id: ctx.user.id,
+          approval_type: parsed.data.approvalType,
+          risk_level: parsed.data.riskLevel,
+          amount_minor: parsed.data.amountMinor ?? null,
+          due_at: parsed.data.dueAt || null
+        })
+        .select('id')
+        .single();
+      if (error) return badRequest('could_not_create_proposal');
+      await audit(supabase, ctx, 'decision.requested', 'approval_requests', data.id, `Proposed for approval: ${parsed.data.approvalType}`);
+      return NextResponse.json({ ok: true, id: data.id, status: 'pending_human_approval' }, { status: 201 });
+    }
     default:
       return NextResponse.json(
-        { error: 'unknown_or_unwritable_resource', writable: ['tasks', 'comments', 'missions'], note: 'Sensitive/material actions are intentionally not exposed here.' },
+        {
+          error: 'unknown_or_unwritable_resource',
+          writable: ['tasks', 'comments', 'missions', 'proposals'],
+          note: 'Sensitive/material actions are not executed here — use "proposals" to request human approval.'
+        },
         { status: 404 }
       );
   }

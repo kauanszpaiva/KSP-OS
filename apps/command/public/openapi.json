@@ -88,6 +88,25 @@
         "responses": { "201": { "$ref": "#/components/responses/Created" }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
+    "/proposals": {
+      "post": {
+        "operationId": "proposeForApproval",
+        "summary": "Propose a sensitive/material action for HUMAN approval. Does not execute — files an approval request a person decides in the Decisions module.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": {
+            "type": "object", "required": ["approvalType", "riskLevel"],
+            "properties": {
+              "approvalType": { "type": "string", "enum": ["executive_access", "bank_destination", "high_value_payment", "contract_change", "pricing_exception", "period_reopen", "bulk_export", "production_credential", "rls_auth_change", "protected_deletion", "agent_autonomy", "high_risk_publication", "deployment_exception"] },
+              "riskLevel": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+              "amountMinor": { "type": "integer", "minimum": 0 },
+              "dueAt": { "type": "string", "description": "Optional RFC3339/date." }
+            }
+          } } }
+        },
+        "responses": { "201": { "description": "Filed for human approval.", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "id": { "type": "string" }, "status": { "type": "string" } } } } } }, "400": { "$ref": "#/components/responses/BadRequest" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      }
+    },
     "/outcomes": {
       "get": {
         "operationId": "listOutcomes",
