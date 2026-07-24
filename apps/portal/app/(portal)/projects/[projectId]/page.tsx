@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Badge, Card, EmptyState, Reveal } from '@ksp/ui';
+import { Badge, Card, EmptyState, ProgressBar, Reveal } from '@ksp/ui';
 import { getServerSupabase } from '../../../../lib/supabase';
 import { requirePortalSession } from '../../../../lib/session';
 import { formatDate, formatMoney, isOverdue } from '../../../../lib/format';
@@ -59,7 +59,21 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
           {milestones.length === 0 ? (
             <EmptyState icon="missions" title="No milestones published yet." />
           ) : (
-            <ol className="overflow-hidden rounded-xl border border-line bg-surface">
+            <>
+              {(() => {
+                const done = milestones.filter((m) => m.status === 'done').length;
+                const pct = Math.round((done / milestones.length) * 100);
+                return (
+                  <div className="mb-3 rounded-xl border border-line bg-surface p-4">
+                    <div className="mb-2 flex items-center justify-between text-[12px]">
+                      <span className="font-medium text-ink-2">{done} of {milestones.length} milestones done</span>
+                      <span className="tnum font-semibold text-ink">{pct}%</span>
+                    </div>
+                    <ProgressBar value={pct} />
+                  </div>
+                );
+              })()}
+              <ol className="overflow-hidden rounded-xl border border-line bg-surface">
               {milestones.map((m, i) => (
                 <li key={m.id} className={`flex items-center justify-between gap-3 px-4 py-3 ${i > 0 ? 'border-t border-line' : ''}`}>
                   <div className="min-w-0">
@@ -76,7 +90,8 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
                   </div>
                 </li>
               ))}
-            </ol>
+              </ol>
+            </>
           )}
         </div>
 

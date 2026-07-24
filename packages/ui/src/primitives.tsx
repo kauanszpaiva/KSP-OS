@@ -227,6 +227,34 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
+/* ---------------------------------------------------------- ProgressBar -- */
+
+const PROGRESS_FILL: Record<'brand' | 'accent' | 'good' | 'warn' | 'risk', string> = {
+  brand: 'bg-brand',
+  accent: 'bg-accent',
+  good: 'bg-good',
+  warn: 'bg-warn',
+  risk: 'bg-risk'
+};
+
+/** Thin horizontal progress bar — a shared, dependency-free completion indicator. */
+export function ProgressBar({
+  value,
+  tone = 'brand',
+  className
+}: {
+  value: number;
+  tone?: 'brand' | 'accent' | 'good' | 'warn' | 'risk';
+  className?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  return (
+    <div className={cx('h-1.5 w-full overflow-hidden rounded-full bg-surface-2', className)} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+      <div className={cx('h-full rounded-full transition-[width] duration-slow ease-standard', pct >= 100 ? PROGRESS_FILL.accent : PROGRESS_FILL[tone])} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------ EmptyState -- */
 
 export function EmptyState({ icon, title, hint, action }: { icon?: IconName; title: string; hint?: string; action?: ReactNode }) {
