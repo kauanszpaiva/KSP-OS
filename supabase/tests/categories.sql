@@ -1,0 +1,27 @@
+-- Phase C9 (Categories) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: Founder CEO (Kauan), Executive Operations (Vanessa),
+-- a non-executive internal member (Eric), an unaffiliated user.
+--
+-- categories assertions:
+--   - read/insert/update are org-scoped: any internal member (executive or not)
+--     can create a category and rename it within their own organization.
+--   - delete is executive-only: Eric cannot delete a category; Kauan/Vanessa can.
+--     Non-executives "retire" a category by leaving it unused, not by deleting.
+--   - unique (organization_id, name): a second category with the same name in the
+--     same org is rejected; the same name in a different org is allowed.
+--   - cross-organization denial: Eric cannot read or write another org's
+--     categories.
+--
+-- projects.category_id / tasks.category_id assertions:
+--   - a task/project can only reference a category in the same organization
+--     (application-enforced via the org-scoped insert/update paths); the FK is
+--     nullable, so uncategorised rows remain valid.
+--   - on delete set null: deleting a category nulls category_id on any project
+--     or task that referenced it and never blocks that row's own deletion.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising the new policies end-to-end. Verified by SQL review + the
+-- Supabase preview-branch migration check only.
+
+select 'categories authorization regression plan present, including cross-organization denial' as plan;

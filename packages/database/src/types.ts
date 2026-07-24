@@ -187,6 +187,16 @@ export interface Project {
   status: RecordStatus;
   created_at: string;
   archived_at: string | null;
+  category_id: string | null;
+}
+
+export interface Category {
+  id: string;
+  organization_id: string;
+  name: string;
+  color: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface ProjectMembership {
@@ -238,6 +248,7 @@ export interface Task {
   status: RecordStatus;
   created_at: string;
   link: string | null;
+  category_id: string | null;
 }
 
 /* --------------------------------------------------------- Phase C4 -- */

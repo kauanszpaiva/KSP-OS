@@ -53,11 +53,24 @@ export const recordDecisionSchema = z.object({
   comments: z.string().max(1000).optional().or(z.literal(''))
 });
 
+/** Phase C9 — Categories (reusable labels for missions and tasks). */
+export const createCategorySchema = z.object({
+  name: z.string().min(2).max(80),
+  color: z.string().max(24).optional().or(z.literal(''))
+});
+
+export const updateCategorySchema = z.object({
+  id: uuid,
+  name: z.string().min(2).max(80).optional(),
+  color: z.string().max(24).optional().or(z.literal(''))
+});
+
 /** Phase C3 — Missions (projects / project_memberships / mission_milestones / mission_dependencies). */
 export const createMissionSchema = z.object({
   name: z.string().min(2).max(160),
   projectType: z.string().min(1).max(80),
-  clientId: uuid.optional()
+  clientId: uuid.optional(),
+  categoryId: uuid.optional().or(z.literal(''))
 });
 
 export const updateMissionHealthSchema = z.object({
@@ -76,7 +89,8 @@ export const updateMissionSchema = z.object({
   name: z.string().min(2).max(160).optional(),
   projectType: z.string().min(1).max(80).optional(),
   nextAction: z.string().max(300).optional().or(z.literal('')),
-  clientId: uuid.optional().or(z.literal(''))
+  clientId: uuid.optional().or(z.literal('')),
+  categoryId: uuid.optional().or(z.literal(''))
 });
 
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -118,6 +132,7 @@ export const createTaskSchema = z
     title: z.string().min(2).max(200),
     projectId: uuid.optional(),
     ownerId: uuid.optional(),
+    categoryId: uuid.optional().or(z.literal('')),
     startDate: dateString.optional().or(z.literal('')),
     dueDate: dateString.optional().or(z.literal(''))
   })
