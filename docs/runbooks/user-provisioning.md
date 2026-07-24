@@ -88,15 +88,28 @@ membership. Everton will sign in at the **portal** `/login` and see only Bez
 Group's published data (enforced by RLS `is_portal_member`) — never any internal
 table.
 
+**One command** — Everton's details are pre-filled; supply only the two secrets
+and a strong password:
+
 ```bash
 NEXT_PUBLIC_SUPABASE_URL="https://<project>.supabase.co" \
 SUPABASE_SERVER_ONLY_SECRET_KEY="<service key>" \
-PORTAL_EMAIL="everton@bezgroup.com" \
-PORTAL_PASSWORD="<strong password>" \
-PORTAL_NAME="Everton" \
-CLIENT_ORG_NAME="Bez Group" \
-PORTAL_ROLE="client_owner" \
-node scripts/provision-portal-user.mjs
+PORTAL_PASSWORD="<a strong password>" \
+pnpm seed:everton
+```
+
+That's it — Everton (everton@bezgroup.com, role `client_owner` on Bez Group) can
+then sign in at the portal `/login`. See `scripts/provision.env.example` for the
+variable reference.
+
+To provision any other client user, use the general form:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL="https://<project>.supabase.co" \
+SUPABASE_SERVER_ONLY_SECRET_KEY="<service key>" \
+PORTAL_EMAIL="person@client.com" PORTAL_PASSWORD="<strong password>" \
+PORTAL_NAME="Name" CLIENT_ORG_NAME="Client Co" PORTAL_ROLE="client_owner" \
+pnpm provision:portal
 ```
 
 > **Password.** `password123` (from the request) is a weak placeholder — use a
