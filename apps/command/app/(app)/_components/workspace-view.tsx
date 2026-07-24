@@ -26,6 +26,7 @@ function TaskRow({ task, members, comments }: { task: TaskView; members: MemberR
             <p className="mt-0.5 text-[12px] text-ink-3">
               {task.ownerName}
               {task.projectName ? ` · ${task.projectName}` : ''}
+              {task.categoryName ? ` · ${task.categoryName}` : ''}
               {task.due_date && <span className={overdue ? 'text-risk' : ''}> · due {formatDate(task.due_date)}</span>}
               {task.blocked && <span className="text-risk"> · blocked</span>}
               {comments.length > 0 && <span> · {comments.length} comment{comments.length === 1 ? '' : 's'}</span>}

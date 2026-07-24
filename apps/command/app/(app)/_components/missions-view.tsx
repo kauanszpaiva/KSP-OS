@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { Badge, Icon, Reveal, Segmented } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
-import type { ClientRef, MissionView } from '../data';
+import type { CategoryRef, ClientRef, MissionView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { TimelineView, type TimelineDependency, type TimelineItem } from './schedule-view';
 import { DependencyForm, MilestoneForm, MilestoneStatusForm, MissionEditForm, MissionHealthForm } from './mission-workspace-forms';
 import { DeleteButton } from './crud-forms';
 import { deleteMilestone, deleteMission } from '../actions';
 
-function MissionCard({ mission, allMissions, clients, delay }: { mission: MissionView; allMissions: MissionView[]; clients: ClientRef[]; delay: number }) {
+function MissionCard({ mission, allMissions, clients, categories, delay }: { mission: MissionView; allMissions: MissionView[]; clients: ClientRef[]; categories: CategoryRef[]; delay: number }) {
   return (
     <Reveal delay={delay}>
       <Panel className="p-5">
@@ -24,6 +24,7 @@ function MissionCard({ mission, allMissions, clients, delay }: { mission: Missio
                   {mission.clientName}
                 </Badge>
               )}
+              {mission.categoryName && <Badge tone="neutral">{mission.categoryName}</Badge>}
             </div>
             <p className="mt-0.5 text-[12px] capitalize text-ink-3">
               {mission.project_type.replace(/_/g, ' ')} · {mission.memberIds.length} member{mission.memberIds.length === 1 ? '' : 's'}
@@ -44,8 +45,9 @@ function MissionCard({ mission, allMissions, clients, delay }: { mission: Missio
           </summary>
           <div className="animate-fade-slide-up mt-3 rounded-lg border border-line bg-surface-2/50 p-3">
             <MissionEditForm
-              mission={{ id: mission.id, name: mission.name, project_type: mission.project_type, client_id: mission.client_id, next_action: mission.next_action }}
+              mission={{ id: mission.id, name: mission.name, project_type: mission.project_type, client_id: mission.client_id, next_action: mission.next_action, category_id: mission.category_id }}
               clients={clients}
+              categories={categories}
             />
           </div>
         </details>
@@ -97,7 +99,7 @@ function MissionCard({ mission, allMissions, clients, delay }: { mission: Missio
   );
 }
 
-function CardsView({ missions, clients }: { missions: MissionView[]; clients: ClientRef[] }) {
+function CardsView({ missions, clients, categories }: { missions: MissionView[]; clients: ClientRef[]; categories: CategoryRef[] }) {
   const active = missions.filter((m) => m.status === 'active');
   const archived = missions.filter((m) => m.status !== 'active');
   return (
@@ -106,7 +108,7 @@ function CardsView({ missions, clients }: { missions: MissionView[]; clients: Cl
         <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{active.length}</span>}>Active</SectionLabel>
         <div className="grid gap-4 lg:grid-cols-2">
           {active.map((m, i) => (
-            <MissionCard key={m.id} mission={m} allMissions={missions} clients={clients} delay={i * 50} />
+            <MissionCard key={m.id} mission={m} allMissions={missions} clients={clients} categories={categories} delay={i * 50} />
           ))}
         </div>
       </div>
@@ -160,7 +162,7 @@ function missionsToTimeline(missions: MissionView[]): { items: TimelineItem[]; d
   return { items, dependencies };
 }
 
-export function MissionsView({ missions, clients = [] }: { missions: MissionView[]; clients?: ClientRef[] }) {
+export function MissionsView({ missions, clients = [], categories = [] }: { missions: MissionView[]; clients?: ClientRef[]; categories?: CategoryRef[] }) {
   const [view, setView] = useState<'cards' | 'timeline'>('cards');
   const { items, dependencies } = missionsToTimeline(missions);
 
@@ -177,7 +179,7 @@ export function MissionsView({ missions, clients = [] }: { missions: MissionView
         />
       </div>
       {view === 'cards' ? (
-        <CardsView missions={missions} clients={clients} />
+        <CardsView missions={missions} clients={clients} categories={categories} />
       ) : items.length === 0 ? (
         <EmptyState icon="missions" title="No dated milestones yet." hint="Add milestone due dates to see missions on the timeline." />
       ) : (

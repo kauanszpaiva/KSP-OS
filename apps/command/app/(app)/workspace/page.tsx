@@ -1,6 +1,6 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getCommentsForObjects, getMembers, getTasks, type CommentView, type TaskView } from '../data';
+import { getCategories, getCommentsForObjects, getMembers, getTasks, type CommentView, type TaskView } from '../data';
 import { PageHeader } from '../_components/ui';
 import { TaskForm } from '../_components/mission-workspace-forms';
 import { WorkspaceView } from '../_components/workspace-view';
@@ -8,7 +8,9 @@ import { WorkspaceView } from '../_components/workspace-view';
 export default async function WorkspacePage() {
   const ctx = await requireSession();
   const supabase = await getServerSupabase();
-  const [tasks, members] = supabase ? await Promise.all([getTasks(supabase), getMembers(supabase, ctx.user.id)]) : [[], []];
+  const [tasks, members, categories] = supabase
+    ? await Promise.all([getTasks(supabase), getMembers(supabase, ctx.user.id), getCategories(supabase)])
+    : [[], [], []];
   const commentsByTask = supabase
     ? await getCommentsForObjects(supabase, 'tasks', (tasks as TaskView[]).map((t) => t.id))
     : new Map<string, CommentView[]>();
@@ -26,7 +28,7 @@ export default async function WorkspacePage() {
           + New task
         </summary>
         <div className="animate-fade-slide-up border-t border-line p-4">
-          <TaskForm members={members} />
+          <TaskForm members={members} categories={categories} />
         </div>
       </details>
 

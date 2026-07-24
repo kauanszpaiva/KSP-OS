@@ -8,6 +8,7 @@ import {
   addClientNoteSchema,
   addDependencySchema,
   createCampaignSchema,
+  createCategorySchema,
   createClientSchema,
   createCommitmentSchema,
   createConnectionSchema,
@@ -33,6 +34,7 @@ import {
   submitProofSchema,
   toggleProductActiveSchema,
   triageSignalSchema,
+  updateCategorySchema,
   updateClientHealthSchema,
   updateContentStatusSchema,
   updateDocumentClassificationSchema,
@@ -172,6 +174,76 @@ export async function deleteOutcome(_prev: ActionResult, form: FormData): Promis
 }
 export async function deleteCommitment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   return executiveDelete(form, 'commitments', 'commitment.deleted', ['/commitments']);
+}
+export async function deleteCategory(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  // The categories.category_id FKs are `on delete set null`, so removing a
+  // category simply leaves its missions/tasks uncategorised — never blocked.
+  return executiveDelete(form, 'categories', 'category.deleted', ['/missions', '/workspace']);
+}
+
+export async function createCategory(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createCategorySchema.safeParse({
+    name: form.get('name'),
+    color: form.get('color') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error, data } = await supabase
+    .from('categories')
+    .insert({
+      organization_id: ctx.organizationId,
+      name: parsed.data.name,
+      color: parsed.data.color || null,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) {
+    if (error.message.includes('duplicate') || error.code === '23505') {
+      return { ok: false, error: 'A category with that name already exists.' };
+    }
+    return { ok: false, error: 'Could not create the category.' };
+  }
+
+  await record(supabase, ctx, 'category.created', 'categories', data.id, `Category: ${parsed.data.name}`);
+  revalidatePath('/missions');
+  revalidatePath('/workspace');
+  return { ok: true };
+}
+
+export async function updateCategory(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = updateCategorySchema.safeParse({
+    id: form.get('id'),
+    name: form.get('name') ?? undefined,
+    color: form.get('color') ?? undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+  if (parsed.data.color !== undefined) patch.color = parsed.data.color || null;
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  const { error } = await supabase.from('categories').update(patch).eq('id', parsed.data.id);
+  if (error) {
+    if (error.message.includes('duplicate') || error.code === '23505') {
+      return { ok: false, error: 'A category with that name already exists.' };
+    }
+    return { ok: false, error: 'Could not update the category (check your access).' };
+  }
+
+  await record(supabase, ctx, 'category.updated', 'categories', parsed.data.id, 'Category updated');
+  revalidatePath('/missions');
+  revalidatePath('/workspace');
+  return { ok: true };
 }
 
 export async function createVaultEntry(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -639,7 +711,8 @@ export async function createMission(_prev: ActionResult, form: FormData): Promis
   const parsed = createMissionSchema.safeParse({
     name: form.get('name'),
     projectType: form.get('projectType'),
-    clientId: form.get('clientId') || undefined
+    clientId: form.get('clientId') || undefined,
+    categoryId: form.get('categoryId') ?? undefined
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
@@ -650,6 +723,7 @@ export async function createMission(_prev: ActionResult, form: FormData): Promis
       client_id: parsed.data.clientId ?? null,
       name: parsed.data.name,
       project_type: parsed.data.projectType,
+      category_id: parsed.data.categoryId || null,
       health: 'unknown',
       status: 'active'
     })
@@ -707,7 +781,8 @@ export async function updateMission(_prev: ActionResult, form: FormData): Promis
     name: form.get('name') ?? undefined,
     projectType: form.get('projectType') ?? undefined,
     nextAction: form.get('nextAction') ?? undefined,
-    clientId: form.get('clientId') ?? undefined
+    clientId: form.get('clientId') ?? undefined,
+    categoryId: form.get('categoryId') ?? undefined
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
@@ -717,6 +792,7 @@ export async function updateMission(_prev: ActionResult, form: FormData): Promis
   if (parsed.data.nextAction !== undefined) patch.next_action = parsed.data.nextAction || null;
   // Empty string clears the link; a uuid sets it; `undefined` leaves it untouched.
   if (parsed.data.clientId !== undefined) patch.client_id = parsed.data.clientId || null;
+  if (parsed.data.categoryId !== undefined) patch.category_id = parsed.data.categoryId || null;
   if (Object.keys(patch).length === 0) return { ok: true };
 
   const { error } = await supabase.from('projects').update(patch).eq('id', parsed.data.id);
@@ -826,6 +902,7 @@ export async function createTask(_prev: ActionResult, form: FormData): Promise<A
     title: form.get('title'),
     projectId: form.get('projectId') || undefined,
     ownerId: form.get('ownerId') || undefined,
+    categoryId: form.get('categoryId') ?? undefined,
     startDate: form.get('startDate') ?? undefined,
     dueDate: form.get('dueDate') ?? undefined
   });
@@ -838,6 +915,7 @@ export async function createTask(_prev: ActionResult, form: FormData): Promise<A
       project_id: parsed.data.projectId ?? null,
       owner_id: parsed.data.ownerId ?? ctx.user.id,
       title: parsed.data.title,
+      category_id: parsed.data.categoryId || null,
       start_date: parsed.data.startDate || null,
       due_date: parsed.data.dueDate || null
     })

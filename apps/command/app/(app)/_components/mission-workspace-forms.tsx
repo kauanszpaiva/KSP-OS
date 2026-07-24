@@ -13,7 +13,7 @@ import {
   updateTaskStatus,
   type ActionResult
 } from '../actions';
-import type { ClientRef, MemberRef } from '../data';
+import type { CategoryRef, ClientRef, MemberRef } from '../data';
 
 const initial: ActionResult = { ok: false };
 
@@ -30,7 +30,30 @@ function FormError({ state }: { state: ActionResult }) {
   return <p className="text-[13px] text-risk">{state.error}</p>;
 }
 
-export function MissionForm({ clients = [] }: { clients?: ClientRef[] }) {
+/** Shared category picker used by the mission and task forms. */
+function CategorySelect({
+  id,
+  categories,
+  defaultValue = ''
+}: {
+  id: string;
+  categories: CategoryRef[];
+  defaultValue?: string;
+}) {
+  return (
+    <div>
+      <label className={label} htmlFor={id}>Category</label>
+      <select id={id} name="categoryId" className={field} defaultValue={defaultValue}>
+        <option value="">Uncategorised</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+export function MissionForm({ clients = [], categories = [] }: { clients?: ClientRef[]; categories?: CategoryRef[] }) {
   const [state, action, pending] = useActionState(createMission, initial);
   return (
     <form action={action} className="space-y-3">
@@ -58,6 +81,7 @@ export function MissionForm({ clients = [] }: { clients?: ClientRef[] }) {
           </select>
         </div>
       </div>
+      <CategorySelect id="m-category" categories={categories} />
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
         {pending ? 'Creating…' : 'Create mission'}
@@ -85,10 +109,12 @@ export function MissionHealthForm({ id, currentHealth }: { id: string; currentHe
 
 export function MissionEditForm({
   mission,
-  clients = []
+  clients = [],
+  categories = []
 }: {
-  mission: { id: string; name: string; project_type: string; client_id: string | null; next_action: string | null };
+  mission: { id: string; name: string; project_type: string; client_id: string | null; next_action: string | null; category_id: string | null };
   clients?: ClientRef[];
+  categories?: CategoryRef[];
 }) {
   const [state, action, pending] = useActionState(updateMission, initial);
   return (
@@ -118,6 +144,7 @@ export function MissionEditForm({
           </select>
         </div>
       </div>
+      <CategorySelect id={`me-category-${mission.id}`} categories={categories} defaultValue={mission.category_id ?? ''} />
       <div>
         <label className={label} htmlFor={`me-next-${mission.id}`}>Next action</label>
         <input id={`me-next-${mission.id}`} name="nextAction" className={field} defaultValue={mission.next_action ?? ''} placeholder="What moves this forward" />
@@ -184,7 +211,7 @@ export function DependencyForm({ projectId, missions }: { projectId: string; mis
   );
 }
 
-export function TaskForm({ members, projectId }: { members: MemberRef[]; projectId?: string }) {
+export function TaskForm({ members, projectId, categories = [] }: { members: MemberRef[]; projectId?: string; categories?: CategoryRef[] }) {
   const [state, action, pending] = useActionState(createTask, initial);
   return (
     <form action={action} className="space-y-3">
@@ -212,6 +239,7 @@ export function TaskForm({ members, projectId }: { members: MemberRef[]; project
           <input id="t-due" name="dueDate" type="date" className={field} />
         </div>
       </div>
+      <CategorySelect id="t-category" categories={categories} />
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
         {pending ? 'Adding…' : 'Add task'}

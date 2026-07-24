@@ -3,6 +3,7 @@ import type {
   ApprovalDecision,
   ApprovalRequest,
   Campaign,
+  Category,
   ChartAccount,
   ClientInternalNote,
   ClientOrganization,
@@ -155,6 +156,8 @@ export interface MissionView extends Project {
   commitmentCount: number;
   /** Display name of the linked client organization, if any (projects.client_id). */
   clientName: string | null;
+  /** Name of the linked category, if any (projects.category_id). */
+  categoryName: string | null;
 }
 
 /** Lightweight client picker option — id + display name only (no contacts/notes join). */
@@ -172,16 +175,36 @@ export async function getClientRefs(supabase: SupabaseClient): Promise<ClientRef
   return ((data ?? []) as Array<{ id: string; display_name: string }>).map((c) => ({ id: c.id, displayName: c.display_name }));
 }
 
+/** Category picker option + count — id, name, optional color. */
+export interface CategoryRef {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+export async function getCategories(supabase: SupabaseClient): Promise<CategoryRef[]> {
+  const { data } = await supabase
+    .from('categories')
+    .select('id, name, color')
+    .order('name', { ascending: true });
+  return ((data ?? []) as Array<{ id: string; name: string; color: string | null }>).map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color
+  }));
+}
+
 export async function getMissions(supabase: SupabaseClient): Promise<MissionView[]> {
   // projects_member_read RLS scopes rows to the executive (all) or an assigned member.
-  const [{ data: projects }, { data: milestones }, { data: dependencies }, { data: memberships }, { data: commitments }, { data: clients }] =
+  const [{ data: projects }, { data: milestones }, { data: dependencies }, { data: memberships }, { data: commitments }, { data: clients }, { data: categories }] =
     await Promise.all([
       supabase.from('projects').select('*').order('created_at', { ascending: false }),
       supabase.from('mission_milestones').select('*').order('sort_order', { ascending: true }),
       supabase.from('mission_dependencies').select('*'),
       supabase.from('project_memberships').select('project_id, profile_id'),
       supabase.from('commitments').select('id, outcome_id').not('outcome_id', 'is', null),
-      supabase.from('client_organizations').select('id, display_name')
+      supabase.from('client_organizations').select('id, display_name'),
+      supabase.from('categories').select('id, name')
     ]);
 
   const milestonesByProject = new Map<string, MissionMilestone[]>();
@@ -203,6 +226,7 @@ export async function getMissions(supabase: SupabaseClient): Promise<MissionView
     membersByProject.set(m.project_id, arr);
   }
   const clientNameById = new Map(((clients ?? []) as Array<{ id: string; display_name: string }>).map((c) => [c.id, c.display_name]));
+  const categoryNameById = new Map(((categories ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]));
   void commitments; // reserved: commitments do not yet carry a mission/project link (Phase C3 follow-up).
 
   return ((projects ?? []) as Project[]).map((p) => ({
@@ -211,7 +235,8 @@ export async function getMissions(supabase: SupabaseClient): Promise<MissionView
     dependencies: dependenciesByProject.get(p.id) ?? [],
     memberIds: membersByProject.get(p.id) ?? [],
     commitmentCount: 0,
-    clientName: (p.client_id && clientNameById.get(p.client_id)) || null
+    clientName: (p.client_id && clientNameById.get(p.client_id)) || null,
+    categoryName: (p.category_id && categoryNameById.get(p.category_id)) || null
   }));
 }
 
@@ -225,21 +250,26 @@ export async function getMissionMembers(supabase: SupabaseClient): Promise<Proje
 export interface TaskView extends Task {
   ownerName: string;
   projectName: string | null;
+  /** Name of the linked category, if any (tasks.category_id). */
+  categoryName: string | null;
 }
 
 export async function getTasks(supabase: SupabaseClient): Promise<TaskView[]> {
   // tasks_project_read RLS scopes rows to the executive (all), unassigned tasks, or an assigned project's members.
-  const [{ data: tasks }, { data: profiles }, { data: projects }] = await Promise.all([
+  const [{ data: tasks }, { data: profiles }, { data: projects }, { data: categories }] = await Promise.all([
     supabase.from('tasks').select('*').order('created_at', { ascending: false }),
     supabase.from('profiles').select('id, display_name'),
-    supabase.from('projects').select('id, name')
+    supabase.from('projects').select('id, name'),
+    supabase.from('categories').select('id, name')
   ]);
   const nameById = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((p) => [p.id, p.display_name]));
   const projectNameById = new Map(((projects ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]));
+  const categoryNameById = new Map(((categories ?? []) as Array<{ id: string; name: string }>).map((c) => [c.id, c.name]));
   return ((tasks ?? []) as Task[]).map((t) => ({
     ...t,
     ownerName: (t.owner_id && nameById.get(t.owner_id)) || 'Unassigned',
-    projectName: (t.project_id && projectNameById.get(t.project_id)) || null
+    projectName: (t.project_id && projectNameById.get(t.project_id)) || null,
+    categoryName: (t.category_id && categoryNameById.get(t.category_id)) || null
   }));
 }
 
