@@ -39,10 +39,12 @@ que uma fase mudar de status.
 - [ ] **Finance — Subscription Console** (renew/downgrade/cancel) `⛔` — as
   policies de escrita em `subscriptions` já existem (executive-only), mas a UI
   não. `command/05_control_section.md` (C5.1.6).
-- [ ] **Signals — detail slide-over** `⬜` — hoje usa expansão inline em vez de
-  um painel de detalhe. `command/02_command_section.md`.
-- [ ] **Decisions — packet view** (contexto / opções / evidências em
-  slide-over) `⬜` — hoje é linha inline. `command/02_command_section.md`.
+- [x] **Signals — detail slide-over** `✅` — painel lateral (`slide-over.tsx`)
+  abre ao clicar no título (List/Board) com corpo completo + ações de triagem.
+  `command/02_command_section.md` (C2.1.5).
+- [x] **Decisions — packet view** `✅` — `SlideOver` com status/risco/valor/
+  prazo, evidências (`evidence` jsonb), histórico de decisões e o `DecisionForm`
+  governado inline. `command/02_command_section.md` (C2.2.4).
 - [ ] **Decisions — modelo de estados completo** `⬜` — hoje achatado para 2
   estados (Waiting / Decided) e só `approved`/`rejected`; falta
   `request-changes`/`abstain` e co-aprovação multi-aprovador (limitado por
