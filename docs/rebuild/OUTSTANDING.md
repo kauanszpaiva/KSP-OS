@@ -87,9 +87,11 @@ que uma fase mudar de status.
 - [ ] **UI de criação de convites** `⬜` — só o lado *accept* existe; convites
   são semeados manualmente (SQL/dashboard) até um fluxo no futuro módulo
   Clients. `portal/00_foundation.md`.
-- [ ] **Preview pré-accept do convite** `⬜` — nome do cliente / role /
-  expiração não mostrados antes de aceitar; erros só aparecem no submit.
-  `portal/00_foundation.md`.
+- [x] **Preview pré-accept do convite** `✅` — visitante logado vê workspace /
+  role / expiração / status antes de aceitar, via `preview_portal_invitation`
+  (SECURITY DEFINER, só `authenticated`, sem email/ids). Convites não-pendentes
+  mostram mensagem em vez do botão de aceitar. `supabase/migrations/202607260010_portal_invitation_preview.sql`,
+  `apps/portal/app/invite/[token]/`. `portal/00_foundation.md`.
 - [ ] **Approvals — "consolidated feedback"** `⬜` — thread de feedback do spec
   não implementado; hoje só accept/reject. `portal/02_approvals_requests.md`,
   `PRODUCT_INFORMATION_ARCHITECTURE.md` §12.

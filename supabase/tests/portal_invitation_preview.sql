@@ -1,0 +1,38 @@
+-- Phase P0 follow-up (Portal invitation preview) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: an invited client contact (Client A, with a live pending
+-- invitation), an anonymous (unauthenticated) caller, and a signed-in client
+-- with no relation to the invitation.
+--
+-- preview_portal_invitation(token_hash) assertions:
+--   - happy path: any authenticated caller passing the correct token_hash gets
+--     exactly one row back with the invitation's client organization
+--     display_name, initial_role, expires_at, and status = 'pending'.
+--   - read-only: calling the function never creates a client_memberships row
+--     and never sets accepted_by/accepted_at on the invitation — repeated calls
+--     leave portal_invitations byte-for-byte unchanged.
+--   - unknown token: an unrecognized token_hash returns an empty set (zero
+--     rows) and raises no exception — the caller renders "no preview" and falls
+--     back to the accept flow's authoritative error on submit.
+--   - status fidelity: an invitation with revoked_at set returns status
+--     'revoked'; one with accepted_at set returns 'accepted'; one whose
+--     expires_at is in the past returns 'expired'. The function still returns
+--     the org/role/expiry for these so the UI can explain why acceptance is
+--     blocked, but exposes no accept path.
+--   - minimal exposure: the function's result columns are exactly
+--     (client_organization_name, initial_role, expires_at, status) — it never
+--     returns the invited email, the token_hash, invited_by, or any row id, so
+--     a token holder learns only what the invitation email already told them.
+--   - grant scope: preview_portal_invitation is granted to `authenticated`
+--     only. An anonymous (anon) caller cannot execute it — cross-organization
+--     denial by absence of a session, not merely by row filtering.
+--   - portal_invitations table access is unchanged: it remains internal-member-
+--     only (portal_invitations_internal, 202607150002) for direct
+--     select/insert/update/delete. Client A cannot read portal_invitations
+--     directly, only the four whitelisted fields via this function.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising preview_portal_invitation end-to-end. Verified by SQL review +
+-- the Supabase preview-branch migration check only, same as every prior phase.
+
+select 'portal invitation preview authorization regression plan present' as plan;

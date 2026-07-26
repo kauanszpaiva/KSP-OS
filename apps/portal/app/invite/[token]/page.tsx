@@ -1,16 +1,18 @@
+import { createHash } from 'node:crypto';
 import { getServerSupabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { InviteAuthForm } from './_components/invite-auth-form';
-import { AcceptInviteForm } from './_components/accept-invite-form';
+import { AcceptInviteForm, type InvitationPreview } from './_components/accept-invite-form';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * No pre-accept invitation-detail preview (client, role, expiry) is shown
- * here — that would need a new client-facing SELECT policy on
- * portal_invitations, which is out of scope for P0 (see the phase doc).
- * The accept_portal_invitation function validates everything server-side
- * on submit and surfaces a specific error if the token is invalid/expired/
- * revoked/already accepted/for a different email.
+ * When signed in, a pre-accept preview (client org, role, expiry, status) is
+ * fetched via the preview_portal_invitation SECURITY DEFINER function
+ * (migration 202607260010) — authenticated-only, returns no email or ids, and
+ * never writes. portal_invitations itself stays internal-member-only for
+ * direct table access. accept_portal_invitation still does the authoritative
+ * validation on submit and surfaces a specific error (invalid/expired/revoked/
+ * already accepted/email mismatch); the preview is UX, not the security gate.
  */
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -28,6 +30,21 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     data: { user }
   } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
+  let preview: InvitationPreview | null = null;
+  if (user && supabase) {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const { data } = await supabase.rpc('preview_portal_invitation', { p_token_hash: tokenHash });
+    const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    if (row) {
+      preview = {
+        clientOrganizationName: row.client_organization_name,
+        initialRole: row.initial_role,
+        expiresAt: row.expires_at,
+        status: row.status
+      };
+    }
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <div className="w-full max-w-sm animate-fade-slide-up">
@@ -44,7 +61,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
           </div>
         </div>
         <h1 className="mb-4 font-display text-[20px] font-semibold text-ink">You've been invited</h1>
-        {user ? <AcceptInviteForm token={token} email={user.email ?? ''} /> : <InviteAuthForm />}
+        {user ? <AcceptInviteForm token={token} email={user.email ?? ''} preview={preview} /> : <InviteAuthForm />}
       </div>
     </main>
   );

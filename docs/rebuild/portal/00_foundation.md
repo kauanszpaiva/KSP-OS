@@ -55,6 +55,6 @@ Manual verification: ran `pnpm dev:portal`, used Playwright to screenshot `/` an
 
 ## What changed vs. the original plan
 
-- P0.1.3's "no active access" page is not built — a signed-in-but-no-access user is redirected to `/login` with no distinguishing message, a real stated gap rather than a silent one.
-- P0.3.1's accept-invite route has no pre-accept detail preview, to avoid adding a new client-facing SELECT policy on `portal_invitations` in this slice.
+- ~~P0.1.3's "no active access" page is not built~~ **Built (follow-up).** `requirePortalSession` now distinguishes "signed in but no active client membership" from "no session" and routes the former to `/no-access` (an explanation + sign out) instead of `/login`. See `apps/portal/app/no-access/page.tsx`, `apps/portal/lib/session.ts`.
+- ~~P0.3.1's accept-invite route has no pre-accept detail preview~~ **Built (follow-up).** A signed-in visitor now sees the client org, their role, expiry, and a derived status before accepting, via `preview_portal_invitation` (migration `202607260010`) — a SECURITY DEFINER read granted to `authenticated` only, returning no email or ids, so `portal_invitations` stays internal-member-only for direct table access. Non-pending invitations (revoked/accepted/expired) show a message instead of an accept button. See `supabase/tests/portal_invitation_preview.sql`.
 - The invitation *creation* side (an internal "invite a client contact" UI/action) was not built — the original P0 doc only ever scoped the accept side. `portal_invitations` rows must be seeded directly (SQL/dashboard) until a future Clients-module enhancement adds a creation flow.
