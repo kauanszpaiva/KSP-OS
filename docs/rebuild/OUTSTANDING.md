@@ -80,9 +80,10 @@ que uma fase mudar de status.
   Requests" não existe; só a parte Requests foi construída. Nenhuma superfície
   de agendamento/booking. `portal/02_approvals_requests.md`,
   `PRODUCT_INFORMATION_ARCHITECTURE.md` §12.
-- [ ] **Página "sem acesso"** `⬜` — usuário logado sem/expirado/suspenso
-  `client_memberships` é jogado para `/login` sem explicação.
-  `portal/00_foundation.md`.
+- [x] **Página "sem acesso"** `✅` — usuário logado sem/expirado/suspenso
+  `client_memberships` agora vai para `/no-access` (explicação + sign out) em
+  vez de `/login` silencioso. `apps/portal/app/no-access/page.tsx`,
+  `apps/portal/lib/session.ts`. `portal/00_foundation.md`.
 - [ ] **UI de criação de convites** `⬜` — só o lado *accept* existe; convites
   são semeados manualmente (SQL/dashboard) até um fluxo no futuro módulo
   Clients. `portal/00_foundation.md`.
