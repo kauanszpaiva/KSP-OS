@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { canViewFounderVault } from '@ksp/auth';
+import { canManageOutcomes, canViewFounderVault } from '@ksp/auth';
+import { canPerform } from '@ksp/permissions';
 import { NAV_GROUPS, MOBILE_PRIMARY } from '../../lib/nav';
 import { requireSession } from '../../lib/session';
 import { getServerSupabase } from '../../lib/supabase';
@@ -35,8 +36,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     role: ROLE_LABELS[primaryRole] ?? primaryRole
   };
 
+  // Mirror each quick-action's own server-side create gate so the palette only
+  // offers actions this role can actually perform (pages still re-check).
+  const palettePerms = {
+    canManageProjects: canPerform(ctx.membership, 'project.manage', { organizationId: ctx.organizationId, classification: 'internal' }).allowed,
+    canManageOutcomes: canManageOutcomes(ctx)
+  };
+
   return (
-    <Shell groups={groups} user={user} mobilePrimary={MOBILE_PRIMARY} notifications={notifications}>
+    <Shell groups={groups} user={user} mobilePrimary={MOBILE_PRIMARY} notifications={notifications} palettePerms={palettePerms}>
       {children}
     </Shell>
   );

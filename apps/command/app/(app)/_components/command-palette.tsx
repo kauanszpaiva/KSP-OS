@@ -15,15 +15,33 @@ const KIND_ICON: Record<SearchResult['kind'], Parameters<typeof Icon>[0]['name']
   document: 'knowledge'
 };
 
-const QUICK_ACTIONS: Array<{ label: string; href: string; icon: Parameters<typeof Icon>[0]['name'] }> = [
-  { label: 'New commitment', href: '/commitments', icon: 'commitments' },
-  { label: 'New outcome', href: '/outcomes', icon: 'outcomes' },
-  { label: 'New mission', href: '/missions', icon: 'missions' },
+/**
+ * `requires` names the permission a role needs for the action's create path
+ * (mirrors the server-side gate on each action): commitments/missions need
+ * `project.manage`, outcomes are executive-only (`outcome.manage`), and
+ * signals/decisions are open to any member (no `requires`). The palette hides
+ * entries the current role can't act on — the destination pages still re-check
+ * on arrival, so this is UX, not the security boundary.
+ */
+export interface PalettePerms {
+  canManageProjects: boolean;
+  canManageOutcomes: boolean;
+}
+
+const QUICK_ACTIONS: Array<{ label: string; href: string; icon: Parameters<typeof Icon>[0]['name']; requires?: 'project.manage' | 'outcome.manage' }> = [
+  { label: 'New commitment', href: '/commitments', icon: 'commitments', requires: 'project.manage' },
+  { label: 'New outcome', href: '/outcomes', icon: 'outcomes', requires: 'outcome.manage' },
+  { label: 'New mission', href: '/missions', icon: 'missions', requires: 'project.manage' },
   { label: 'Capture signal', href: '/signals', icon: 'signals' },
   { label: 'Request decision', href: '/decisions', icon: 'decisions' }
 ];
 
-export function CommandPalette() {
+export function CommandPalette({ perms }: { perms: PalettePerms }) {
+  const quickActions = QUICK_ACTIONS.filter((a) => {
+    if (a.requires === 'project.manage') return perms.canManageProjects;
+    if (a.requires === 'outcome.manage') return perms.canManageOutcomes;
+    return true;
+  });
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -113,7 +131,7 @@ export function CommandPalette() {
             ) : (
               <>
                 <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-ink-4">Quick actions</p>
-                {QUICK_ACTIONS.map((a) => (
+                {quickActions.map((a) => (
                   <Link
                     key={a.href}
                     href={a.href}

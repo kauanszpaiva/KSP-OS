@@ -7,6 +7,7 @@ import { formatDate, isOverdue } from '../../../lib/format';
 import type { ActivityView, CommitmentView, DecisionView, SignalView } from '../data';
 import type { CompanyOutcome } from '@ksp/database';
 import { EmptyState, Panel, Rail, SectionLabel } from './ui';
+import { ActivityTimeline } from './activity-timeline';
 
 function attentionReason(c: CommitmentView): { reason: string; tone: 'risk' | 'warn' | 'brand' } | null {
   if (isOverdue(c.due_date) && c.state !== 'completed') return { reason: 'Overdue', tone: 'risk' };
@@ -160,21 +161,7 @@ function DashboardView({
 
       {activity.length > 0 && (
         <Reveal delay={120}>
-          <SectionLabel>Since you were away</SectionLabel>
-          <ol className="space-y-0">
-            {activity.map((e, i) => (
-              <li key={e.id} className="flex gap-3 py-2">
-                <div className="flex flex-col items-center">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-ink-4" />
-                  {i < activity.length - 1 && <span className="w-px flex-1 bg-line" />}
-                </div>
-                <div className="pb-1">
-                  <p className="text-[13px] text-ink"><span className="font-medium">{e.actorName}</span> · {e.summary}</p>
-                  <p className="text-[11.5px] text-ink-4">{formatDate(e.created_at)}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <ActivityTimeline items={activity} label="Since you were away" />
         </Reveal>
       )}
     </div>
