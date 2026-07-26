@@ -39,17 +39,20 @@ que uma fase mudar de status.
 - [ ] **Finance — Subscription Console** (renew/downgrade/cancel) `⛔` — as
   policies de escrita em `subscriptions` já existem (executive-only), mas a UI
   não. `command/05_control_section.md` (C5.1.6).
-- [ ] **Signals — detail slide-over** `⬜` — hoje usa expansão inline em vez de
-  um painel de detalhe. `command/02_command_section.md`.
-- [ ] **Decisions — packet view** (contexto / opções / evidências em
-  slide-over) `⬜` — hoje é linha inline. `command/02_command_section.md`.
+- [x] **Signals — detail slide-over** `✅` — painel lateral (`slide-over.tsx`)
+  abre ao clicar no título (List/Board) com corpo completo + ações de triagem.
+  `command/02_command_section.md` (C2.1.5).
+- [x] **Decisions — packet view** `✅` — `SlideOver` com status/risco/valor/
+  prazo, evidências (`evidence` jsonb), histórico de decisões e o `DecisionForm`
+  governado inline. `command/02_command_section.md` (C2.2.4).
 - [ ] **Decisions — modelo de estados completo** `⬜` — hoje achatado para 2
   estados (Waiting / Decided) e só `approved`/`rejected`; falta
   `request-changes`/`abstain` e co-aprovação multi-aprovador (limitado por
   CHECK constraint no DB). `command/02_command_section.md`.
-- [ ] **Comments / CommentThread — rollout** `🟨` — infra genérica pronta, mas
-  ligada só em Commitments + Workspace tasks. Falta Missions / Decisions /
-  Clients. `command/06_cross_cutting.md` (C6.6.6).
+- [x] **Comments / CommentThread — rollout** `✅` — ligado agora também em
+  Missions (`projects`), Decisions (`approval_requests`) e Clients
+  (`client_organizations`), reusando `getCommentsForObjects`/`postComment` sem
+  migration. `command/06_cross_cutting.md` (C6.6.6).
 - [ ] **Comments — parsing de `@menção`** `⬜` — coluna `mentions uuid[]`
   existe mas nada extrai `@nome` do texto (sempre vazia); sem menção→notificação.
   `command/06_cross_cutting.md` (C6.6.2).

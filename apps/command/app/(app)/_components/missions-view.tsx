@@ -3,14 +3,27 @@
 import { useState } from 'react';
 import { Badge, Icon, Reveal, Segmented } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
-import type { ClientRef, MissionView } from '../data';
+import type { ClientRef, CommentView, MissionView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { TimelineView, type TimelineDependency, type TimelineItem } from './schedule-view';
 import { DependencyForm, MilestoneForm, MilestoneStatusForm, MissionEditForm, MissionHealthForm } from './mission-workspace-forms';
+import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteMilestone, deleteMission } from '../actions';
 
-function MissionCard({ mission, allMissions, clients, delay }: { mission: MissionView; allMissions: MissionView[]; clients: ClientRef[]; delay: number }) {
+function MissionCard({
+  mission,
+  allMissions,
+  clients,
+  comments,
+  delay
+}: {
+  mission: MissionView;
+  allMissions: MissionView[];
+  clients: ClientRef[];
+  comments: CommentView[];
+  delay: number;
+}) {
   return (
     <Reveal delay={delay}>
       <Panel className="p-5">
@@ -92,12 +105,17 @@ function MissionCard({ mission, allMissions, clients, delay }: { mission: Missio
           )}
           <DependencyForm projectId={mission.id} missions={allMissions.map((m) => ({ id: m.id, name: m.name }))} />
         </div>
+
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Comments</p>
+          <CommentThread objectTable="projects" objectId={mission.id} comments={comments} />
+        </div>
       </Panel>
     </Reveal>
   );
 }
 
-function CardsView({ missions, clients }: { missions: MissionView[]; clients: ClientRef[] }) {
+function CardsView({ missions, clients, commentsByMission }: { missions: MissionView[]; clients: ClientRef[]; commentsByMission: Map<string, CommentView[]> }) {
   const active = missions.filter((m) => m.status === 'active');
   const archived = missions.filter((m) => m.status !== 'active');
   return (
@@ -106,7 +124,7 @@ function CardsView({ missions, clients }: { missions: MissionView[]; clients: Cl
         <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{active.length}</span>}>Active</SectionLabel>
         <div className="grid gap-4 lg:grid-cols-2">
           {active.map((m, i) => (
-            <MissionCard key={m.id} mission={m} allMissions={missions} clients={clients} delay={i * 50} />
+            <MissionCard key={m.id} mission={m} allMissions={missions} clients={clients} comments={commentsByMission.get(m.id) ?? []} delay={i * 50} />
           ))}
         </div>
       </div>
@@ -160,7 +178,15 @@ function missionsToTimeline(missions: MissionView[]): { items: TimelineItem[]; d
   return { items, dependencies };
 }
 
-export function MissionsView({ missions, clients = [] }: { missions: MissionView[]; clients?: ClientRef[] }) {
+export function MissionsView({
+  missions,
+  clients = [],
+  commentsByMission
+}: {
+  missions: MissionView[];
+  clients?: ClientRef[];
+  commentsByMission: Map<string, CommentView[]>;
+}) {
   const [view, setView] = useState<'cards' | 'timeline'>('cards');
   const { items, dependencies } = missionsToTimeline(missions);
 
@@ -177,7 +203,7 @@ export function MissionsView({ missions, clients = [] }: { missions: MissionView
         />
       </div>
       {view === 'cards' ? (
-        <CardsView missions={missions} clients={clients} />
+        <CardsView missions={missions} clients={clients} commentsByMission={commentsByMission} />
       ) : items.length === 0 ? (
         <EmptyState icon="missions" title="No dated milestones yet." hint="Add milestone due dates to see missions on the timeline." />
       ) : (

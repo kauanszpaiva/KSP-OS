@@ -6,7 +6,15 @@ import { formatDate } from '../../../lib/format';
 import type { SignalView } from '../data';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { Board, type BoardColumn } from './board-view';
+import { SlideOver } from './slide-over';
 import { ConvertSignalForm, SignalStatusSelectForm, TriageSignalForm } from './signal-decision-forms';
+
+const STATUS_LABEL: Record<string, string> = {
+  new: 'New',
+  triaged: 'Triaged',
+  converted: 'Converted',
+  dismissed: 'Dismissed'
+};
 
 const TYPE_LABEL: Record<string, string> = {
   note: 'Note',
@@ -23,16 +31,22 @@ const COLUMN_DEFS: Array<{ value: string; label: string }> = [
   { value: 'dismissed', label: 'Dismissed' }
 ];
 
-function SignalRow({ signal }: { signal: SignalView }) {
+function SignalRow({ signal, onOpenDetail }: { signal: SignalView; onOpenDetail: (s: SignalView) => void }) {
   return (
     <div className="border-t border-line px-4 py-3 transition-colors duration-fast first:border-t-0 hover:bg-surface-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-medium text-ink">{signal.title}</p>
+          <button
+            type="button"
+            onClick={() => onOpenDetail(signal)}
+            className="block max-w-full truncate text-left text-[14px] font-medium text-ink transition-colors duration-fast hover:text-brand"
+          >
+            {signal.title}
+          </button>
           <p className="mt-0.5 text-[12px] text-ink-3">
             {TYPE_LABEL[signal.item_type] ?? signal.item_type} · {signal.creatorName} · {formatDate(signal.created_at)}
           </p>
-          {signal.body && <p className="mt-1.5 text-[13px] text-ink-2">{signal.body}</p>}
+          {signal.body && <p className="mt-1.5 line-clamp-2 text-[13px] text-ink-2">{signal.body}</p>}
         </div>
         {signal.triage_status === 'new' && (
           <div className="flex shrink-0 gap-1">
@@ -54,7 +68,7 @@ function SignalRow({ signal }: { signal: SignalView }) {
   );
 }
 
-function ListView({ signals }: { signals: SignalView[] }) {
+function ListView({ signals, onOpenDetail }: { signals: SignalView[]; onOpenDetail: (s: SignalView) => void }) {
   const active = signals.filter((s) => ['new', 'triaged'].includes(s.triage_status));
   const closed = signals.filter((s) => ['converted', 'dismissed'].includes(s.triage_status));
   return (
@@ -66,7 +80,7 @@ function ListView({ signals }: { signals: SignalView[] }) {
         ) : (
           <Panel>
             {active.map((s) => (
-              <SignalRow key={s.id} signal={s} />
+              <SignalRow key={s.id} signal={s} onOpenDetail={onOpenDetail} />
             ))}
           </Panel>
         )}
@@ -77,7 +91,7 @@ function ListView({ signals }: { signals: SignalView[] }) {
           <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{closed.length}</span>}>Resolved</SectionLabel>
           <Panel>
             {closed.map((s) => (
-              <SignalRow key={s.id} signal={s} />
+              <SignalRow key={s.id} signal={s} onOpenDetail={onOpenDetail} />
             ))}
           </Panel>
         </Reveal>
@@ -86,7 +100,46 @@ function ListView({ signals }: { signals: SignalView[] }) {
   );
 }
 
-function BoardViewForSignals({ signals }: { signals: SignalView[] }) {
+function SignalDetail({ signal, onClose }: { signal: SignalView | null; onClose: () => void }) {
+  return (
+    <SlideOver
+      open={signal !== null}
+      onClose={onClose}
+      eyebrow={signal ? (TYPE_LABEL[signal.item_type] ?? signal.item_type) : ''}
+      title={signal?.title ?? ''}
+    >
+      {signal && (
+        <div className="space-y-5">
+          <p className="text-[12px] text-ink-3">
+            {signal.creatorName} · {formatDate(signal.created_at)} · <span className="capitalize">{STATUS_LABEL[signal.triage_status] ?? signal.triage_status}</span>
+          </p>
+          {signal.body ? (
+            <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ink-2">{signal.body}</p>
+          ) : (
+            <p className="text-[13px] text-ink-4">No additional detail was captured.</p>
+          )}
+          {signal.triage_status === 'new' && (
+            <div className="flex gap-2 border-t border-line pt-4">
+              <TriageSignalForm id={signal.id} target="triaged">
+                Mark triaged
+              </TriageSignalForm>
+              <TriageSignalForm id={signal.id} target="dismissed">
+                Dismiss
+              </TriageSignalForm>
+            </div>
+          )}
+          {signal.triage_status === 'triaged' && (
+            <div className="border-t border-line pt-4">
+              <ConvertSignalForm signalId={signal.id} defaultTitle={signal.title} />
+            </div>
+          )}
+        </div>
+      )}
+    </SlideOver>
+  );
+}
+
+function BoardViewForSignals({ signals, onOpenDetail }: { signals: SignalView[]; onOpenDetail: (s: SignalView) => void }) {
   const columns: BoardColumn<SignalView>[] = COLUMN_DEFS.map((def) => ({
     value: def.value,
     label: def.label,
@@ -98,7 +151,13 @@ function BoardViewForSignals({ signals }: { signals: SignalView[] }) {
       columns={columns}
       renderCard={(signal) => (
         <div className="space-y-2">
-          <p className="truncate text-[13px] font-medium text-ink">{signal.title}</p>
+          <button
+            type="button"
+            onClick={() => onOpenDetail(signal)}
+            className="block max-w-full truncate text-left text-[13px] font-medium text-ink transition-colors duration-fast hover:text-brand"
+          >
+            {signal.title}
+          </button>
           <p className="truncate text-[11px] text-ink-3">
             {TYPE_LABEL[signal.item_type] ?? signal.item_type} · {signal.creatorName}
           </p>
@@ -114,6 +173,7 @@ function BoardViewForSignals({ signals }: { signals: SignalView[] }) {
 
 export function SignalsView({ signals }: { signals: SignalView[] }) {
   const [view, setView] = useState<'list' | 'board'>('list');
+  const [detail, setDetail] = useState<SignalView | null>(null);
 
   if (signals.length === 0) {
     return <EmptyState icon="signals" title="Nothing captured yet." hint="Anything worth remembering — a client remark, a risk, an idea — belongs here first." />;
@@ -131,7 +191,8 @@ export function SignalsView({ signals }: { signals: SignalView[] }) {
           onValueChange={(v) => setView(v as 'list' | 'board')}
         />
       </div>
-      {view === 'list' ? <ListView signals={signals} /> : <BoardViewForSignals signals={signals} />}
+      {view === 'list' ? <ListView signals={signals} onOpenDetail={setDetail} /> : <BoardViewForSignals signals={signals} onOpenDetail={setDetail} />}
+      <SignalDetail signal={detail} onClose={() => setDetail(null)} />
     </div>
   );
 }
