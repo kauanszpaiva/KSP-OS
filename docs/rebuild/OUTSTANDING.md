@@ -47,9 +47,10 @@ que uma fase mudar de status.
   estados (Waiting / Decided) e só `approved`/`rejected`; falta
   `request-changes`/`abstain` e co-aprovação multi-aprovador (limitado por
   CHECK constraint no DB). `command/02_command_section.md`.
-- [ ] **Comments / CommentThread — rollout** `🟨` — infra genérica pronta, mas
-  ligada só em Commitments + Workspace tasks. Falta Missions / Decisions /
-  Clients. `command/06_cross_cutting.md` (C6.6.6).
+- [x] **Comments / CommentThread — rollout** `✅` — ligado agora também em
+  Missions (`projects`), Decisions (`approval_requests`) e Clients
+  (`client_organizations`), reusando `getCommentsForObjects`/`postComment` sem
+  migration. `command/06_cross_cutting.md` (C6.6.6).
 - [ ] **Comments — parsing de `@menção`** `⬜` — coluna `mentions uuid[]`
   existe mas nada extrai `@nome` do texto (sempre vazia); sem menção→notificação.
   `command/06_cross_cutting.md` (C6.6.2).

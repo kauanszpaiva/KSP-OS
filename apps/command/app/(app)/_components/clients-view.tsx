@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { Donut, Icon, Reveal, Segmented } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
-import type { ClientView } from '../data';
+import type { ClientView, CommentView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { ClientEditForm, ClientHealthForm, ClientNoteForm, ContactForm } from './growth-forms';
+import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteClient, deleteContact } from '../actions';
 
-function ClientCard({ client, delay }: { client: ClientView; delay: number }) {
+function ClientCard({ client, comments, delay }: { client: ClientView; comments: CommentView[]; delay: number }) {
   return (
     <Reveal delay={delay}>
       <Panel className="p-5">
@@ -70,12 +71,17 @@ function ClientCard({ client, delay }: { client: ClientView; delay: number }) {
           )}
           <ClientNoteForm clientId={client.id} />
         </div>
+
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Comments</p>
+          <CommentThread objectTable="client_organizations" objectId={client.id} comments={comments} />
+        </div>
       </Panel>
     </Reveal>
   );
 }
 
-function CardsView({ clients }: { clients: ClientView[] }) {
+function CardsView({ clients, commentsByClient }: { clients: ClientView[]; commentsByClient: Map<string, CommentView[]> }) {
   const active = clients.filter((c) => c.status === 'active');
   const archived = clients.filter((c) => c.status !== 'active');
   return (
@@ -84,7 +90,7 @@ function CardsView({ clients }: { clients: ClientView[] }) {
         <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{active.length}</span>}>Active</SectionLabel>
         <div className="grid gap-4 lg:grid-cols-2">
           {active.map((c, i) => (
-            <ClientCard key={c.id} client={c} delay={i * 50} />
+            <ClientCard key={c.id} client={c} comments={commentsByClient.get(c.id) ?? []} delay={i * 50} />
           ))}
         </div>
       </div>
@@ -140,7 +146,7 @@ function ChartView({ clients }: { clients: ClientView[] }) {
   );
 }
 
-export function ClientsView({ clients }: { clients: ClientView[] }) {
+export function ClientsView({ clients, commentsByClient }: { clients: ClientView[]; commentsByClient: Map<string, CommentView[]> }) {
   const [view, setView] = useState<'cards' | 'chart'>('cards');
 
   if (clients.length === 0) {
@@ -159,7 +165,7 @@ export function ClientsView({ clients }: { clients: ClientView[] }) {
           onValueChange={(v) => setView(v as 'cards' | 'chart')}
         />
       </div>
-      {view === 'cards' ? <CardsView clients={clients} /> : <ChartView clients={clients} />}
+      {view === 'cards' ? <CardsView clients={clients} commentsByClient={commentsByClient} /> : <ChartView clients={clients} />}
     </div>
   );
 }

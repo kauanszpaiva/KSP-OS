@@ -1,7 +1,7 @@
 import { isExecutive } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getDecisions } from '../data';
+import { getCommentsForObjects, getDecisions, type CommentView } from '../data';
 import { PageHeader } from '../_components/ui';
 import { DecisionRequestForm } from '../_components/signal-decision-forms';
 import { DecisionsView } from '../_components/decisions-view';
@@ -10,6 +10,9 @@ export default async function DecisionsPage() {
   const ctx = await requireSession();
   const supabase = await getServerSupabase();
   const decisions = supabase ? await getDecisions(supabase) : [];
+  const commentsByDecision = supabase
+    ? await getCommentsForObjects(supabase, 'approval_requests', decisions.map((d) => d.id))
+    : new Map<string, CommentView[]>();
   const exec = isExecutive(ctx);
 
   return (
@@ -29,7 +32,7 @@ export default async function DecisionsPage() {
         </div>
       </details>
 
-      <DecisionsView decisions={decisions} canDecide={exec} userId={ctx.user.id} />
+      <DecisionsView decisions={decisions} canDecide={exec} userId={ctx.user.id} commentsByDecision={commentsByDecision} />
     </div>
   );
 }

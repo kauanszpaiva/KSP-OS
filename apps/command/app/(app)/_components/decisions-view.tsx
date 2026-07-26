@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { Reveal, Segmented } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
-import type { DecisionView } from '../data';
+import type { CommentView, DecisionView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { Board, type BoardColumn } from './board-view';
+import { CommentThread } from './comment-thread';
 import { DecisionForm } from './signal-decision-forms';
 
-function DecisionRow({ decision, canDecide, userId }: { decision: DecisionView; canDecide: boolean; userId: string }) {
+function DecisionRow({ decision, canDecide, userId, comments }: { decision: DecisionView; canDecide: boolean; userId: string; comments: CommentView[] }) {
   const isRequester = decision.requester_id === userId;
   return (
     <div className="border-t border-line px-4 py-3 transition-colors duration-fast first:border-t-0 hover:bg-surface-2">
@@ -47,11 +48,15 @@ function DecisionRow({ decision, canDecide, userId }: { decision: DecisionView; 
       {canDecide && isRequester && decision.status === 'pending_approval' && (
         <p className="mt-2 text-[12px] text-ink-4">Waiting for another executive — requesters cannot approve their own request.</p>
       )}
+
+      <div className="mt-3 border-t border-line pt-3">
+        <CommentThread objectTable="approval_requests" objectId={decision.id} comments={comments} />
+      </div>
     </div>
   );
 }
 
-function ListView({ decisions, canDecide, userId }: { decisions: DecisionView[]; canDecide: boolean; userId: string }) {
+function ListView({ decisions, canDecide, userId, commentsByDecision }: { decisions: DecisionView[]; canDecide: boolean; userId: string; commentsByDecision: Map<string, CommentView[]> }) {
   const waiting = decisions.filter((d) => d.status === 'pending_approval');
   const decided = decisions.filter((d) => ['approved', 'rejected'].includes(d.status));
   return (
@@ -63,7 +68,7 @@ function ListView({ decisions, canDecide, userId }: { decisions: DecisionView[];
         ) : (
           <Panel>
             {waiting.map((d) => (
-              <DecisionRow key={d.id} decision={d} canDecide={canDecide} userId={userId} />
+              <DecisionRow key={d.id} decision={d} canDecide={canDecide} userId={userId} comments={commentsByDecision.get(d.id) ?? []} />
             ))}
           </Panel>
         )}
@@ -74,7 +79,7 @@ function ListView({ decisions, canDecide, userId }: { decisions: DecisionView[];
           <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{decided.length}</span>}>Decided</SectionLabel>
           <Panel>
             {decided.map((d) => (
-              <DecisionRow key={d.id} decision={d} canDecide={canDecide} userId={userId} />
+              <DecisionRow key={d.id} decision={d} canDecide={canDecide} userId={userId} comments={commentsByDecision.get(d.id) ?? []} />
             ))}
           </Panel>
         </Reveal>
@@ -124,7 +129,17 @@ function BoardViewForDecisions({ decisions, canDecide, userId }: { decisions: De
   );
 }
 
-export function DecisionsView({ decisions, canDecide, userId }: { decisions: DecisionView[]; canDecide: boolean; userId: string }) {
+export function DecisionsView({
+  decisions,
+  canDecide,
+  userId,
+  commentsByDecision
+}: {
+  decisions: DecisionView[];
+  canDecide: boolean;
+  userId: string;
+  commentsByDecision: Map<string, CommentView[]>;
+}) {
   const [view, setView] = useState<'list' | 'board'>('list');
 
   if (decisions.length === 0) {
@@ -144,7 +159,7 @@ export function DecisionsView({ decisions, canDecide, userId }: { decisions: Dec
         />
       </div>
       {view === 'list' ? (
-        <ListView decisions={decisions} canDecide={canDecide} userId={userId} />
+        <ListView decisions={decisions} canDecide={canDecide} userId={userId} commentsByDecision={commentsByDecision} />
       ) : (
         <BoardViewForDecisions decisions={decisions} canDecide={canDecide} userId={userId} />
       )}

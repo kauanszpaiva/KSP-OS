@@ -1,6 +1,6 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getClients } from '../data';
+import { getClients, getCommentsForObjects, type CommentView } from '../data';
 import { PageHeader } from '../_components/ui';
 import { ClientForm } from '../_components/growth-forms';
 import { ClientsView } from '../_components/clients-view';
@@ -9,6 +9,9 @@ export default async function ClientsPage() {
   await requireSession();
   const supabase = await getServerSupabase();
   const clients = supabase ? await getClients(supabase) : [];
+  const commentsByClient = supabase
+    ? await getCommentsForObjects(supabase, 'client_organizations', clients.map((c) => c.id))
+    : new Map<string, CommentView[]>();
 
   return (
     <div>
@@ -27,7 +30,7 @@ export default async function ClientsPage() {
         </div>
       </details>
 
-      <ClientsView clients={clients} />
+      <ClientsView clients={clients} commentsByClient={commentsByClient} />
     </div>
   );
 }

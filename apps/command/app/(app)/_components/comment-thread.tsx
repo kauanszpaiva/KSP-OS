@@ -11,8 +11,9 @@ const initial: ActionResult = { ok: false };
 
 /**
  * Generic comment thread, attachable to any (objectTable, objectId) pair.
- * Rolled out to Commitments only in this phase — see
- * docs/rebuild/command/06_cross_cutting.md for the wider rollout plan.
+ * Rolled out to Commitments, Workspace tasks, Missions (projects), Decisions
+ * (approval_requests), and Clients (client_organizations) — see
+ * docs/rebuild/command/06_cross_cutting.md for the rollout history.
  */
 export function CommentThread({ objectTable, objectId, comments }: { objectTable: string; objectId: string; comments: CommentView[] }) {
   const [state, action, pending] = useActionState(postComment, initial);
