@@ -3,14 +3,21 @@
 import { useState } from 'react';
 import { Donut, Icon, Reveal, Segmented } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
+import type { ClientMeeting } from '@ksp/database';
 import type { ClientView, CommentView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
-import { ClientEditForm, ClientHealthForm, ClientNoteForm, ContactForm, InviteContactForm } from './growth-forms';
+import { ClientEditForm, ClientHealthForm, ClientNoteForm, ContactForm, InviteContactForm, MeetingForm, MeetingStatusButton } from './growth-forms';
 import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteClient, deleteContact } from '../actions';
 
-function ClientCard({ client, comments, exec, delay }: { client: ClientView; comments: CommentView[]; exec: boolean; delay: number }) {
+function formatMeetingTime(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function ClientCard({ client, comments, meetings, exec, delay }: { client: ClientView; comments: CommentView[]; meetings: ClientMeeting[]; exec: boolean; delay: number }) {
   return (
     <Reveal delay={delay}>
       <Panel className="p-5">
@@ -84,6 +91,48 @@ function ClientCard({ client, comments, exec, delay }: { client: ClientView; com
           </details>
         )}
 
+        {exec && (
+          <div className="mt-4 border-t border-line pt-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Meetings</p>
+            {meetings.length === 0 ? (
+              <p className="mb-2 text-[12.5px] text-ink-4">Nothing scheduled.</p>
+            ) : (
+              <ul className="mb-2 space-y-1.5 text-[13px]">
+                {meetings.map((m) => (
+                  <li key={m.id} className="flex items-center justify-between gap-2">
+                    <span className="min-w-0">
+                      <span className={m.status === 'cancelled' ? 'text-ink-4 line-through' : 'text-ink-2'}>{m.title}</span>
+                      <span className="tnum ml-1.5 text-[11px] text-ink-4">· {formatMeetingTime(m.scheduled_at)}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <StatePill state={m.status} />
+                      {m.status === 'scheduled' && (
+                        <>
+                          <MeetingStatusButton id={m.id} status="completed">
+                            Done
+                          </MeetingStatusButton>
+                          <MeetingStatusButton id={m.id} status="cancelled">
+                            Cancel
+                          </MeetingStatusButton>
+                        </>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <details className="group/meet">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] font-medium text-ink-3 transition-colors duration-fast marker:hidden hover:text-brand [&::-webkit-details-marker]:hidden">
+                <Icon name="plus" className="h-3.5 w-3.5" />
+                Schedule meeting
+              </summary>
+              <div className="animate-fade-slide-up mt-3 rounded-lg border border-line bg-surface-2/50 p-3">
+                <MeetingForm clientId={client.id} />
+              </div>
+            </details>
+          </div>
+        )}
+
         <div className="mt-4 border-t border-line pt-4">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Comments</p>
           <CommentThread objectTable="client_organizations" objectId={client.id} comments={comments} />
@@ -93,7 +142,17 @@ function ClientCard({ client, comments, exec, delay }: { client: ClientView; com
   );
 }
 
-function CardsView({ clients, commentsByClient, exec }: { clients: ClientView[]; commentsByClient: Map<string, CommentView[]>; exec: boolean }) {
+function CardsView({
+  clients,
+  commentsByClient,
+  meetingsByClient,
+  exec
+}: {
+  clients: ClientView[];
+  commentsByClient: Map<string, CommentView[]>;
+  meetingsByClient: Map<string, ClientMeeting[]>;
+  exec: boolean;
+}) {
   const active = clients.filter((c) => c.status === 'active');
   const archived = clients.filter((c) => c.status !== 'active');
   return (
@@ -102,7 +161,14 @@ function CardsView({ clients, commentsByClient, exec }: { clients: ClientView[];
         <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{active.length}</span>}>Active</SectionLabel>
         <div className="grid gap-4 lg:grid-cols-2">
           {active.map((c, i) => (
-            <ClientCard key={c.id} client={c} comments={commentsByClient.get(c.id) ?? []} exec={exec} delay={i * 50} />
+            <ClientCard
+              key={c.id}
+              client={c}
+              comments={commentsByClient.get(c.id) ?? []}
+              meetings={meetingsByClient.get(c.id) ?? []}
+              exec={exec}
+              delay={i * 50}
+            />
           ))}
         </div>
       </div>
@@ -158,7 +224,17 @@ function ChartView({ clients }: { clients: ClientView[] }) {
   );
 }
 
-export function ClientsView({ clients, commentsByClient, exec }: { clients: ClientView[]; commentsByClient: Map<string, CommentView[]>; exec: boolean }) {
+export function ClientsView({
+  clients,
+  commentsByClient,
+  meetingsByClient,
+  exec
+}: {
+  clients: ClientView[];
+  commentsByClient: Map<string, CommentView[]>;
+  meetingsByClient: Map<string, ClientMeeting[]>;
+  exec: boolean;
+}) {
   const [view, setView] = useState<'cards' | 'chart'>('cards');
 
   if (clients.length === 0) {
@@ -177,7 +253,11 @@ export function ClientsView({ clients, commentsByClient, exec }: { clients: Clie
           onValueChange={(v) => setView(v as 'cards' | 'chart')}
         />
       </div>
-      {view === 'cards' ? <CardsView clients={clients} commentsByClient={commentsByClient} exec={exec} /> : <ChartView clients={clients} />}
+      {view === 'cards' ? (
+        <CardsView clients={clients} commentsByClient={commentsByClient} meetingsByClient={meetingsByClient} exec={exec} />
+      ) : (
+        <ChartView clients={clients} />
+      )}
     </div>
   );
 }

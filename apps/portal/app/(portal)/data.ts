@@ -2,6 +2,7 @@ import type {
   ChangeOrderClientDecision,
   ChangeOrderItem,
   ChangeOrderVersion,
+  ClientMeeting,
   ClientPublication,
   ClientRequest,
   ClientUpdate,
@@ -134,6 +135,16 @@ export async function getClientDocuments(supabase: SupabaseClient): Promise<Docu
     .eq('status', 'active')
     .order('created_at', { ascending: false });
   return (data ?? []) as DocumentRecord[];
+}
+
+/**
+ * The client's meeting schedule (the "Schedule" half of Meetings & Requests).
+ * client_meetings_portal_read (202607270012) scopes rows to the caller's own
+ * client organization; the client never writes.
+ */
+export async function getClientMeetings(supabase: SupabaseClient): Promise<ClientMeeting[]> {
+  const { data } = await supabase.from('client_meetings').select('*').order('scheduled_at', { ascending: true });
+  return (data ?? []) as ClientMeeting[];
 }
 
 export async function getRequestComments(supabase: SupabaseClient, requestId: string): Promise<RequestComment[]> {

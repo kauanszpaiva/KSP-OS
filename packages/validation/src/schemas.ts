@@ -201,6 +201,22 @@ export const createPortalInvitationSchema = z.object({
   expiresInDays: z.coerce.number().int().min(1).max(90).default(14)
 });
 
+/** Phase P2.2 follow-up — internal scheduling of a client meeting. */
+export const createClientMeetingSchema = z.object({
+  clientOrganizationId: uuid,
+  projectId: uuid.optional().or(z.literal('')),
+  title: z.string().min(2).max(200),
+  scheduledAt: z.string().min(1),
+  durationMinutes: z.coerce.number().int().positive().max(1440).optional(),
+  location: z.string().max(500).optional().or(z.literal('')),
+  agenda: z.string().max(4000).optional().or(z.literal(''))
+});
+
+export const updateMeetingStatusSchema = z.object({
+  id: uuid,
+  status: z.enum(['scheduled', 'completed', 'cancelled'])
+});
+
 /** Phase C7 — Member management (organization_memberships), executive-only. */
 const INTERNAL_ROLE_VALUES = [
   'founder_ceo',

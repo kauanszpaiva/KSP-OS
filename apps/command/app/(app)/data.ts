@@ -5,6 +5,7 @@ import type {
   Campaign,
   ChartAccount,
   ClientInternalNote,
+  ClientMeeting,
   ClientOrganization,
   Comment,
   Commitment,
@@ -386,6 +387,12 @@ export async function getClients(supabase: SupabaseClient): Promise<ClientView[]
     contacts: contactsByClient.get(c.id) ?? [],
     notes: notesByClient.get(c.id) ?? []
   }));
+}
+
+/** All client meetings visible to the internal user (RLS scopes to their org). */
+export async function getClientMeetings(supabase: SupabaseClient): Promise<ClientMeeting[]> {
+  const { data } = await supabase.from('client_meetings').select('*').order('scheduled_at', { ascending: true });
+  return (data ?? []) as ClientMeeting[];
 }
 
 export async function getProducts(supabase: SupabaseClient): Promise<Product[]> {

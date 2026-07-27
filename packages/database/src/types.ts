@@ -591,3 +591,18 @@ export interface RequestComment {
   visibility: 'internal' | 'client';
   created_at: string;
 }
+
+export interface ClientMeeting {
+  id: string;
+  organization_id: string;
+  client_organization_id: string;
+  project_id: string | null;
+  title: string;
+  scheduled_at: string;
+  duration_minutes: number | null;
+  location: string | null;
+  agenda: string | null;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  created_by: string | null;
+  created_at: string;
+}

@@ -83,10 +83,11 @@ que uma fase mudar de status.
 - [ ] **P3.2.3 Pagamento hospedado** `⛔` — fora de escopo por design; não
   ligar processador real sem go-ahead separado de finanças/compliance.
   `portal/03_files_billing.md`.
-- [ ] **Meetings / Scheduling** `⬜` — a metade "Meetings" de "Meetings &
-  Requests" não existe; só a parte Requests foi construída. Nenhuma superfície
-  de agendamento/booking. `portal/02_approvals_requests.md`,
-  `PRODUCT_INFORMATION_ARCHITECTURE.md` §12.
+- [x] **Meetings / Scheduling** `✅` — nova tabela `client_meetings` (staff
+  agenda via seção Meetings no Clients do Command; cliente lê o cronograma
+  read-only no topo de `/requests`). RLS interno + portal-read. Mínimo por
+  design (sem booking/disponibilidade — não especificado). 8 testes + plano SQL.
+  `supabase/migrations/202607270012_client_meetings.sql`. `portal/02_approvals_requests.md`.
 - [x] **Página "sem acesso"** `✅` — usuário logado sem/expirado/suspenso
   `client_memberships` agora vai para `/no-access` (explicação + sign out) em
   vez de `/login` silencioso. `apps/portal/app/no-access/page.tsx`,
