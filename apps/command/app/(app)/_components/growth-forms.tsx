@@ -8,16 +8,19 @@ import {
   createContact,
   createContentItem,
   createLead,
+  createPortalInvitation,
   createProduct,
   toggleProductActive,
   updateClient,
   updateClientHealth,
   updateContentStatus,
   updateLeadStatus,
-  type ActionResult
+  type ActionResult,
+  type InviteActionResult
 } from '../actions';
 
 const initial: ActionResult = { ok: false };
+const inviteInitial: InviteActionResult = { ok: false };
 
 const field =
   'mt-1 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-4 transition-colors duration-fast focus:border-brand focus:outline-none focus:shadow-focus';
@@ -149,6 +152,47 @@ export function ContactForm({ clientId }: { clientId: string }) {
       <input name="email" type="email" placeholder="Email (optional)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
       <button type="submit" disabled={pending} className={ghostBtn}>{pending ? 'Adding…' : 'Add contact'}</button>
       <FormError state={state} />
+    </form>
+  );
+}
+
+export function InviteContactForm({ clientId }: { clientId: string }) {
+  const [state, action, pending] = useActionState(createPortalInvitation, inviteInitial);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="clientOrganizationId" value={clientId} />
+      <div className="flex flex-wrap items-end gap-2">
+        <input
+          name="email"
+          type="email"
+          placeholder="contact@client.com"
+          required
+          className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none"
+        />
+        <select name="initialRole" defaultValue="client_viewer" className="rounded-lg border border-line-2 bg-surface px-2 py-1.5 text-[12.5px] text-ink focus:border-brand focus:outline-none">
+          <option value="client_owner">Owner</option>
+          <option value="client_project_approver">Approver</option>
+          <option value="client_billing_contact">Billing</option>
+          <option value="client_collaborator">Collaborator</option>
+          <option value="client_viewer">Viewer</option>
+        </select>
+        <select name="expiresInDays" defaultValue="14" className="rounded-lg border border-line-2 bg-surface px-2 py-1.5 text-[12.5px] text-ink focus:border-brand focus:outline-none">
+          <option value="7">7 days</option>
+          <option value="14">14 days</option>
+          <option value="30">30 days</option>
+        </select>
+        <button type="submit" disabled={pending} className={ghostBtn}>
+          {pending ? 'Creating…' : 'Create invite'}
+        </button>
+      </div>
+      {!state.ok && state.error && <p className="text-[13px] text-risk">{state.error}</p>}
+      {state.ok && state.invitePath && (
+        <div className="rounded-lg border border-line bg-surface-2/60 px-3 py-2">
+          <p className="text-[12px] font-medium text-ink-2">Invite link — send it to the client (shown once):</p>
+          <code className="mt-1 block break-all text-[12px] text-brand">{state.invitePath}</code>
+          <p className="mt-1 text-[11px] text-ink-4">Prefix with the client portal URL. The raw token is not stored — revoke and re-invite if it&rsquo;s lost.</p>
+        </div>
+      )}
     </form>
   );
 }

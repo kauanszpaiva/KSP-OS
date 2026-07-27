@@ -1,5 +1,6 @@
 'use server';
 
+import { createHash, randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { getAuthContext, canManageOutcomes, isExecutive, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
@@ -10,6 +11,7 @@ import {
   addDependencySchema,
   createCampaignSchema,
   createClientSchema,
+  createPortalInvitationSchema,
   createCommitmentSchema,
   createConnectionSchema,
   createContactSchema,
@@ -977,6 +979,61 @@ export async function createClient(_prev: ActionResult, form: FormData): Promise
   await record(supabase, ctx, 'client.created', 'client_organizations', data.id, `Client: ${parsed.data.displayName}`);
   revalidatePath('/clients');
   return { ok: true };
+}
+
+export interface InviteActionResult {
+  ok: boolean;
+  error?: string;
+  /** The one-time invite path to send to the client, e.g. `/invite/<token>`. Shown once — the raw token is never stored, only its hash. */
+  invitePath?: string;
+}
+
+/**
+ * Creates a client portal invitation and returns the one-time invite link. Only
+ * the sha256 of the token is stored (token_hash) — the raw token is returned
+ * once for the internal user to hand to the client and never persisted, exactly
+ * like accept_portal_invitation reads it back. The insert is governed by the
+ * pre-existing internal-only `portal_invitations_internal` RLS policy
+ * (202607150002); the app gate is `isExecutive`, matching member-management —
+ * granting portal access is an executive action.
+ */
+export async function createPortalInvitation(_prev: InviteActionResult, form: FormData): Promise<InviteActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can invite client contacts.' };
+
+  const parsed = createPortalInvitationSchema.safeParse({
+    clientOrganizationId: form.get('clientOrganizationId'),
+    email: form.get('email'),
+    initialRole: form.get('initialRole'),
+    expiresInDays: form.get('expiresInDays') || undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const token = randomBytes(32).toString('base64url');
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + parsed.data.expiresInDays * 86_400_000).toISOString();
+
+  const { data, error } = await supabase
+    .from('portal_invitations')
+    .insert({
+      organization_id: ctx.organizationId,
+      client_organization_id: parsed.data.clientOrganizationId,
+      email: parsed.data.email,
+      initial_role: parsed.data.initialRole,
+      invited_by: ctx.user.id,
+      token_hash: tokenHash,
+      expires_at: expiresAt
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not create the invitation. Check the client and try again.' };
+
+  await record(supabase, ctx, 'portal_invitation.created', 'portal_invitations', data.id, `Invited ${parsed.data.email} as ${parsed.data.initialRole}`);
+  revalidatePath('/clients');
+  return { ok: true, invitePath: `/invite/${token}` };
 }
 
 export async function updateClientHealth(_prev: ActionResult, form: FormData): Promise<ActionResult> {

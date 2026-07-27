@@ -1,3 +1,4 @@
+import { isExecutive } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getClients, getCommentsForObjects, type CommentView } from '../data';
@@ -6,12 +7,13 @@ import { ClientForm } from '../_components/growth-forms';
 import { ClientsView } from '../_components/clients-view';
 
 export default async function ClientsPage() {
-  await requireSession();
+  const ctx = await requireSession();
   const supabase = await getServerSupabase();
   const clients = supabase ? await getClients(supabase) : [];
   const commentsByClient = supabase
     ? await getCommentsForObjects(supabase, 'client_organizations', clients.map((c) => c.id))
     : new Map<string, CommentView[]>();
+  const exec = isExecutive(ctx);
 
   return (
     <div>
@@ -30,7 +32,7 @@ export default async function ClientsPage() {
         </div>
       </details>
 
-      <ClientsView clients={clients} commentsByClient={commentsByClient} />
+      <ClientsView clients={clients} commentsByClient={commentsByClient} exec={exec} />
     </div>
   );
 }

@@ -191,6 +191,16 @@ export const addClientNoteSchema = z.object({
   body: z.string().min(1).max(4000)
 });
 
+/** Phase P0 follow-up — internal creation of a client portal invitation. */
+const CLIENT_ROLE_VALUES = ['client_owner', 'client_project_approver', 'client_billing_contact', 'client_collaborator', 'client_viewer'] as const;
+
+export const createPortalInvitationSchema = z.object({
+  clientOrganizationId: uuid,
+  email: z.string().email().max(320),
+  initialRole: z.enum(CLIENT_ROLE_VALUES),
+  expiresInDays: z.coerce.number().int().min(1).max(90).default(14)
+});
+
 /** Phase C7 — Member management (organization_memberships), executive-only. */
 const INTERNAL_ROLE_VALUES = [
   'founder_ceo',
