@@ -91,9 +91,10 @@ que uma fase mudar de status.
   `client_memberships` agora vai para `/no-access` (explicação + sign out) em
   vez de `/login` silencioso. `apps/portal/app/no-access/page.tsx`,
   `apps/portal/lib/session.ts`. `portal/00_foundation.md`.
-- [ ] **UI de criação de convites** `⬜` — só o lado *accept* existe; convites
-  são semeados manualmente (SQL/dashboard) até um fluxo no futuro módulo
-  Clients. `portal/00_foundation.md`.
+- [x] **UI de criação de convites** `✅` — form "Invite to portal" por cliente
+  (executivo) no módulo Clients do Command; `createPortalInvitation` gera token,
+  guarda só o sha256 e retorna o link `/invite/<token>` uma vez. 5 testes.
+  `apps/command/app/(app)/_components/growth-forms.tsx`. `portal/00_foundation.md`.
 - [x] **Preview pré-accept do convite** `✅` — visitante logado vê workspace /
   role / expiração / status antes de aceitar, via `preview_portal_invitation`
   (SECURITY DEFINER, só `authenticated`, sem email/ids). Convites não-pendentes

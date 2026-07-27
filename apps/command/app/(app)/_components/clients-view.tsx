@@ -5,12 +5,12 @@ import { Donut, Icon, Reveal, Segmented } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import type { ClientView, CommentView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
-import { ClientEditForm, ClientHealthForm, ClientNoteForm, ContactForm } from './growth-forms';
+import { ClientEditForm, ClientHealthForm, ClientNoteForm, ContactForm, InviteContactForm } from './growth-forms';
 import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteClient, deleteContact } from '../actions';
 
-function ClientCard({ client, comments, delay }: { client: ClientView; comments: CommentView[]; delay: number }) {
+function ClientCard({ client, comments, exec, delay }: { client: ClientView; comments: CommentView[]; exec: boolean; delay: number }) {
   return (
     <Reveal delay={delay}>
       <Panel className="p-5">
@@ -72,6 +72,18 @@ function ClientCard({ client, comments, delay }: { client: ClientView; comments:
           <ClientNoteForm clientId={client.id} />
         </div>
 
+        {exec && (
+          <details className="group/invite mt-4 border-t border-line pt-4">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] font-medium text-ink-3 transition-colors duration-fast marker:hidden hover:text-brand [&::-webkit-details-marker]:hidden">
+              <Icon name="plus" className="h-3.5 w-3.5" />
+              Invite to portal
+            </summary>
+            <div className="animate-fade-slide-up mt-3 rounded-lg border border-line bg-surface-2/50 p-3">
+              <InviteContactForm clientId={client.id} />
+            </div>
+          </details>
+        )}
+
         <div className="mt-4 border-t border-line pt-4">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Comments</p>
           <CommentThread objectTable="client_organizations" objectId={client.id} comments={comments} />
@@ -81,7 +93,7 @@ function ClientCard({ client, comments, delay }: { client: ClientView; comments:
   );
 }
 
-function CardsView({ clients, commentsByClient }: { clients: ClientView[]; commentsByClient: Map<string, CommentView[]> }) {
+function CardsView({ clients, commentsByClient, exec }: { clients: ClientView[]; commentsByClient: Map<string, CommentView[]>; exec: boolean }) {
   const active = clients.filter((c) => c.status === 'active');
   const archived = clients.filter((c) => c.status !== 'active');
   return (
@@ -90,7 +102,7 @@ function CardsView({ clients, commentsByClient }: { clients: ClientView[]; comme
         <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{active.length}</span>}>Active</SectionLabel>
         <div className="grid gap-4 lg:grid-cols-2">
           {active.map((c, i) => (
-            <ClientCard key={c.id} client={c} comments={commentsByClient.get(c.id) ?? []} delay={i * 50} />
+            <ClientCard key={c.id} client={c} comments={commentsByClient.get(c.id) ?? []} exec={exec} delay={i * 50} />
           ))}
         </div>
       </div>
@@ -146,7 +158,7 @@ function ChartView({ clients }: { clients: ClientView[] }) {
   );
 }
 
-export function ClientsView({ clients, commentsByClient }: { clients: ClientView[]; commentsByClient: Map<string, CommentView[]> }) {
+export function ClientsView({ clients, commentsByClient, exec }: { clients: ClientView[]; commentsByClient: Map<string, CommentView[]>; exec: boolean }) {
   const [view, setView] = useState<'cards' | 'chart'>('cards');
 
   if (clients.length === 0) {
@@ -165,7 +177,7 @@ export function ClientsView({ clients, commentsByClient }: { clients: ClientView
           onValueChange={(v) => setView(v as 'cards' | 'chart')}
         />
       </div>
-      {view === 'cards' ? <CardsView clients={clients} commentsByClient={commentsByClient} /> : <ChartView clients={clients} />}
+      {view === 'cards' ? <CardsView clients={clients} commentsByClient={commentsByClient} exec={exec} /> : <ChartView clients={clients} />}
     </div>
   );
 }
