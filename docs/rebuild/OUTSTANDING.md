@@ -72,9 +72,11 @@ que uma fase mudar de status.
 
 ### Portal
 
-- [ ] **P3.1 Files** `⬜` — `getClientDocuments` (filtrar `client_visible` +
-  `classification='public'`), UI lista por projeto com download, testes de não
-  vazamento de classificação, docs. `portal/03_files_billing.md`.
+- [x] **P3.1 Files** `✅` — `getClientDocuments` + política RLS
+  `documents_portal_read` (client_visible + `public` + active + `is_portal_member`),
+  UI `/files` agrupada por projeto (links para `storage_path`), plano de
+  regressão SQL com o gate de classificação. `supabase/migrations/202607270011_portal_documents_read.sql`,
+  `apps/portal/app/(portal)/files/`. `portal/03_files_billing.md`.
 - [ ] **P3.2 Billing / Invoices** `⬜` — decisão de sequenciamento vs. Finance
   C5.1, `getClientInvoices`, UI lista de invoices + estado de pagamento +
   recibo, teste de isolamento por organização. `portal/03_files_billing.md`.

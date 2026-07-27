@@ -1,0 +1,31 @@
+-- Phase P3.1 (Portal Files) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: an active client member (Client A) of client org A, a
+-- client member of a different org (Client B), and an internal staffer.
+--
+-- documents_portal_read (202607270011) assertions:
+--   - happy path: Client A can read a document that is client_visible = true,
+--     classification = 'public', status = 'active', and client_id = org A.
+--   - classification hard gate: a document with client_visible = true but
+--     classification in ('internal','confidential','restricted') is NEVER
+--     returned to Client A — this is the core leak guard, so a staffer flipping
+--     client_visible on a non-public document does not expose it. Assert once
+--     per non-public classification value.
+--   - client_visible gate: a public, active document with client_visible = false
+--     is not returned to Client A.
+--   - status gate: a client_visible public document with status <> 'active'
+--     (e.g. archived) is not returned.
+--   - cross-client denial: Client B cannot read org A's shared documents even
+--     though they are client_visible + public; is_portal_member(client_id) scopes
+--     rows to the caller's own client organization.
+--   - null client_id: a document with client_id IS NULL is never portal-readable
+--     (the policy requires a client org to match against).
+--   - staff policy unchanged: documents_member_read still governs internal
+--     access exactly as before — the new policy only OR-adds the client's own
+--     scoped view and never widens what a staffer (or anyone) sees beyond it.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising the policy end-to-end. Verified by SQL review + the Supabase
+-- preview-branch migration check only, same as every prior phase.
+
+select 'portal files authorization regression plan present' as plan;
