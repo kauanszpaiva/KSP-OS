@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getAuthContext, canManageOutcomes, isExecutive, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
 import { canPerform } from '@ksp/permissions';
+import { resolveMentions, type MentionProfile } from './mentions';
 import {
   addClientNoteSchema,
   addDependencySchema,
@@ -1402,7 +1403,10 @@ export async function markNotificationRead(_prev: ActionResult, form: FormData):
 /** Which page to revalidate after posting a comment, per object_table — extend as CommentThread rolls out further. */
 const COMMENT_REVALIDATE_PATH: Record<string, string> = {
   commitments: '/commitments',
-  tasks: '/workspace'
+  tasks: '/workspace',
+  projects: '/missions',
+  approval_requests: '/decisions',
+  client_organizations: '/clients'
 };
 
 export async function postComment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
@@ -1417,16 +1421,25 @@ export async function postComment(_prev: ActionResult, form: FormData): Promise<
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
+  const { data: profiles } = await supabase.from('profiles').select('id, display_name');
+  const mentions = resolveMentions(parsed.data.body, (profiles ?? []) as MentionProfile[], ctx.user.id);
+
   const { error } = await supabase.from('comments').insert({
     organization_id: ctx.organizationId,
     object_table: parsed.data.objectTable,
     object_id: parsed.data.objectId,
     author_id: ctx.user.id,
-    body: parsed.data.body
+    body: parsed.data.body,
+    mentions
   });
   if (error) return { ok: false, error: 'Could not post the comment.' };
 
-  revalidatePath(COMMENT_REVALIDATE_PATH[parsed.data.objectTable] ?? '/pulse');
+  const link = COMMENT_REVALIDATE_PATH[parsed.data.objectTable];
+  for (const recipientId of mentions) {
+    await notify(supabase, ctx, recipientId, 'comment.mention', parsed.data.objectTable, parsed.data.objectId, `${ctx.user.displayName} mentioned you in a comment`, link);
+  }
+
+  revalidatePath(link ?? '/pulse');
   return { ok: true };
 }
 

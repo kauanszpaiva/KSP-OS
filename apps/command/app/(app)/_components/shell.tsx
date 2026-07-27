@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Avatar, Icon, IconButton, ThemeToggle, cx, type IconName } from '@ksp/ui';
 import type { Notification } from '@ksp/database';
 import type { NavGroup, NavItem } from '../../../lib/nav';
-import { CommandPalette, CommandPaletteTrigger } from './command-palette';
+import { CommandPalette, CommandPaletteTrigger, type PalettePerms } from './command-palette';
 import { NotificationsMenu } from './notifications-menu';
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
@@ -76,12 +76,14 @@ export function Shell({
   user,
   mobilePrimary,
   notifications,
+  palettePerms,
   children
 }: {
   groups: NavGroup[];
   user: { displayName: string; email: string; role: string };
   mobilePrimary: NavItem[];
   notifications: Notification[];
+  palettePerms: PalettePerms;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -100,7 +102,7 @@ export function Shell({
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden bg-canvas text-ink">
-      <CommandPalette />
+      <CommandPalette perms={palettePerms} />
       {/* Desktop sidebar */}
       <aside
         className={cx(

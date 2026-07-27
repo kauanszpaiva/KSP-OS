@@ -53,15 +53,17 @@ que uma fase mudar de status.
   Missions (`projects`), Decisions (`approval_requests`) e Clients
   (`client_organizations`), reusando `getCommentsForObjects`/`postComment` sem
   migration. `command/06_cross_cutting.md` (C6.6.6).
-- [ ] **Comments — parsing de `@menção`** `⬜` — coluna `mentions uuid[]`
-  existe mas nada extrai `@nome` do texto (sempre vazia); sem menção→notificação.
+- [x] **Comments — parsing de `@menção`** `✅` — `postComment` resolve `@handle`
+  (nome/nome-compacto) via `resolveMentions`, grava em `mentions uuid[]` e
+  dispara notificação `comment.mention`. 7 testes unitários. Também corrigido o
+  `COMMENT_REVALIDATE_PATH` para projects/approval_requests/client_organizations.
   `command/06_cross_cutting.md` (C6.6.2).
-- [ ] **ActivityTimeline reutilizável** `⬜` — o markup "Since you were away"
-  vive só no Pulse; não foi extraído para componente compartilhado.
-  `command/06_cross_cutting.md` (C6.6.4).
-- [ ] **Command palette — registry por permissão** `🟨` — lista plana de 5
-  ações, não filtrada ao vivo por `PermissionAction`/role (cada destino
-  re-checa permissão na chegada). `command/06_cross_cutting.md` (C6.2.1).
+- [x] **ActivityTimeline reutilizável** `✅` — extraído para
+  `_components/activity-timeline.tsx`; Pulse consome via `label`. Qualquer
+  módulo com `ActivityView[]` reutiliza. `command/06_cross_cutting.md` (C6.6.4).
+- [x] **Command palette — registry por permissão** `✅` — cada quick-action tem
+  `requires` espelhando seu gate server-side; o layout passa `palettePerms` e a
+  palette esconde ações que o papel não pode executar. `command/06_cross_cutting.md` (C6.2.1).
 - [ ] **Simplificações documentadas** `🟨` — sem dimensão "department" em
   Software (tasks não filtradas do pool geral); Knowledge só link/metadata (sem
   upload de arquivo); Connections só registro manual (sem OAuth flow);
