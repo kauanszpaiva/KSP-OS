@@ -1,7 +1,8 @@
+import type { ClientMeeting } from '@ksp/database';
 import { isExecutive } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getClients, getCommentsForObjects, type CommentView } from '../data';
+import { getClients, getClientMeetings, getCommentsForObjects, type CommentView } from '../data';
 import { PageHeader } from '../_components/ui';
 import { ClientForm } from '../_components/growth-forms';
 import { ClientsView } from '../_components/clients-view';
@@ -13,6 +14,15 @@ export default async function ClientsPage() {
   const commentsByClient = supabase
     ? await getCommentsForObjects(supabase, 'client_organizations', clients.map((c) => c.id))
     : new Map<string, CommentView[]>();
+
+  const meetings = supabase ? await getClientMeetings(supabase) : [];
+  const meetingsByClient = new Map<string, ClientMeeting[]>();
+  for (const m of meetings) {
+    const arr = meetingsByClient.get(m.client_organization_id) ?? [];
+    arr.push(m);
+    meetingsByClient.set(m.client_organization_id, arr);
+  }
+
   const exec = isExecutive(ctx);
 
   return (
@@ -32,7 +42,7 @@ export default async function ClientsPage() {
         </div>
       </details>
 
-      <ClientsView clients={clients} commentsByClient={commentsByClient} exec={exec} />
+      <ClientsView clients={clients} commentsByClient={commentsByClient} meetingsByClient={meetingsByClient} exec={exec} />
     </div>
   );
 }

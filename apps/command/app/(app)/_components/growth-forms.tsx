@@ -5,6 +5,7 @@ import {
   addClientNote,
   createCampaign,
   createClient,
+  createClientMeeting,
   createContact,
   createContentItem,
   createLead,
@@ -15,6 +16,7 @@ import {
   updateClientHealth,
   updateContentStatus,
   updateLeadStatus,
+  updateMeetingStatus,
   type ActionResult,
   type InviteActionResult
 } from '../actions';
@@ -193,6 +195,49 @@ export function InviteContactForm({ clientId }: { clientId: string }) {
           <p className="mt-1 text-[11px] text-ink-4">Prefix with the client portal URL. The raw token is not stored — revoke and re-invite if it&rsquo;s lost.</p>
         </div>
       )}
+    </form>
+  );
+}
+
+export function MeetingForm({ clientId }: { clientId: string }) {
+  const [state, action, pending] = useActionState(createClientMeeting, initial);
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="clientOrganizationId" value={clientId} />
+      <input name="title" placeholder="Meeting title (e.g. Kickoff call)" required className={field} />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <label className={label} htmlFor={`m-when-${clientId}`}>When</label>
+          <input id={`m-when-${clientId}`} name="scheduledAt" type="datetime-local" required className={field} />
+        </div>
+        <div>
+          <label className={label} htmlFor={`m-dur-${clientId}`}>Duration (min)</label>
+          <input id={`m-dur-${clientId}`} name="durationMinutes" type="number" min={1} max={1440} placeholder="60" className={field} />
+        </div>
+      </div>
+      <input name="location" placeholder="Location or video link (optional)" className={field} />
+      <textarea name="agenda" placeholder="Agenda (optional)" rows={2} className={field} />
+      <FormError state={state} />
+      <button type="submit" disabled={pending} className={ghostBtn}>
+        {pending ? 'Scheduling…' : 'Schedule meeting'}
+      </button>
+    </form>
+  );
+}
+
+export function MeetingStatusButton({ id, status, children }: { id: string; status: string; children: React.ReactNode }) {
+  const [, action, pending] = useActionState(updateMeetingStatus, initial);
+  return (
+    <form action={action} className="inline">
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="status" value={status} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded px-2 py-0.5 text-[11px] font-medium text-ink-3 transition-colors duration-fast hover:bg-brand-tint hover:text-brand disabled:opacity-50"
+      >
+        {children}
+      </button>
     </form>
   );
 }

@@ -1,0 +1,28 @@
+-- Phase P2.2 follow-up (Portal Meetings) authorization regression plan.
+-- Run against a seeded database with psql/pgTAP; see docs/testing/KSP_OS_TEST_STRATEGY.md.
+-- Required identities: an internal staffer, an active client member (Client A)
+-- of client org A, and a client member of a different org (Client B).
+--
+-- client_meetings_internal (202607270012) assertions:
+--   - an internal member can insert/select/update a client_meetings row for
+--     their own organization (is_internal_member(organization_id)).
+--   - the with-check blocks writing a row scoped to an organization the caller
+--     is not an internal member of.
+--
+-- client_meetings_portal_read (202607270012) assertions:
+--   - happy path: Client A can read meetings where client_organization_id = org A.
+--   - cross-client denial: Client B cannot read org A's meetings; is_portal_member
+--     scopes rows to the caller's own client organization.
+--   - read-only: no portal insert/update/delete policy exists on client_meetings,
+--     so a client can never create, reschedule, cancel, or complete a meeting —
+--     scheduling is staff-only by construction. The only client-facing verb is
+--     select.
+--   - status/agenda exposure: a client sees title, scheduled_at, duration,
+--     location, agenda, and status for their own org's meetings — no internal-only
+--     column exists on this table, so there is nothing staff-only to leak.
+--
+-- Not verified here (requires live Supabase): applying this migration and
+-- exercising the policies end-to-end. Verified by SQL review + the Supabase
+-- preview-branch migration check only, same as every prior phase.
+
+select 'portal meetings authorization regression plan present' as plan;

@@ -10,8 +10,10 @@ import {
   addClientNoteSchema,
   addDependencySchema,
   createCampaignSchema,
+  createClientMeetingSchema,
   createClientSchema,
   createPortalInvitationSchema,
+  updateMeetingStatusSchema,
   createCommitmentSchema,
   createConnectionSchema,
   createContactSchema,
@@ -1034,6 +1036,73 @@ export async function createPortalInvitation(_prev: InviteActionResult, form: Fo
   await record(supabase, ctx, 'portal_invitation.created', 'portal_invitations', data.id, `Invited ${parsed.data.email} as ${parsed.data.initialRole}`);
   revalidatePath('/clients');
   return { ok: true, invitePath: `/invite/${token}` };
+}
+
+/**
+ * Schedules a client meeting (the "Schedule" half of the portal's Meetings &
+ * Requests screen). Executive-gated at the app level; the insert is also
+ * governed by the client_meetings_internal RLS policy (is_internal_member).
+ * The client reads it via client_meetings_portal_read but never writes.
+ */
+export async function createClientMeeting(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can schedule client meetings.' };
+
+  const parsed = createClientMeetingSchema.safeParse({
+    clientOrganizationId: form.get('clientOrganizationId'),
+    projectId: form.get('projectId') || undefined,
+    title: form.get('title'),
+    scheduledAt: form.get('scheduledAt'),
+    durationMinutes: form.get('durationMinutes') || undefined,
+    location: form.get('location') || undefined,
+    agenda: form.get('agenda') || undefined
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const scheduled = new Date(parsed.data.scheduledAt);
+  if (Number.isNaN(scheduled.getTime())) return { ok: false, error: 'Enter a valid date and time.' };
+
+  const { data, error } = await supabase
+    .from('client_meetings')
+    .insert({
+      organization_id: ctx.organizationId,
+      client_organization_id: parsed.data.clientOrganizationId,
+      project_id: parsed.data.projectId || null,
+      title: parsed.data.title,
+      scheduled_at: scheduled.toISOString(),
+      duration_minutes: parsed.data.durationMinutes ?? null,
+      location: parsed.data.location || null,
+      agenda: parsed.data.agenda || null,
+      created_by: ctx.user.id
+    })
+    .select('id')
+    .single();
+  if (error) return { ok: false, error: 'Could not schedule the meeting.' };
+
+  await record(supabase, ctx, 'client_meeting.scheduled', 'client_meetings', data.id, `Meeting: ${parsed.data.title}`);
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function updateMeetingStatus(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can update client meetings.' };
+
+  const parsed = updateMeetingStatusSchema.safeParse({ id: form.get('id'), status: form.get('status') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { error } = await supabase.from('client_meetings').update({ status: parsed.data.status }).eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not update the meeting.' };
+
+  await record(supabase, ctx, 'client_meeting.status', 'client_meetings', parsed.data.id, `Meeting ${parsed.data.status}`);
+  revalidatePath('/clients');
+  return { ok: true };
 }
 
 export async function updateClientHealth(_prev: ActionResult, form: FormData): Promise<ActionResult> {
