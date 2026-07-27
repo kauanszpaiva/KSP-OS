@@ -5,6 +5,7 @@ import type {
   ClientPublication,
   ClientRequest,
   ClientUpdate,
+  DocumentRecord,
   MissionMilestone,
   RequestComment,
   RequestStatusHistory,
@@ -112,6 +113,27 @@ export async function getChangeOrderItems(supabase: SupabaseClient, versionIds: 
 export async function getChangeOrderDecisions(supabase: SupabaseClient): Promise<ChangeOrderClientDecision[]> {
   const { data } = await supabase.from('change_order_client_decisions').select('*').order('created_at', { ascending: false });
   return (data ?? []) as ChangeOrderClientDecision[];
+}
+
+/* --------------------------------------------------------- Phase P3 -- */
+
+/**
+ * Documents explicitly shared with the client. The query filters to
+ * client_visible + public + active, but the real gate is the
+ * documents_portal_read RLS policy (202607270011): even if this query were
+ * wrong, RLS still hides anything not client_visible, not `public`, or outside
+ * the caller's own client organization. `classification` is the hard gate —
+ * `internal`/`confidential`/`restricted` never reach the portal.
+ */
+export async function getClientDocuments(supabase: SupabaseClient): Promise<DocumentRecord[]> {
+  const { data } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('client_visible', true)
+    .eq('classification', 'public')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+  return (data ?? []) as DocumentRecord[];
 }
 
 export async function getRequestComments(supabase: SupabaseClient, requestId: string): Promise<RequestComment[]> {

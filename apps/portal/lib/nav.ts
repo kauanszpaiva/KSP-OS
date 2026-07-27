@@ -12,14 +12,14 @@ export interface NavItem {
 /**
  * Flat nav — no groups, no internal-only affordances (search, command
  * palette, notifications). Labels/order per PRODUCT_INFORMATION_ARCHITECTURE.md §12.
- * Home (P0), Projects (P1), Approvals (P2.1), and Meetings & Requests
- * (P2.2) are live; Files/Invoices are later Portal phases (P3).
+ * Home (P0), Projects (P1), Approvals (P2.1), Meetings & Requests (P2.2), and
+ * Files (P3.1) are live; Invoices is a later Portal phase (P3.2).
  */
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Home', href: '/home', icon: 'home', status: 'live' },
   { label: 'Projects', href: '/projects', icon: 'missions', status: 'live' },
   { label: 'Approvals', href: '/approvals', icon: 'decisions', status: 'live' },
-  { label: 'Files', href: '/files', icon: 'knowledge', status: 'planned' },
+  { label: 'Files', href: '/files', icon: 'knowledge', status: 'live' },
   { label: 'Invoices', href: '/invoices', icon: 'revenue', status: 'planned' },
   { label: 'Meetings & Requests', href: '/requests', icon: 'inbox', status: 'live' }
 ];

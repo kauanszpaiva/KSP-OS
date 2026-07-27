@@ -1,10 +1,10 @@
 # Phase P3 — Portal Files + Billing
 
-Group: Portal · Status: ⬜ not started (depends on Phase P0)
+Group: Portal · Status: 🟨 P3.1 (Files) done & verified; P3.2 (Billing) still ⬜
 
 ---
 
-## Mini-group P3.1 — Files
+## Mini-group P3.1 — Files ✅
 
 Purpose: documents/deliverables explicitly shared with the client. Reuse
 `documents` (foundation migration — already has `client_visible` and
@@ -12,10 +12,10 @@ Purpose: documents/deliverables explicitly shared with the client. Reuse
 
 | Task | Status | Detail |
 |---|---|---|
-| P3.1.1 Data layer | ⬜ | `getClientDocuments(clientOrgId)` — filter to `client_visible = true` **and** `classification = 'public'` (do not relax to `'internal'` for the portal path — the existing RLS/classification model treats `'internal'` as staff-only by convention even when `client_visible` is set; confirm this reading against `docs/architecture/KSP_OS_AUTHORIZATION_MODEL.md` before writing the query, and document the decision here). |
-| P3.1.2 UI — File list | ⬜ | Grouped by project; download action (no public sharing link generation — per the existing portal placeholder's stated non-goal). |
-| P3.1.3 Tests | ⬜ | Confirm a `classification != 'public'` document never appears even if `client_visible = true` (guards against a future data-entry mistake becoming a leak). |
-| P3.1.4 Docs | ⬜ | Mark ✅ with PR + checks. |
+| P3.1.1 Data layer | ✅ | `getClientDocuments(supabase)` in `apps/portal/app/(portal)/data.ts` — filters to `client_visible = true` **and** `classification = 'public'` **and** `status = 'active'`. The **hard gate is RLS**, not the query: new policy `documents_portal_read` (migration `202607270011`) allows a portal read only when the row is client_visible + `public` + active + `is_portal_member(client_id)`. **Decision recorded:** `'internal'`/`'confidential'`/`'restricted'` are never exposed to the portal even if a staffer flips `client_visible` — classification is the leaving-the-building gate, matching the authorization model's convention (only `public` is client-facing). Postgres OR-combines permissive SELECT policies, so the staff `documents_member_read` (202607150001) is untouched. |
+| P3.1.2 UI — File list | ✅ | `apps/portal/app/(portal)/files/page.tsx` — documents grouped by project (titles resolved from the client's own `client_publications` feed, so no `projects`-table read is needed), documents with no/unknown project under "General". Each document links to its `storage_path` in a new tab, matching the Command Knowledge module's existing link/reference convention (this repo stores document references, not uploaded blobs — no Supabase Storage bucket or signed-URL generation exists yet, and none is fabricated). `Files` flipped `live` in `nav.ts`. |
+| P3.1.3 Tests | ✅ | `supabase/tests/portal_files.sql` — documented regression plan: happy path, the classification hard gate (one assertion per non-public value), the `client_visible = false` and non-`active` gates, cross-client denial via `is_portal_member`, null-`client_id` denial, and staff-policy-unchanged. |
+| P3.1.4 Docs | ✅ | This row. |
 
 ## Mini-group P3.2 — Billing / Invoices
 
