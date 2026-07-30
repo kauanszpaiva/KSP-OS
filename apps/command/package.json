@@ -14,10 +14,12 @@
     "@ksp/permissions": "workspace:*",
     "@ksp/ui": "workspace:*",
     "@ksp/validation": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.26.0",
     "@supabase/ssr": "^0.5.2",
+    "mcp-handler": "^1.0.2",
     "next": "15.5.20",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "zod": "3.24.1"
+    "zod": "3.25.76"
   }
 }
