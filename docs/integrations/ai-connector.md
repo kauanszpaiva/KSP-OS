@@ -53,11 +53,17 @@ off.
 > Tokens are user-scoped and expire — treat them as secrets, rotate them, and
 > issue one per operator. A first-class OAuth handshake is a follow-up.
 
-## Claude (MCP) — scaffold, gated on the MCP SDK dependency
+## Claude (MCP) — shipped as a remote server
 
-Adding `@modelcontextprotocol/sdk` is a **new dependency → needs approval**. Once
-approved, a thin MCP server (its own small package, e.g. `packages/mcp-server`)
-wraps the same read API — no business logic of its own. Reference scaffold:
+> **Update:** Gate #1 below (add `@modelcontextprotocol/sdk`) is **approved and
+> implemented.** A remote MCP server now lives in `apps/command` at
+> `/api/mcp` and reuses this same auth model, RLS-scoped fetchers, and write
+> governance. See [`mcp-server.md`](./mcp-server.md). The stdio scaffold below is
+> retained only as a minimal reference.
+
+Adding `@modelcontextprotocol/sdk` was a **new dependency → approval gate**. It
+is now added (with `mcp-handler`) to `apps/command`, and the remote server wraps
+the same domain — no business logic of its own. Minimal stdio reference scaffold:
 
 ```ts
 // packages/mcp-server/src/index.ts  (illustrative — not yet wired into the build)
@@ -103,11 +109,14 @@ mutation is a further step that still needs the full A3 sign-off (executive +
 security/domain owner, canary, kill-switch test) and the Integration Standard +
 Release Gate before it ships.
 
-## Approval gates (need a human decision before proceeding)
+## Approval gates
 
-1. **Add `@modelcontextprotocol/sdk`** as a dependency for the MCP server.
-2. **External-auth model** — per-operator bearer tokens now vs. a full OAuth
-   flow for the GPT/MCP client.
-3. **Hosting** for the MCP server process (it must reach the command host).
-4. **Write scope** — which mutations (if any) the connector may perform behind
-   the A3 approval step.
+1. ~~**Add `@modelcontextprotocol/sdk`** as a dependency for the MCP server.~~
+   **Done** — `@modelcontextprotocol/sdk` + `mcp-handler` added to
+   `apps/command`; remote server at `/api/mcp` (see `mcp-server.md`).
+2. **External-auth model** — per-operator bearer tokens (current) vs. a full
+   OAuth flow for the GPT/MCP client (follow-up; the MCP endpoint is already
+   OAuth-upgradeable).
+3. **Write scope** — which mutations (if any) the connector may perform behind
+   the A3 approval step. The MCP `create_task` write is behind
+   `MCP_ENABLE_WRITE_TOOLS` (off by default) pending this decision.
