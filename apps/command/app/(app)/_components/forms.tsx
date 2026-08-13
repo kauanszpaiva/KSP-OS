@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import { useActionToast } from '@ksp/ui';
 import {
   createCommitment,
   createOutcome,
@@ -29,6 +30,7 @@ function FormError({ state }: { state: ActionResult }) {
 
 export function OutcomeForm({ members }: { members: MemberRef[] }) {
   const [state, action, pending] = useActionState(createOutcome, initial);
+  useActionToast(state, 'Outcome activated');
   return (
     <form action={action} className="space-y-3">
       <div>
@@ -83,6 +85,7 @@ export function OutcomeStateForm({ id, target, children }: { id: string; target:
 
 export function CommitmentForm({ members, outcomes }: { members: MemberRef[]; outcomes: Array<{ id: string; title: string }> }) {
   const [state, action, pending] = useActionState(createCommitment, initial);
+  useActionToast(state, 'Commitment created');
   return (
     <form action={action} className="space-y-3">
       <div>
@@ -136,6 +139,7 @@ export function CommitmentForm({ members, outcomes }: { members: MemberRef[]; ou
 
 export function ProgressForm({ commitmentId, progress }: { commitmentId: string; progress: number }) {
   const [state, action, pending] = useActionState(updateProgress, initial);
+  useActionToast(state, 'Progress updated');
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="commitmentId" value={commitmentId} />
@@ -156,6 +160,7 @@ export function ProgressForm({ commitmentId, progress }: { commitmentId: string;
 
 export function ProofForm({ commitmentId }: { commitmentId: string }) {
   const [state, action, pending] = useActionState(submitProof, initial);
+  useActionToast(state, 'Proof submitted');
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="commitmentId" value={commitmentId} />
@@ -179,6 +184,7 @@ export function ProofForm({ commitmentId }: { commitmentId: string }) {
 
 export function DecisionForm({ commitmentId, proofId }: { commitmentId: string; proofId?: string }) {
   const [state, action, pending] = useActionState(decideCompletion, initial);
+  useActionToast(state, 'Decision recorded');
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="commitmentId" value={commitmentId} />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { Icon } from '@ksp/ui';
+import { Icon, useActionToast } from '@ksp/ui';
 import type { ActionResult } from '../actions';
 
 const initial: ActionResult = { ok: false };
@@ -27,6 +27,7 @@ export function DeleteButton({
   iconOnly?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
+  useActionToast(state, 'Deleted');
   return (
     <form
       action={formAction}
