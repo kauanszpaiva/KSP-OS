@@ -14,7 +14,7 @@
     "lint": "turbo lint",
     "format:check": "turbo format:check",
     "test": "vitest run",
-    "test:db": "node scripts/check-db-tests.mjs",
+    "test:db": "node scripts/check-db-tests-runner.mjs",
     "test:rls": "node scripts/check-rls.mjs",
     "test:migrations": "node scripts/check-migrations.mjs",
     "test:e2e": "node scripts/check-e2e-placeholders.mjs",
