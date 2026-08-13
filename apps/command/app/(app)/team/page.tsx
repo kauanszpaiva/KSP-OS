@@ -18,7 +18,7 @@ export default async function TeamPage() {
       <PageHeader
         eyebrow="Execution"
         title="Team"
-        description="A simple capacity signal — open commitments and tasks per person. Not hour-based allocation yet."
+        description="The people operating map — who's here, what they carry, and where load is concentrating. Capacity is an open-item signal, not hour-based allocation yet."
       />
       <TeamView load={load} members={members} canManage={canManage} currentUserId={ctx.user.id} />
     </div>
