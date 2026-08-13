@@ -1,7 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
-import { Icon, useActionToast } from '@ksp/ui';
+import { useActionState, useRef } from 'react';
+import { Icon, useActionToast, useConfirm } from '@ksp/ui';
 import type { ActionResult } from '../actions';
 
 const initial: ActionResult = { ok: false };
@@ -28,12 +28,31 @@ export function DeleteButton({
 }) {
   const [state, formAction, pending] = useActionState(action, initial);
   useActionToast(state, 'Deleted');
+  const confirm = useConfirm();
+  const formRef = useRef<HTMLFormElement>(null);
+  const confirmedRef = useRef(false);
   return (
     <form
+      ref={formRef}
       action={formAction}
       className="inline-flex items-center"
       onSubmit={(e) => {
-        if (!window.confirm(confirmText ?? `${label}? This can't be undone.`)) e.preventDefault();
+        // Let the programmatic resubmit through once the user has confirmed.
+        if (confirmedRef.current) {
+          confirmedRef.current = false;
+          return;
+        }
+        e.preventDefault();
+        void confirm({
+          title: `${label}?`,
+          body: confirmText ?? "This can't be undone.",
+          confirmLabel: label,
+          tone: 'danger'
+        }).then((ok) => {
+          if (!ok) return;
+          confirmedRef.current = true;
+          formRef.current?.requestSubmit();
+        });
       }}
     >
       <input type="hidden" name="id" value={id} />
