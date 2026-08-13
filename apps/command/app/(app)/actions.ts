@@ -1079,7 +1079,12 @@ export async function createPortalInvitation(_prev: InviteActionResult, form: Fo
 
   await record(supabase, ctx, 'portal_invitation.created', 'portal_invitations', data.id, `Invited ${parsed.data.email} as ${parsed.data.initialRole}`);
   revalidatePath('/clients');
-  return { ok: true, invitePath: `/invite/${token}` };
+  // Return an absolute, ready-to-send link when the portal's base URL is
+  // configured (NEXT_PUBLIC_PORTAL_BASE_URL, e.g. https://portal.kspdominion.group);
+  // otherwise fall back to the relative path for the internal user to prefix.
+  const base = process.env.NEXT_PUBLIC_PORTAL_BASE_URL?.trim().replace(/\/+$/, '');
+  const invitePath = `/invite/${token}`;
+  return { ok: true, invitePath: base ? `${base}${invitePath}` : invitePath };
 }
 
 /**
