@@ -25,6 +25,7 @@ import {
   useState,
   type ReactNode
 } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Avatar, Icon, cx } from '@ksp/ui';
 import type { TeamLoadView } from '../data';
@@ -228,23 +229,47 @@ export function MemberChip({
   const label = name ?? member?.displayName ?? 'Unassigned';
   const resolvable = Boolean(member) || Boolean(id);
   const [open, setOpen] = useState(false);
-  const [flip, setFlip] = useState(false);
-  const wrapRef = useRef<HTMLSpanElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; placement: 'top' | 'bottom' } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cardId = useId();
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  // The card is rendered in a portal with fixed positioning so it never gets
+  // clipped by an ancestor's `overflow-hidden` (panels, ledgers, rounded lists).
+  const place = () => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const CARD_W = 320;
+    const CARD_H = 260;
+    const GAP = 8;
+    const placement: 'top' | 'bottom' = r.bottom + GAP + CARD_H > window.innerHeight && r.top - GAP - CARD_H > 0 ? 'top' : 'bottom';
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - CARD_W - 8));
+    const top = placement === 'bottom' ? r.bottom + GAP : r.top - GAP;
+    setCoords({ top, left, placement });
+  };
+
   const schedule = (next: boolean) => {
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      if (next && wrapRef.current) {
-        const rect = wrapRef.current.getBoundingClientRect();
-        setFlip(rect.bottom + 260 > window.innerHeight);
-      }
+      if (next) place();
       setOpen(next);
     }, next ? OPEN_DELAY : CLOSE_DELAY);
   };
+
+  // Reposition/close on scroll or resize so a fixed card never drifts from its anchor.
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = () => setOpen(false);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [open]);
 
   // No rich record to show — render a plain, quiet label (e.g. "Unassigned").
   if (!resolvable) {
@@ -258,12 +283,12 @@ export function MemberChip({
 
   return (
     <span
-      ref={wrapRef}
       className={cx('relative inline-flex', className)}
       onMouseEnter={() => schedule(true)}
       onMouseLeave={() => schedule(false)}
     >
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
         aria-describedby={open ? cardId : undefined}
@@ -271,6 +296,7 @@ export function MemberChip({
         onBlur={() => schedule(false)}
         onClick={() => {
           clearTimeout(timer.current);
+          if (!open) place();
           setOpen((v) => !v);
         }}
         onKeyDown={(e) => {
@@ -289,21 +315,29 @@ export function MemberChip({
         )}
       </button>
 
-      {open && (
-        <span
-          id={cardId}
-          role="dialog"
-          aria-label={`${label} profile`}
-          className={cx(
-            'absolute left-0 z-40 animate-scale-in',
-            flip ? 'bottom-full mb-2 origin-bottom-left' : 'top-full mt-2 origin-top-left'
-          )}
-          onMouseEnter={() => clearTimeout(timer.current)}
-          onMouseLeave={() => schedule(false)}
-        >
-          <HoverCard member={member} name={label} />
-        </span>
-      )}
+      {open &&
+        coords &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            id={cardId}
+            role="dialog"
+            aria-label={`${label} profile`}
+            style={{
+              position: 'fixed',
+              top: coords.top,
+              left: coords.left,
+              transform: coords.placement === 'top' ? 'translateY(-100%)' : undefined,
+              zIndex: 60
+            }}
+            className={cx('animate-scale-in', coords.placement === 'top' ? 'origin-bottom-left' : 'origin-top-left')}
+            onMouseEnter={() => clearTimeout(timer.current)}
+            onMouseLeave={() => schedule(false)}
+          >
+            <HoverCard member={member} name={label} />
+          </div>,
+          document.body
+        )}
     </span>
   );
 }
