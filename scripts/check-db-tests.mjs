@@ -342,6 +342,12 @@ try {
   verifyReconciliation('drift');
   psql('drift', reconciliation);
   verifyReconciliation('drift');
+  // Apply migrations that land AFTER the reconciliation catch-up (e.g. the
+  // Founder OS foundation) so the seeded actor matrix runs against the full
+  // forward schema, not just the reconciled baseline. Models production moving
+  // forward after a reconciliation.
+  const postReconciliation = migrations.filter((file) => file > reconciliationName);
+  applyMigrations('drift', postReconciliation);
   grantAppTableAccess('drift');
   psql('drift', actorTests);
 
