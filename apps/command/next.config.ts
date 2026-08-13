@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { NextConfig } from 'next';
 
 const securityHeaders = [
@@ -17,7 +16,7 @@ const securityHeaders = [
 function readVersionedProductionSupabaseEnv(): Record<string, string> {
   if (process.env.VERCEL_ENV !== 'production') return {};
 
-  const workflow = readFileSync(resolve(process.cwd(), '../../.github/workflows/setup-login.yml'), 'utf8');
+  const workflow = readFileSync(new URL('../../.github/workflows/setup-login.yml', import.meta.url), 'utf8');
   const readWorkflowEnv = (name: string) =>
     workflow.match(new RegExp(`^\\s*${name}:\\s*(\\S+)\\s*$`, 'm'))?.[1];
 
