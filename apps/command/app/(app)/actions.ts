@@ -179,6 +179,50 @@ export async function deleteCommitment(_prev: ActionResult, form: FormData): Pro
   return executiveDelete(form, 'commitments', 'commitment.deleted', ['/commitments']);
 }
 
+/**
+ * Archives a client instead of deleting it. A client accumulates linked records
+ * (contacts, memberships, invitations, requests, change orders, finance) whose
+ * foreign keys deliberately have no ON DELETE CASCADE — finance/audit history is
+ * never silently destroyed — so a hard delete fails for any client that has been
+ * used. Archiving flips `status` to 'archived' (the clients view already splits
+ * Active vs Archived) and stamps `archived_at`, keeping everything recoverable.
+ * Executive-gated; the client_organizations_update RLS policy is the backstop.
+ */
+export async function archiveClient(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can archive clients.' };
+  const parsed = idParamSchema.safeParse({ id: form.get('id') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const { error } = await supabase
+    .from('client_organizations')
+    .update({ status: 'archived', archived_at: new Date().toISOString() })
+    .eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not archive this client.' };
+  await record(supabase, ctx, 'client.archived', 'client_organizations', parsed.data.id, 'Client archived');
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
+/** Restores an archived client back to active. Executive-gated, mirrors archiveClient. */
+export async function restoreClient(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+  if (!isExecutive(ctx)) return { ok: false, error: 'Only executives can restore clients.' };
+  const parsed = idParamSchema.safeParse({ id: form.get('id') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const { error } = await supabase
+    .from('client_organizations')
+    .update({ status: 'active', archived_at: null })
+    .eq('id', parsed.data.id);
+  if (error) return { ok: false, error: 'Could not restore this client.' };
+  await record(supabase, ctx, 'client.restored', 'client_organizations', parsed.data.id, 'Client restored');
+  revalidatePath('/clients');
+  return { ok: true };
+}
+
 export async function createVaultEntry(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const gate = await authed();
   if ('error' in gate) return { ok: false, error: gate.error };
