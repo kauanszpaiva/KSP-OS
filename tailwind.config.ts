@@ -109,13 +109,35 @@ const config: Config = {
         },
         shimmer: {
           '100%': { transform: 'translateX(100%)' }
+        },
+        // Exit counterparts — reverse of the entrances above, so overlays and
+        // toasts leave the same way they arrived instead of snapping shut.
+        'fade-out': {
+          from: { opacity: '1' },
+          to: { opacity: '0' }
+        },
+        'scale-out': {
+          from: { opacity: '1', transform: 'scale(1)' },
+          to: { opacity: '0', transform: 'scale(0.96)' }
+        },
+        'slide-out-right': {
+          from: { opacity: '1', transform: 'translateX(0)' },
+          to: { opacity: '0', transform: 'translateX(16px)' }
+        },
+        'slide-out-down': {
+          from: { opacity: '1', transform: 'translateY(0)' },
+          to: { opacity: '0', transform: 'translateY(8px)' }
         }
       },
       animation: {
         'fade-in': 'fade-in 200ms cubic-bezier(0.2, 0, 0, 1) both',
         'fade-slide-up': 'fade-slide-up 260ms cubic-bezier(0.2, 0, 0, 1) both',
         'scale-in': 'scale-in 180ms cubic-bezier(0.2, 0, 0, 1) both',
-        'slide-in-right': 'slide-in-right 240ms cubic-bezier(0.2, 0, 0, 1) both'
+        'slide-in-right': 'slide-in-right 240ms cubic-bezier(0.2, 0, 0, 1) both',
+        'fade-out': 'fade-out 160ms cubic-bezier(0.2, 0, 0, 1) both',
+        'scale-out': 'scale-out 160ms cubic-bezier(0.2, 0, 0, 1) both',
+        'slide-out-right': 'slide-out-right 200ms cubic-bezier(0.2, 0, 0, 1) both',
+        'slide-out-down': 'slide-out-down 200ms cubic-bezier(0.2, 0, 0, 1) both'
       }
     }
   },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import { useToast } from '@ksp/ui';
 import {
   addClientNote,
   createCampaign,
@@ -188,14 +189,34 @@ export function InviteContactForm({ clientId }: { clientId: string }) {
         </button>
       </div>
       {!state.ok && state.error && <p className="text-[13px] text-risk">{state.error}</p>}
-      {state.ok && state.invitePath && (
-        <div className="rounded-lg border border-line bg-surface-2/60 px-3 py-2">
-          <p className="text-[12px] font-medium text-ink-2">Invite link — send it to the client (shown once):</p>
-          <code className="mt-1 block break-all text-[12px] text-brand">{state.invitePath}</code>
-          <p className="mt-1 text-[11px] text-ink-4">Prefix with the client portal URL. The raw token is not stored — revoke and re-invite if it&rsquo;s lost.</p>
-        </div>
-      )}
+      {state.ok && state.invitePath && <CopyableInviteLink link={state.invitePath} />}
     </form>
+  );
+}
+
+/** One-time invite link with a copy button. Shows a full URL when the portal base is configured, else the bare path. */
+function CopyableInviteLink({ link }: { link: string }) {
+  const { toast } = useToast();
+  const absolute = /^https?:\/\//.test(link);
+  return (
+    <div className="rounded-lg border border-line bg-surface-2/60 px-3 py-2">
+      <p className="text-[12px] font-medium text-ink-2">Invite link — send it to the client (shown once):</p>
+      <div className="mt-1 flex items-center gap-2">
+        <code className="min-w-0 flex-1 break-all text-[12px] text-brand">{link}</code>
+        <button
+          type="button"
+          onClick={() => void navigator.clipboard?.writeText(link).then(() => toast('Invite link copied', { tone: 'success' }))}
+          className="shrink-0 rounded-lg border border-line-2 px-2 py-1 text-[11px] font-medium text-ink-2 transition-colors duration-fast hover:bg-surface hover:text-ink"
+        >
+          Copy
+        </button>
+      </div>
+      <p className="mt-1 text-[11px] text-ink-4">
+        {absolute
+          ? 'The raw token is not stored — revoke and re-invite if it’s lost.'
+          : 'Set NEXT_PUBLIC_PORTAL_BASE_URL on the portal to get a full clickable link. The raw token is not stored.'}
+      </p>
+    </div>
   );
 }
 

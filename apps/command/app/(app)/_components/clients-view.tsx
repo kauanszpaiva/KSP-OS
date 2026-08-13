@@ -8,8 +8,8 @@ import type { ClientView, CommentView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { ClientEditForm, ClientHealthForm, ClientNoteForm, ContactForm, InviteContactForm, MeetingForm, MeetingStatusButton } from './growth-forms';
 import { CommentThread } from './comment-thread';
-import { DeleteButton } from './crud-forms';
-import { deleteClient, deleteContact } from '../actions';
+import { ArchiveButton, DeleteButton, RestoreButton } from './crud-forms';
+import { archiveClient, deleteContact, restoreClient } from '../actions';
 
 function formatMeetingTime(value: string): string {
   const d = new Date(value);
@@ -28,7 +28,7 @@ function ClientCard({ client, comments, meetings, exec, delay }: { client: Clien
           </div>
           <div className="flex items-center gap-2">
             <ClientHealthForm id={client.id} currentHealth={client.relationship_health} />
-            <DeleteButton action={deleteClient} id={client.id} label="Delete" iconOnly confirmText={`Delete client "${client.display_name}"? This can't be undone.`} />
+            <ArchiveButton action={archiveClient} id={client.id} label="Archive" iconOnly confirmText={`Archive "${client.display_name}"? It moves to Archived and can be restored anytime — its history stays intact.`} />
           </div>
         </div>
 
@@ -178,9 +178,12 @@ function CardsView({
           <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{archived.length}</span>}>Archived</SectionLabel>
           <Panel className="divide-y divide-line">
             {archived.map((c) => (
-              <div key={c.id} className="flex items-center justify-between px-4 py-3">
-                <span className="truncate text-[13.5px] font-medium text-ink">{c.display_name}</span>
-                <StatePill state={c.status} />
+              <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="min-w-0 truncate text-[13.5px] font-medium text-ink">{c.display_name}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <StatePill state={c.status} />
+                  {exec && <RestoreButton action={restoreClient} id={c.id} />}
+                </span>
               </div>
             ))}
           </Panel>

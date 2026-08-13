@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ConfirmProvider, ToastProvider } from '@ksp/ui';
 import { canManageOutcomes, canViewFounderVault } from '@ksp/auth';
 import { canPerform } from '@ksp/permissions';
 import { NAV_GROUPS, MOBILE_PRIMARY } from '../../lib/nav';
@@ -44,8 +45,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Shell groups={groups} user={user} mobilePrimary={MOBILE_PRIMARY} notifications={notifications} palettePerms={palettePerms}>
-      {children}
-    </Shell>
+    <ToastProvider>
+      <ConfirmProvider>
+        <Shell groups={groups} user={user} mobilePrimary={MOBILE_PRIMARY} notifications={notifications} palettePerms={palettePerms}>
+          {children}
+        </Shell>
+      </ConfirmProvider>
+    </ToastProvider>
   );
 }

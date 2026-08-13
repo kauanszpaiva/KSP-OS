@@ -58,7 +58,7 @@ export function RequestRow({ request, comments, history }: { request: ClientRequ
         </div>
       </button>
       {open && (
-        <div className="mt-3 space-y-3 border-t border-line pt-3">
+        <div className="mt-3 animate-fade-slide-up space-y-3 border-t border-line pt-3">
           {!hasDetail ? (
             <p className="text-[12.5px] text-ink-4">No updates yet.</p>
           ) : (

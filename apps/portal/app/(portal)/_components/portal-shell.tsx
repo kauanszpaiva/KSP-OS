@@ -120,7 +120,11 @@ export function PortalShell({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1160px] flex-1 px-4 pb-24 pt-7 lg:px-8 lg:pb-12">{children}</main>
+      <main className="mx-auto w-full max-w-[1160px] flex-1 px-4 pb-24 pt-7 lg:px-8 lg:pb-12">
+        <div key={pathname} className="animate-fade-in">
+          {children}
+        </div>
+      </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-line bg-surface/95 py-1.5 backdrop-blur lg:hidden">
         {items.map((item) => (
