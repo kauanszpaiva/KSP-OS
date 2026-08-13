@@ -28,6 +28,50 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/* ----------------------------------------------------------- Global Create --
+ * Create is context-aware: it leads with the objects that belong to the space
+ * you're standing in, then offers the always-available company-wide creates.
+ * Each entry routes to where that object is actually created (no dead modals). */
+
+interface CreateItem {
+  icon: IconName;
+  label: string;
+  href: string;
+}
+
+const CREATE_GLOBAL: CreateItem[] = [
+  { icon: 'commitments', label: 'Commitment', href: '/commitments' },
+  { icon: 'outcomes', label: 'Outcome', href: '/outcomes' },
+  { icon: 'signals', label: 'Quick capture', href: '/signals' }
+];
+
+const CREATE_CONTEXT: Array<{ match: string; label: string; items: CreateItem[] }> = [
+  { match: '/clients', label: 'Clients', items: [
+    { icon: 'clients', label: 'Client', href: '/clients' },
+    { icon: 'user', label: 'Contact', href: '/clients' },
+    { icon: 'commitments', label: 'Commitment', href: '/commitments' }
+  ] },
+  { match: '/missions', label: 'Missions', items: [
+    { icon: 'missions', label: 'Mission', href: '/missions' },
+    { icon: 'schedule', label: 'Milestone', href: '/missions' },
+    { icon: 'commitments', label: 'Commitment', href: '/commitments' }
+  ] },
+  { match: '/revenue', label: 'Revenue', items: [
+    { icon: 'revenue', label: 'Lead', href: '/revenue' },
+    { icon: 'clients', label: 'Client', href: '/clients' }
+  ] },
+  { match: '/content', label: 'Content', items: [{ icon: 'content', label: 'Content piece', href: '/content' }] },
+  { match: '/products', label: 'Products', items: [{ icon: 'products', label: 'Product', href: '/products' }] },
+  { match: '/signals', label: 'Signals', items: [{ icon: 'signals', label: 'Signal', href: '/signals' }] },
+  { match: '/decisions', label: 'Decisions', items: [{ icon: 'decisions', label: 'Decision', href: '/decisions' }] },
+  { match: '/outcomes', label: 'Outcomes', items: [{ icon: 'outcomes', label: 'Outcome', href: '/outcomes' }] },
+  { match: '/founder-vault', label: 'Vault', items: [{ icon: 'vault', label: 'Vault entry', href: '/founder-vault' }] }
+];
+
+function contextCreate(pathname: string): { label: string; items: CreateItem[] } | null {
+  return CREATE_CONTEXT.find((c) => pathname === c.match || pathname.startsWith(`${c.match}/`)) ?? null;
+}
+
 function NavRow({ item, active, collapsed }: { item: NavItem; active: boolean; collapsed: boolean }) {
   if (item.status === 'planned') {
     if (collapsed) {
@@ -199,11 +243,27 @@ export function Shell({
                 <Icon name="plus" className="h-4 w-4" />
                 <span className="hidden sm:inline">Create</span>
               </summary>
-              <div className="absolute right-0 z-30 mt-2 w-52 origin-top-right animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-pop">
-                <MenuLink href="/commitments" icon="commitments" label="New commitment" />
-                <MenuLink href="/outcomes" icon="outcomes" label="New outcome" />
-                <MenuLink href="/signals" icon="signals" label="Quick capture" />
-                <MenuLink href="/founder-vault" icon="vault" label="Vault entry" />
+              <div className="absolute right-0 z-30 mt-2 w-56 origin-top-right animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-pop">
+                {(() => {
+                  const ctx = contextCreate(pathname);
+                  return (
+                    <>
+                      {ctx && (
+                        <>
+                          <p className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4">In {ctx.label}</p>
+                          {ctx.items.map((item, i) => (
+                            <MenuLink key={`ctx-${i}`} href={item.href} icon={item.icon} label={item.label} />
+                          ))}
+                          <div className="my-1 border-t border-line" />
+                          <p className="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4">Anywhere</p>
+                        </>
+                      )}
+                      {CREATE_GLOBAL.map((item, i) => (
+                        <MenuLink key={`g-${i}`} href={item.href} icon={item.icon} label={item.label} />
+                      ))}
+                    </>
+                  );
+                })()}
               </div>
             </details>
 

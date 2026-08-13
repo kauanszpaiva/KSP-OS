@@ -1,7 +1,7 @@
 import { isExecutive } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getActivity, getCommitments, getDecisions, getOutcomes, getSignals } from '../data';
+import { getActivity, getCommitments, getDecisions, getOutcomes, getSignals, getTeamLoad } from '../data';
 import { PageHeader } from '../_components/ui';
 import { PulseView } from '../_components/pulse-view';
 
@@ -13,6 +13,7 @@ export default async function PulsePage() {
   const activity = supabase ? await getActivity(supabase, 7) : [];
   const signals = supabase ? await getSignals(supabase) : [];
   const decisions = supabase ? await getDecisions(supabase) : [];
+  const teamLoad = supabase ? await getTeamLoad(supabase) : [];
 
   const exec = isExecutive(ctx);
   const signalsToTriage = signals.filter((s) => s.triage_status === 'new').length;
@@ -31,6 +32,7 @@ export default async function PulsePage() {
         exec={exec}
         signalsToTriage={signalsToTriage}
         decisionsWaitingOnYou={decisionsWaitingOnYou}
+        teamLoad={teamLoad}
       />
     </div>
   );

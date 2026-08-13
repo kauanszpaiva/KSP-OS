@@ -8,6 +8,8 @@ import type { ActivityView, CommitmentView, DecisionView, SignalView } from '../
 import type { CompanyOutcome } from '@ksp/database';
 import { EmptyState, Panel, Rail, SectionLabel } from './ui';
 import { ActivityTimeline } from './activity-timeline';
+import { MemberChip, PeopleProvider, memberFromLoad } from './people';
+import type { TeamLoadView } from '../data';
 
 function attentionReason(c: CommitmentView): { reason: string; tone: 'risk' | 'warn' | 'brand' } | null {
   if (isOverdue(c.due_date) && c.state !== 'completed') return { reason: 'Overdue', tone: 'risk' };
@@ -91,10 +93,10 @@ function DashboardView({
                   <span className={`h-8 w-0.5 shrink-0 rounded-full ${TONE_BAR[a.tone]}`} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-medium text-ink">{c.title}</p>
-                    <p className="truncate text-[12px] text-ink-3">
-                      {c.ownerName}
-                      {c.due_date ? ` · due ${formatDate(c.due_date)}` : ''}
-                    </p>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ink-3">
+                      <MemberChip id={c.owner_id} name={c.ownerName} size="sm" />
+                      {c.due_date && <span className="truncate">· due {formatDate(c.due_date)}</span>}
+                    </div>
                   </div>
                   <span className={`shrink-0 text-[12px] font-medium ${TONE_TEXT[a.tone]}`}>{a.reason}</span>
                 </li>
@@ -218,7 +220,8 @@ export function PulseView({
   decisions,
   exec,
   signalsToTriage,
-  decisionsWaitingOnYou
+  decisionsWaitingOnYou,
+  teamLoad = []
 }: {
   outcomes: CompanyOutcome[];
   commitments: CommitmentView[];
@@ -228,15 +231,18 @@ export function PulseView({
   exec: boolean;
   signalsToTriage: number;
   decisionsWaitingOnYou: number;
+  teamLoad?: TeamLoadView[];
 }) {
   const [view, setView] = useState<'dashboard' | 'chart'>('dashboard');
   const hasData = outcomes.length > 0 || commitments.length > 0;
+  const people = teamLoad.map(memberFromLoad);
 
   if (!hasData) {
     return <EmptyState icon="pulse" title="The company graph is empty." hint="Set company outcomes and create the first commitments to bring Pulse to life." />;
   }
 
   return (
+    <PeopleProvider members={people}>
     <div>
       <div className="mb-5">
         <Segmented
@@ -261,5 +267,6 @@ export function PulseView({
         <ChartView outcomes={outcomes} commitments={commitments} signals={signals} decisions={decisions} />
       )}
     </div>
+    </PeopleProvider>
   );
 }
