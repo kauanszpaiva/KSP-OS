@@ -224,6 +224,89 @@ const actorTests = `
       if sqlerrm not like '%cannot remove the last active founder_ceo%' then raise; end if;
     end;
   end $$;
+
+  -- Founder OS private isolation. Seed founder-owned private rows as the
+  -- table owner (RLS bypassed here), then assert the access matrix under RLS.
+  insert into founder_inbox_items (organization_id, owner_id, item_type, title)
+    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'idea', 'founder-private-capture');
+  insert into founder_tasks (organization_id, owner_id, title)
+    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder-private-task');
+  insert into founder_promotions (organization_id, owner_id, source_table, source_id, target_table, target_id)
+    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder_inbox_items', gen_random_uuid(), 'commitments', gen_random_uuid());
+
+  -- Founder reads their own private rows.
+  begin;
+    set local role authenticated;
+    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000001', true);
+    do $$ declare c int; begin
+      select count(*) into c from founder_inbox_items; if c <> 1 then raise exception 'founder inbox self-read failed: %', c; end if;
+      select count(*) into c from founder_tasks; if c <> 1 then raise exception 'founder task self-read failed: %', c; end if;
+      select count(*) into c from founder_promotions; if c <> 1 then raise exception 'founder promotion self-read failed: %', c; end if;
+    end $$;
+  rollback;
+
+  -- Normal team member: zero rows, and inserts denied (own owner_id or impersonated).
+  begin;
+    set local role authenticated;
+    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
+    do $$ declare c int; begin
+      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'member sees founder inbox: %', c; end if;
+      select count(*) into c from founder_tasks; if c <> 0 then raise exception 'member sees founder tasks: %', c; end if;
+      select count(*) into c from founder_promotions; if c <> 0 then raise exception 'member sees founder promotions: %', c; end if;
+      begin
+        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
+        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 'note', 'member-hack');
+        raise exception 'member insert (own owner) was allowed';
+      exception when insufficient_privilege then null; end;
+      begin
+        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
+        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'note', 'member-impersonate');
+        raise exception 'member insert (impersonated owner) was allowed';
+      exception when insufficient_privilege then null; end;
+      with u as (update founder_tasks set title='tamper' where owner_id='20000000-0000-0000-0000-000000000001'::uuid returning 1)
+        select count(*) into c from u; if c <> 0 then raise exception 'member update on founder task allowed'; end if;
+      with d as (delete from founder_inbox_items where owner_id='20000000-0000-0000-0000-000000000001'::uuid returning 1)
+        select count(*) into c from d; if c <> 0 then raise exception 'member delete on founder inbox allowed'; end if;
+    end $$;
+  rollback;
+
+  -- Anonymous principal: zero rows.
+  begin;
+    set local role anon;
+    select set_config('request.jwt.claim.sub', '', true);
+    do $$ declare c int; begin
+      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'anon sees founder inbox: %', c; end if;
+      select count(*) into c from founder_tasks; if c <> 0 then raise exception 'anon sees founder tasks: %', c; end if;
+    end $$;
+  rollback;
+
+  -- Founder of a DIFFERENT org: is a founder, but not of the KSP org.
+  begin;
+    set local role authenticated;
+    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000005', true);
+    do $$ declare c int; begin
+      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'other-org founder sees KSP inbox: %', c; end if;
+      begin
+        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
+        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005', 'note', 'cross-org');
+        raise exception 'other-org founder insert into KSP org was allowed';
+      exception when insufficient_privilege then null; end;
+    end $$;
+  rollback;
+
+  -- Founder-private invariants.
+  do $$ begin
+    begin
+      insert into founder_tasks (organization_id, owner_id, title, status)
+      values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'w', 'waiting');
+      raise exception 'waiting-task context constraint did not fire';
+    exception when check_violation then null; end;
+    begin
+      insert into founder_inbox_items (organization_id, owner_id, item_type, title)
+      values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'bogus', 'x');
+      raise exception 'item_type constraint did not fire';
+    exception when check_violation then null; end;
+  end $$;
 `;
 
 try {
