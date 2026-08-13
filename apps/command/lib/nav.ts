@@ -66,8 +66,21 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     key: 'private',
     label: 'Private',
-    items: [{ label: 'Founder Vault', href: '/founder-vault', status: 'live', icon: 'vault', founderOnly: true }]
+    items: [{ label: 'Founder OS', href: '/founder', status: 'live', icon: 'home', founderOnly: true }]
   }
+];
+
+/**
+ * Founder OS navigation — a separate operating context rendered only inside the
+ * `/founder` shell, only for the founder. Never merged into NAV_GROUPS (the
+ * company IA) and never surfaced to non-founders. Vault reuses the existing
+ * founder_vault_entries backing; Home/Inbox/My Work are founder-private.
+ */
+export const FOUNDER_NAV: NavItem[] = [
+  { label: 'Home', href: '/founder/home', status: 'live', icon: 'home' },
+  { label: 'Inbox', href: '/founder/inbox', status: 'live', icon: 'inbox' },
+  { label: 'My Work', href: '/founder/work', status: 'live', icon: 'workspace' },
+  { label: 'Vault', href: '/founder/vault', status: 'live', icon: 'vault' }
 ];
 
 export const MOBILE_PRIMARY: NavItem[] = [
