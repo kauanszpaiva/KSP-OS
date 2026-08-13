@@ -13,7 +13,7 @@ const securityHeaders = [
   }
 ];
 
-function readVersionedProductionSupabaseEnv(): Record<string, string> {
+function readVersionedProductionEnv(): Record<string, string> {
   if (process.env.VERCEL_ENV !== 'production') return {};
 
   const workflow = readFileSync(new URL('../../.github/workflows/setup-login.yml', import.meta.url), 'utf8');
@@ -32,7 +32,8 @@ function readVersionedProductionSupabaseEnv(): Record<string, string> {
 
   return {
     NEXT_PUBLIC_SUPABASE_URL: url,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
+    NEXT_PUBLIC_PORTAL_BASE_URL: process.env.NEXT_PUBLIC_PORTAL_BASE_URL ?? 'https://ksp-os-portal.vercel.app'
   };
 }
 
@@ -40,7 +41,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@ksp/permissions', '@ksp/ui', '@ksp/auth', '@ksp/database', '@ksp/validation'],
-  env: readVersionedProductionSupabaseEnv(),
+  env: readVersionedProductionEnv(),
   eslint: {
     ignoreDuringBuilds: true,
   },
