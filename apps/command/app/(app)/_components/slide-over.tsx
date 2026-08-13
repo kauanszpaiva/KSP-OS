@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
-import { Icon } from '@ksp/ui';
+import { Icon, cx, useDismissable } from '@ksp/ui';
 
 /**
  * Right-anchored detail panel over a dimmed backdrop. Reuses the same overlay
@@ -10,6 +10,8 @@ import { Icon } from '@ksp/ui';
  * any content — used for the Signals detail and Decisions packet views.
  */
 export function SlideOver({ open, onClose, title, eyebrow, children }: { open: boolean; onClose: () => void; title: string; eyebrow?: string; children: ReactNode }) {
+  const { mounted, closing } = useDismissable(open);
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -19,16 +21,19 @@ export function SlideOver({ open, onClose, title, eyebrow, children }: { open: b
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 animate-fade-in bg-overlay/40" onClick={onClose} />
+      <div className={cx('absolute inset-0 bg-overlay/40', closing ? 'animate-fade-out' : 'animate-fade-in')} onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="animate-slide-in-right absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-line bg-surface shadow-pop"
+        className={cx(
+          'absolute right-0 top-0 flex h-full w-full max-w-md flex-col border-l border-line bg-surface shadow-pop',
+          closing ? 'animate-slide-out-right' : 'animate-slide-in-right'
+        )}
       >
         <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0">

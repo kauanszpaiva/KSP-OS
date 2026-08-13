@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Avatar, Icon, IconButton, ThemeToggle, cx, type IconName } from '@ksp/ui';
+import { Avatar, Icon, IconButton, ThemeToggle, cx, useDismissable, type IconName } from '@ksp/ui';
 import type { Notification } from '@ksp/database';
 import type { NavGroup, NavItem } from '../../../lib/nav';
 import { CommandPalette, CommandPaletteTrigger, type PalettePerms } from './command-palette';
@@ -327,32 +327,53 @@ export function Shell({
           </button>
         </nav>
 
-        {moreOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden">
-            <div className="absolute inset-0 animate-fade-in bg-overlay/40" onClick={() => setMoreOpen(false)} />
-            <div className="absolute inset-x-0 bottom-0 max-h-[84vh] animate-fade-slide-up overflow-y-auto rounded-t-2xl border-t border-line bg-surface p-4 shadow-pop">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-[13px] font-semibold text-ink">All modules</p>
-                <div className="flex items-center gap-1">
-                  <ThemeToggle />
-                  <IconButton icon="x" label="Close" size="sm" onClick={() => setMoreOpen(false)} />
-                </div>
-              </div>
-              {groups.map((group) => (
-                <div key={group.key} className="mb-4">
-                  <p className="pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-4">{group.label}</p>
-                  <div className="grid grid-cols-2 gap-1">
-                    {group.items.map((item) => (
-                      <div key={item.href} onClick={() => item.status === 'live' && setMoreOpen(false)}>
-                        <NavRow item={item} active={isActive(item.href)} collapsed={false} />
-                      </div>
-                    ))}
-                  </div>
+        <MobileMoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} groups={groups} isActive={isActive} />
+      </div>
+    </div>
+  );
+}
+
+function MobileMoreSheet({
+  open,
+  onClose,
+  groups,
+  isActive
+}: {
+  open: boolean;
+  onClose: () => void;
+  groups: NavGroup[];
+  isActive: (href: string) => boolean;
+}) {
+  const { mounted, closing } = useDismissable(open);
+  if (!mounted) return null;
+  return (
+    <div className="fixed inset-0 z-40 lg:hidden">
+      <div className={cx('absolute inset-0 bg-overlay/40', closing ? 'animate-fade-out' : 'animate-fade-in')} onClick={onClose} />
+      <div
+        className={cx(
+          'absolute inset-x-0 bottom-0 max-h-[84vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface p-4 shadow-pop',
+          closing ? 'animate-slide-out-down' : 'animate-fade-slide-up'
+        )}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-[13px] font-semibold text-ink">All modules</p>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <IconButton icon="x" label="Close" size="sm" onClick={onClose} />
+          </div>
+        </div>
+        {groups.map((group) => (
+          <div key={group.key} className="mb-4">
+            <p className="pb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-4">{group.label}</p>
+            <div className="grid grid-cols-2 gap-1">
+              {group.items.map((item) => (
+                <div key={item.href} onClick={() => item.status === 'live' && onClose()}>
+                  <NavRow item={item} active={isActive(item.href)} collapsed={false} />
                 </div>
               ))}
             </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

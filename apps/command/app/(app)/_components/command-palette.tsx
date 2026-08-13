@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { Icon } from '@ksp/ui';
+import { Icon, cx, useDismissable } from '@ksp/ui';
 import { runSearch } from '../actions';
 import type { SearchResult } from '../data';
 
@@ -47,6 +47,7 @@ export function CommandPalette({ perms }: { perms: PalettePerms }) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const { mounted, closing } = useDismissable(open);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -89,12 +90,12 @@ export function CommandPalette({ perms }: { perms: PalettePerms }) {
     return () => clearTimeout(handle);
   }, [query]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 animate-fade-in bg-overlay/40" onClick={() => setOpen(false)} />
-      <div className="absolute left-1/2 top-[12vh] w-full max-w-xl -translate-x-1/2 animate-scale-in px-4">
+      <div className={cx('absolute inset-0 bg-overlay/40', closing ? 'animate-fade-out' : 'animate-fade-in')} onClick={() => setOpen(false)} />
+      <div className={cx('absolute left-1/2 top-[12vh] w-full max-w-xl -translate-x-1/2 px-4', closing ? 'animate-scale-out' : 'animate-scale-in')}>
         <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-pop">
           <label className="flex items-center gap-2.5 border-b border-line px-4 py-3">
             <Icon name="search" className="h-4 w-4 shrink-0 text-ink-4" />
