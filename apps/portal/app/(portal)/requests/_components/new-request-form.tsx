@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef } from 'react';
+import { useActionToast } from '@ksp/ui';
 import { submitClientRequest, type ActionResult } from '../../../actions';
 
 const initial: ActionResult = { ok: false };
@@ -10,6 +11,7 @@ const field =
 export function NewRequestForm({ projects }: { projects: Array<{ id: string; title: string }> }) {
   const [state, action, pending] = useActionState(submitClientRequest, initial);
   const formRef = useRef<HTMLFormElement>(null);
+  useActionToast(state, 'Request submitted');
 
   useEffect(() => {
     if (state.ok) formRef.current?.reset();
@@ -37,7 +39,6 @@ export function NewRequestForm({ projects }: { projects: Array<{ id: string; tit
         </div>
       )}
       {!state.ok && state.error && <p className="text-[13px] text-risk">{state.error}</p>}
-      {state.ok && <p className="text-[13px] text-good">Request submitted.</p>}
       <button
         type="submit"
         disabled={pending}
