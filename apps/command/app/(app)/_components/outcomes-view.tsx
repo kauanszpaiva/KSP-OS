@@ -9,13 +9,22 @@ import { OutcomeForm, OutcomeStateForm } from './forms';
 import { DeleteButton } from './crud-forms';
 import { deleteOutcome } from '../actions';
 
-function Lane({ outcome, canManage, delay }: { outcome: CompanyOutcome | null; canManage: boolean; delay: number }) {
+function SlotOrdinal({ n, dim }: { n: number; dim?: boolean }) {
+  return (
+    <span className={`tnum text-[11px] font-semibold tracking-[0.14em] ${dim ? 'text-ink-4' : 'text-brand'}`}>
+      {String(n).padStart(2, '0')}
+    </span>
+  );
+}
+
+function Lane({ outcome, canManage, delay, index }: { outcome: CompanyOutcome | null; canManage: boolean; delay: number; index: number }) {
   if (!outcome) {
     return (
       <Reveal
         delay={delay}
         className="flex min-h-[188px] flex-col items-center justify-center rounded-xl border border-dashed border-line-2 bg-surface/40 p-5 text-center transition-colors duration-fast hover:bg-surface/70"
       >
+        <span className="mb-2"><SlotOrdinal n={index + 1} dim /></span>
         <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-line-2 text-ink-4">+</span>
         <p className="text-[13px] font-medium text-ink-3">Open slot</p>
         <p className="mt-0.5 text-[12px] text-ink-4">Capacity for one more company outcome.</p>
@@ -27,6 +36,10 @@ function Lane({ outcome, canManage, delay }: { outcome: CompanyOutcome | null; c
       delay={delay}
       className="flex min-h-[188px] flex-col rounded-xl border border-line bg-surface p-5 shadow-card transition-[border-color,box-shadow] duration-fast hover:border-line-2 hover:shadow-pop"
     >
+      <div className="mb-3 flex items-center justify-between">
+        <SlotOrdinal n={index + 1} />
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4">Strategic slot</span>
+      </div>
       <div className="flex items-start gap-4">
         <Ring value={outcome.progress} />
         <div className="min-w-0 flex-1">
@@ -66,7 +79,7 @@ function CardsView({
     <>
       <div className="grid gap-4 md:grid-cols-3">
         {slots.map((o, i) => (
-          <Lane key={o?.id ?? `slot-${i}`} outcome={o} canManage={canManage} delay={i * 60} />
+          <Lane key={o?.id ?? `slot-${i}`} outcome={o} canManage={canManage} delay={i * 60} index={i} />
         ))}
       </div>
 

@@ -249,6 +249,9 @@ export async function getTasks(supabase: SupabaseClient): Promise<TaskView[]> {
 export interface TeamLoadView {
   profileId: string;
   displayName: string;
+  role: string | null;
+  department: string | null;
+  suspended: boolean;
   openCommitments: number;
   openTasks: number;
   missionCount: number;
@@ -260,12 +263,20 @@ export interface TeamLoadView {
  * visibly overloaded; a real capacity model is a Phase C3 follow-up.
  */
 export async function getTeamLoad(supabase: SupabaseClient): Promise<TeamLoadView[]> {
-  const [{ data: profiles }, { data: assignments }, { data: tasks }, { data: memberships }] = await Promise.all([
+  const [{ data: profiles }, { data: assignments }, { data: tasks }, { data: memberships }, { data: orgMemberships }] = await Promise.all([
     supabase.from('profiles').select('id, display_name'),
     supabase.from('commitment_assignments').select('profile_id, commitment_id'),
     supabase.from('tasks').select('owner_id, status'),
-    supabase.from('project_memberships').select('profile_id, project_id')
+    supabase.from('project_memberships').select('profile_id, project_id'),
+    supabase.from('organization_memberships').select('profile_id, internal_role, department, suspended_at').not('internal_role', 'is', null)
   ]);
+
+  // Collapse a profile's (possibly several) org-membership rows to one role/dept.
+  const roleByProfile = new Map<string, { role: string | null; department: string | null; suspended: boolean }>();
+  for (const m of (orgMemberships ?? []) as Array<{ profile_id: string; internal_role: string | null; department: string | null; suspended_at: string | null }>) {
+    if (roleByProfile.has(m.profile_id)) continue;
+    roleByProfile.set(m.profile_id, { role: m.internal_role, department: m.department, suspended: Boolean(m.suspended_at) });
+  }
 
   const commitmentIds = new Set(((assignments ?? []) as Array<{ commitment_id: string }>).map((a) => a.commitment_id));
   const { data: openCommitments } = commitmentIds.size
@@ -275,7 +286,17 @@ export async function getTeamLoad(supabase: SupabaseClient): Promise<TeamLoadVie
 
   const load = new Map<string, TeamLoadView>();
   for (const p of (profiles ?? []) as Array<{ id: string; display_name: string }>) {
-    load.set(p.id, { profileId: p.id, displayName: p.display_name, openCommitments: 0, openTasks: 0, missionCount: 0 });
+    const meta = roleByProfile.get(p.id);
+    load.set(p.id, {
+      profileId: p.id,
+      displayName: p.display_name,
+      role: meta?.role ?? null,
+      department: meta?.department ?? null,
+      suspended: meta?.suspended ?? false,
+      openCommitments: 0,
+      openTasks: 0,
+      missionCount: 0
+    });
   }
   for (const a of (assignments ?? []) as Array<{ profile_id: string; commitment_id: string }>) {
     if (!openCommitmentIds.has(a.commitment_id)) continue;
