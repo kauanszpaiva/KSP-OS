@@ -100,8 +100,9 @@ Deferred. Founder routes build and render server-side (§2). The repo's Playwrig
 ## 7. Git
 
 - Branch: `claude/founder-os-brownfield-de0kbc`
-- Head SHA: _recorded on push (see PR)._
-- PR: DRAFT (not merged).
+- Head SHA (at PR open): `85c55acaeffcd20d54c912e1b5c8530561730486`
+- Commits: `docs:` audit + security model → `db:` founder os private data foundation → `feat:` founder os context (home/inbox/my work/vault).
+- PR: **DRAFT** — https://github.com/kauanszpaiva/KSP-OS/pull/50 (not merged).
 
 ## 8. Deployment
 
