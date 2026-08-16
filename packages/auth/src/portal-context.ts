@@ -1,6 +1,6 @@
 import type { ClientRole, SupabaseClient } from '@ksp/database';
 import type { MembershipContext } from '@ksp/permissions';
-import { getSessionUser, type SessionUser } from './context';
+import { getSessionAal, getSessionUser, type SessionUser } from './context';
 
 export interface PortalMembership {
   clientOrganizationId: string;
@@ -45,13 +45,15 @@ export async function getPortalAuthContext(supabase: SupabaseClient): Promise<Po
   const organizationId = active[0].organization_id;
   const memberships: PortalMembership[] = active.map((m) => ({ clientOrganizationId: m.client_organization_id, role: m.role }));
 
+  const mfa = await getSessionAal(supabase);
+
   const membership: MembershipContext = {
     organizationId,
     internalRoles: [],
     clientMemberships: memberships.map((m) => ({ clientOrganizationId: m.clientOrganizationId, role: m.role })),
     projectIds: [],
     explicitGrants: [],
-    mfa: true
+    mfa
   };
 
   return { user, organizationId, memberships, membership };
