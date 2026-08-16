@@ -32,6 +32,21 @@ export async function getSessionUser(supabase: SupabaseClient): Promise<SessionU
 }
 
 /**
+ * Whether the current session has actually completed step-up (MFA)
+ * verification, per Supabase's Authenticator Assurance Level — NOT whether
+ * the account has a factor enrolled. `currentLevel === 'aal2'` means the
+ * session itself presented a second factor; `aal1` means it did not, even if
+ * `nextLevel` reports a factor is available. Callers gating sensitive
+ * actions must check `currentLevel`, never assume assurance from session
+ * presence alone.
+ */
+export async function getSessionAal(supabase: SupabaseClient): Promise<boolean> {
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error || !data) return false;
+  return data.currentLevel === 'aal2';
+}
+
+/**
  * Build the full authorization context for the signed-in user: their org,
  * internal roles, MFA state, and a MembershipContext consumable by the
  * @ksp/permissions engine. Returns null when unauthenticated or without an
@@ -60,14 +75,16 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
   const { data: projectRows } = await supabase.from('project_memberships').select('project_id').eq('profile_id', user.id);
   const projectIds = (projectRows ?? []).map((r: { project_id: string }) => r.project_id);
 
+  const mfa = await getSessionAal(supabase);
+
   const membership: MembershipContext = {
     organizationId,
     internalRoles,
     clientMemberships: [],
     projectIds,
     explicitGrants: [],
-    mfa: true
+    mfa
   };
 
-  return { user, organizationId, internalRoles, mfa: true, membership };
+  return { user, organizationId, internalRoles, mfa, membership };
 }
