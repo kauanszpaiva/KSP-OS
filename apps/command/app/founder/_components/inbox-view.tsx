@@ -77,7 +77,12 @@ function CaptureForm() {
 function PromoteControl({ item }: { item: FounderInboxItem }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(promoteInboxToCommitment, initial);
-  if (item.triage_status === 'promoted') {
+  // Both conversion paths (make-task and promote-to-commitment) land on the same
+  // triage_status='promoted' — the DB CHECK has no separate 'converted' state — so
+  // the "done" badge and the button suppression must key off target_table, not
+  // triage_status alone. Otherwise "Make private task" falsely reads as
+  // "Promoted to KSP" and blocks a later real promotion of that capture.
+  if (item.triage_status === 'promoted' && item.target_table === 'commitments') {
     return (
       <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-ink-4">
         <Icon name="check" className="h-3.5 w-3.5" /> Promoted to KSP
@@ -145,6 +150,11 @@ function InboxRow({ item }: { item: FounderInboxItem }) {
                 Make private task →
               </button>
             </form>
+          )}
+          {item.target_table === 'founder_tasks' && (
+            <span className="inline-flex items-center gap-1 text-[11.5px] font-medium text-ink-4">
+              <Icon name="check" className="h-3.5 w-3.5" /> Private task created
+            </span>
           )}
           <PromoteControl item={item} />
           <form action={archiveInboxItem} className="ml-auto">

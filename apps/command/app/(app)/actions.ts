@@ -161,10 +161,15 @@ export async function deleteContact(_prev: ActionResult, form: FormData): Promis
   return executiveDelete(form, 'contacts', 'contact.deleted', ['/clients']);
 }
 export async function deleteComment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  return executiveDelete(form, 'comments', 'comment.deleted', ['/workspace', '/commitments']);
+  // CommentThread is mounted on five surfaces (workspace, commitments, missions,
+  // decisions, clients) — mirror postComment's COMMENT_REVALIDATE_PATH coverage
+  // so a deleted comment disappears everywhere, not just on two of them.
+  return executiveDelete(form, 'comments', 'comment.deleted', ['/workspace', '/commitments', '/missions', '/decisions', '/clients']);
 }
 export async function deleteMilestone(_prev: ActionResult, form: FormData): Promise<ActionResult> {
-  return executiveDelete(form, 'mission_milestones', 'milestone.deleted', ['/missions']);
+  // Dated milestones also render on Schedule and Horizon — revalidate all three
+  // so a deletion disappears everywhere, matching updateMilestoneStatus.
+  return executiveDelete(form, 'mission_milestones', 'milestone.deleted', ['/missions', '/schedule', '/horizon']);
 }
 export async function deleteProduct(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   return executiveDelete(form, 'products', 'product.deleted', ['/products']);
@@ -456,6 +461,9 @@ export async function decideCompletion(_prev: ActionResult, form: FormData): Pro
     if (error) return { ok: false, error: 'Could not reject completion.' };
     await record(supabase, ctx, 'commitment.rejected', 'commitments', parsed.data.commitmentId, 'Completion rejected — returned to in progress');
     revalidatePath('/commitments');
+    // The owner's Focus runway shows this commitment's state pill — revalidate it
+    // too (the accept branch already does) so "Awaiting review" clears on reject.
+    revalidatePath('/focus');
     revalidatePath('/pulse');
     return { ok: true };
   }
@@ -808,6 +816,10 @@ export async function createMilestone(_prev: ActionResult, form: FormData): Prom
 
   await record(supabase, ctx, 'milestone.created', 'mission_milestones', data.id, `Milestone: ${parsed.data.title}`);
   revalidatePath('/missions');
+  // A dated milestone also shows on Schedule and Horizon — revalidate them too,
+  // matching updateMilestoneStatus, so the new milestone appears immediately.
+  revalidatePath('/schedule');
+  revalidatePath('/horizon');
   return { ok: true };
 }
 

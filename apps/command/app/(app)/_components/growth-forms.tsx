@@ -48,7 +48,7 @@ export function LeadForm() {
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <label className={label} htmlFor="l-value">Expected value</label>
+          <label className={label} htmlFor="l-value">Expected value (minor units)</label>
           <input id="l-value" name="expectedValueMinor" type="number" min={0} className={field} placeholder="500000" />
         </div>
         <div>
