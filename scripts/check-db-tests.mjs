@@ -13,7 +13,8 @@ const required = [
   'client publication protection',
   'no self-approval',
   'expired access denial',
-  'suspended access denial'
+  'suspended access denial',
+  'finance negative permissions'
 ];
 const combined = testFiles.map((file) => fs.readFileSync(`supabase/tests/${file}`, 'utf8')).join('\n');
 const missing = required.filter((term) => !combined.includes(term));

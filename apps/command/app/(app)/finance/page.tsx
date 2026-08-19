@@ -1,7 +1,7 @@
 import { canViewFinance } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getFinanceOverview, getSubscriptions } from '../data';
+import { getFinanceOverview, getSubscriptions, getAccountingPeriods, getJournalEntries, getInvoices, getClientRefs } from '../data';
 import { EmptyState, Figure, PageHeader } from '../_components/ui';
 import { FinanceView } from '../_components/finance-view';
 
@@ -22,16 +22,23 @@ export default async function FinancePage() {
     );
   }
 
-  const [overview, subscriptions] = supabase
-    ? await Promise.all([getFinanceOverview(supabase), getSubscriptions(supabase)])
-    : [{ chartAccounts: [], draftEntryCount: 0, postedEntryCount: 0, monthlySubscriptionBurnMinor: 0 }, []];
+  const [overview, subscriptions, periods, entries, invoices, clients] = supabase
+    ? await Promise.all([
+        getFinanceOverview(supabase),
+        getSubscriptions(supabase),
+        getAccountingPeriods(supabase),
+        getJournalEntries(supabase),
+        getInvoices(supabase),
+        getClientRefs(supabase)
+      ])
+    : [{ chartAccounts: [], draftEntryCount: 0, postedEntryCount: 0, monthlySubscriptionBurnMinor: 0 }, [], [], [], [], []];
 
   return (
     <div>
       <PageHeader
         eyebrow="Control"
         title="Finance"
-        description="A read-only overview. Posting, reconciliation, and the journal workbench are intentionally not built yet — they require a documented invariant review and human finance sign-off before any write path ships (see docs/rebuild/command/05_control_section.md)."
+        description="Robust controlled financial operations workspace."
         action={
           <div className="flex gap-6">
             <Figure label="Draft entries" value={overview.draftEntryCount} />
@@ -46,6 +53,10 @@ export default async function FinancePage() {
         subscriptions={subscriptions}
         draftEntryCount={overview.draftEntryCount}
         postedEntryCount={overview.postedEntryCount}
+        periods={periods}
+        entries={entries}
+        invoices={invoices}
+        clients={clients}
       />
     </div>
   );

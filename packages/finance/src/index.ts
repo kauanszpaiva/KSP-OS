@@ -21,3 +21,23 @@ export function validateBalancedJournal(lines: JournalLineInput[]): void {
   const credit = lines.reduce((sum, line) => sum + line.creditMinor, 0);
   if (debit !== credit) throw new Error('journal_entry_must_balance');
 }
+
+export interface InvoiceLineInput {
+  amountMinor: number;
+}
+
+export interface InvoiceInput {
+  amountMinor: number;
+  balanceMinor: number;
+  lines: InvoiceLineInput[];
+}
+
+export function validateInvoice(invoice: InvoiceInput): void {
+  const linesTotal = invoice.lines.reduce((sum, line) => sum + line.amountMinor, 0);
+  if (invoice.amountMinor !== linesTotal) {
+    throw new Error('invoice_amount_must_equal_lines_total');
+  }
+  if (invoice.balanceMinor > invoice.amountMinor) {
+    throw new Error('invoice_balance_cannot_exceed_amount');
+  }
+}
