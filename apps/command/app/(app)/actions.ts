@@ -52,6 +52,7 @@ import {
   updateTaskStatusSchema
 } from '@ksp/validation';
 import { getServerSupabase } from '../../lib/supabase';
+import { sendApprovalRequestedEmail, sendFeedbackReceivedEmail } from '@ksp/notifications';
 import { searchAll, type SearchResult } from './data';
 
 export interface ActionResult {
@@ -1623,4 +1624,155 @@ export async function runSearch(query: string): Promise<SearchResult[]> {
   const gate = await authed();
   if ('error' in gate) return [];
   return searchAll(gate.supabase, query);
+}
+
+import { sendApprovalRequestedEmail, sendInvoiceIssuedEmail } from '@ksp/notifications';
+
+/* --------------------------------------------------------------- Finance: Journal Workbench -- */
+
+export async function draftJournalEntry(formData: FormData) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+  const memo = formData.get('memo') as string;
+  const { data, error } = await supabase.from('journal_entries').insert({ memo, status: 'draft' }).select('id').single();
+  if (error) throw error;
+  revalidatePath('/finance');
+  return data.id;
+}
+
+export async function postJournalEntryAction(entryId: string) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const idempotencyKey = `post-${entryId}-${Date.now()}`;
+  const { error } = await supabase.rpc('post_journal_entry', {
+    p_entry_id: entryId,
+    p_actor_id: user.id,
+    p_idempotency_key: idempotencyKey
+  });
+
+  if (error) throw error;
+  revalidatePath('/finance');
+}
+
+/* --------------------------------------------------------------- Finance: Periods -- */
+
+export async function lockAccountingPeriod(periodId: string) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Unauthorized');
+
+  const { error } = await supabase.from('accounting_periods').update({
+    locked_at: new Date().toISOString(),
+    locked_by: user.id
+  }).eq('id', periodId);
+
+  if (error) throw error;
+  revalidatePath('/finance');
+}
+
+export async function openAccountingPeriod(periodId: string) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+
+  const { error } = await supabase.from('accounting_periods').update({
+    locked_at: null,
+    locked_by: null
+  }).eq('id', periodId);
+
+  if (error) throw error;
+  revalidatePath('/finance');
+}
+
+/* --------------------------------------------------------------- Finance: Subscriptions -- */
+
+export async function createSubscription(formData: FormData) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+
+  const vendor = formData.get('vendor') as string;
+  const product = formData.get('product') as string;
+  const costMinor = parseInt(formData.get('cost_minor') as string, 10);
+  const currency = formData.get('currency') as string;
+  const billingFrequency = formData.get('billing_frequency') as string;
+
+  const { error } = await supabase.from('subscriptions').insert({
+    vendor, product, cost_minor: costMinor, currency, billing_frequency: billingFrequency, status: 'active'
+  });
+  if (error) throw error;
+  revalidatePath('/finance');
+}
+
+export async function updateSubscription(formData: FormData, id: string) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+
+  const plan = formData.get('plan') as string;
+  const notes = formData.get('notes') as string;
+  const projectId = formData.get('project_id') as string | null;
+
+  const { error } = await supabase.from('subscriptions').update({
+    plan, notes, project_id: projectId
+  }).eq('id', id);
+  if (error) throw error;
+  revalidatePath('/finance');
+}
+
+export async function cancelSubscription(id: string) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+
+  const { error } = await supabase.from('subscriptions').update({ status: 'archived' }).eq('id', id);
+  if (error) throw error;
+  revalidatePath('/finance');
+}
+
+/* --------------------------------------------------------------- Finance: Invoices -- */
+
+export async function draftInvoice(formData: FormData) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+
+  const clientId = formData.get('client_id') as string;
+
+  const { error } = await supabase.from('invoices').insert({
+    client_id: clientId,
+    status: 'draft'
+  });
+  if (error) throw error;
+  revalidatePath('/finance');
+}
+
+export async function issueInvoice(id: string, clientId: string, amountMinor: number) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+
+  const { error } = await supabase.from('invoices').update({
+    status: 'active',
+    issued_at: new Date().toISOString()
+  }).eq('id', id);
+
+  if (error) throw error;
+
+  // Try to find client info for email
+  const { data: client } = await supabase.from('client_organizations').select('display_name').eq('id', clientId).single();
+
+  await sendInvoiceIssuedEmail('client@example.com', client?.display_name || 'Client', id, amountMinor);
+  revalidatePath('/finance');
+}
+
+export async function markInvoicePaid(id: string) {
+  const supabase = await getServerSupabase();
+  if (!supabase) throw new Error('Unauthorized');
+
+  const { error } = await supabase.from('invoices').update({
+    status: 'posted',
+    balance_minor: 0
+  }).eq('id', id);
+
+  if (error) throw error;
+  revalidatePath('/finance');
 }

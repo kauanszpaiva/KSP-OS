@@ -20,6 +20,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Projects', href: '/projects', icon: 'missions', status: 'live' },
   { label: 'Approvals', href: '/approvals', icon: 'decisions', status: 'live' },
   { label: 'Files', href: '/files', icon: 'knowledge', status: 'live' },
-  { label: 'Invoices', href: '/invoices', icon: 'revenue', status: 'planned' },
+  { label: 'Invoices', href: '/invoices', icon: 'revenue', status: 'live' },
   { label: 'Meetings & Requests', href: '/requests', icon: 'inbox', status: 'live' }
 ];

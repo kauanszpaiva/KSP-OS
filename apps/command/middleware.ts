@@ -1,4 +1,5 @@
 import { createServerClient } from '@ksp/database';
+import { metrics, logger, tracingContext } from '@ksp/observability';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
@@ -10,22 +11,43 @@ import { NextResponse, type NextRequest } from 'next/server';
  * `NEXT_PUBLIC_SUPABASE_ANON_KEY` remains a legacy fallback.
  */
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({ request });
+  const requestId = crypto.randomUUID();
+  request.headers.set('x-request-id', requestId);
 
-  const supabase = createServerClient({
-    getAll: () => request.cookies.getAll().map((c) => ({ name: c.name, value: c.value })),
-    setAll: (toSet) => {
-      for (const { name, value, options } of toSet) {
-        response.cookies.set(name, value, options);
+  const path = request.nextUrl.pathname;
+
+  const response = NextResponse.next({ request });
+  response.headers.set('x-request-id', requestId);
+
+  return tracingContext.run({ requestId }, async () => {
+    // Skip logging for static assets and health checks
+    if (!path.startsWith('/_next') && !path.startsWith('/favicon.ico') && path !== '/api/health') {
+      logger.info(`Request started: ${request.method} ${path}`, { method: request.method, path });
+    }
+
+    const supabase = createServerClient({
+      getAll: () => request.cookies.getAll().map((c) => ({ name: c.name, value: c.value })),
+      setAll: (toSet) => {
+        for (const { name, value, options } of toSet) {
+          response.cookies.set(name, value, options);
+        }
+      }
+    });
+
+    if (supabase) {
+      try {
+        await metrics.measure('middleware.auth.getUser', async () => {
+          await supabase.auth.getUser();
+        });
+      } catch (error) {
+        logger.warn('Failed to get user in middleware', { error });
       }
     }
-  });
-  if (!supabase) return response;
 
-  await supabase.auth.getUser();
-  return response;
+    return response;
+  });
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/health).*)']
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)']
 };

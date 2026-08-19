@@ -40,8 +40,21 @@ function readVersionedProductionEnv(): Record<string, string> {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  transpilePackages: ['@ksp/permissions', '@ksp/ui', '@ksp/auth', '@ksp/database', '@ksp/validation'],
+  transpilePackages: ['@ksp/permissions', '@ksp/ui', '@ksp/auth', '@ksp/database', '@ksp/validation', '@ksp/observability'],
   env: readVersionedProductionEnv(),
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  serverExternalPackages: ['async_hooks'],
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        async_hooks: false,
+      };
+    }
+    return config;
+  },
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   }

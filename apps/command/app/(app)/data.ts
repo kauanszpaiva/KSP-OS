@@ -15,7 +15,6 @@ import type {
   DocumentRecord,
   InboxItem,
   IntegrationConnection,
-  JournalEntry,
   Lead,
   MissionDependency,
   MissionMilestone,
@@ -613,4 +612,118 @@ export async function searchAll(supabase: SupabaseClient, query: string): Promis
     results.push({ kind: 'document', id: d.id, title: d.title, href: '/knowledge' });
   }
   return results;
+}
+
+/* --------------------------------------------------------------- Finance Views -- */
+
+export interface AccountingPeriod {
+  id: string;
+  organization_id: string;
+  period_start: string;
+  period_end: string;
+  locked_at: string | null;
+  locked_by: string | null;
+}
+
+export async function getAccountingPeriods(supabase: SupabaseClient): Promise<AccountingPeriod[]> {
+  const { data } = await supabase.from('accounting_periods').select('*').order('period_start', { ascending: false });
+  return (data ?? []) as AccountingPeriod[];
+}
+
+export interface JournalLine {
+  id: string;
+  organization_id: string;
+  journal_entry_id: string;
+  account_id: string;
+  debit_minor: number;
+  credit_minor: number;
+  currency: string;
+  project_id: string | null;
+  client_id: string | null;
+  accountName?: string;
+  accountCode?: string;
+}
+
+export interface JournalEntry {
+  id: string;
+  organization_id: string;
+  memo: string | null;
+  status: 'draft' | 'active' | 'pending_approval' | 'approved' | 'posted' | 'locked' | 'archived' | 'rejected' | 'quarantined';
+  posted_at: string | null;
+  reversed_entry_id: string | null;
+  created_at: string;
+  lines: JournalLine[];
+}
+
+export async function getJournalEntries(supabase: SupabaseClient): Promise<JournalEntry[]> {
+  const [{ data: entries }, { data: lines }, { data: accounts }] = await Promise.all([
+    supabase.from('journal_entries').select('*').order('created_at', { ascending: false }),
+    supabase.from('journal_lines').select('*'),
+    supabase.from('chart_accounts').select('id, name, code')
+  ]);
+
+  const accountMap = new Map(((accounts ?? []) as Array<{id: string, name: string, code: string}>).map(a => [a.id, a]));
+  const linesByEntry = new Map<string, JournalLine[]>();
+
+  for (const line of (lines ?? []) as JournalLine[]) {
+    const acc = accountMap.get(line.account_id);
+    const lineView: JournalLine = {
+        ...line,
+        accountName: acc?.name,
+        accountCode: acc?.code
+    };
+    const arr = linesByEntry.get(line.journal_entry_id) ?? [];
+    arr.push(lineView);
+    linesByEntry.set(line.journal_entry_id, arr);
+  }
+
+  return ((entries ?? []) as any[]).map(e => ({
+    ...e,
+    lines: linesByEntry.get(e.id) ?? []
+  })) as JournalEntry[];
+}
+
+export interface InvoiceLine {
+  id: string;
+  organization_id: string;
+  invoice_id: string;
+  description: string;
+  amount_minor: number;
+}
+
+export interface Invoice {
+  id: string;
+  organization_id: string;
+  client_id: string;
+  status: 'draft' | 'active' | 'pending_approval' | 'approved' | 'posted' | 'locked' | 'archived' | 'rejected' | 'quarantined';
+  amount_minor: number;
+  balance_minor: number;
+  due_date: string | null;
+  issued_at: string | null;
+  created_at: string;
+  lines: InvoiceLine[];
+  clientName?: string;
+}
+
+export async function getInvoices(supabase: SupabaseClient): Promise<Invoice[]> {
+  const [{ data: invoices }, { data: lines }, { data: clients }] = await Promise.all([
+    supabase.from('invoices').select('*').order('created_at', { ascending: false }),
+    supabase.from('invoice_lines').select('*'),
+    supabase.from('client_organizations').select('id, display_name')
+  ]);
+
+  const clientMap = new Map(((clients ?? []) as Array<{id: string, display_name: string}>).map(c => [c.id, c.display_name]));
+  const linesByInvoice = new Map<string, InvoiceLine[]>();
+
+  for (const line of (lines ?? []) as InvoiceLine[]) {
+    const arr = linesByInvoice.get(line.invoice_id) ?? [];
+    arr.push(line);
+    linesByInvoice.set(line.invoice_id, arr);
+  }
+
+  return ((invoices ?? []) as any[]).map(inv => ({
+    ...inv,
+    clientName: clientMap.get(inv.client_id),
+    lines: linesByInvoice.get(inv.id) ?? []
+  })) as Invoice[];
 }
