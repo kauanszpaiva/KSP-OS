@@ -240,6 +240,29 @@ export interface Task {
   link: string | null;
 }
 
+
+export interface Deliverable {
+  id: string;
+  organization_id: string;
+  work_package_id: string;
+  task_id: string | null;
+  name: string;
+  description: string | null;
+  status: string;
+  client_visible: boolean;
+  created_at: string;
+}
+
+export interface DeliverableVersion {
+  id: string;
+  organization_id: string;
+  deliverable_id: string;
+  version_number: number;
+  file_reference: string | null;
+  status: string;
+  created_at: string;
+}
+
 /* --------------------------------------------------------- Phase C4 -- */
 
 export interface Lead {
