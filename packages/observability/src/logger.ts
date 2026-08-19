@@ -59,9 +59,13 @@ export const logger = {
       ...(meta ? (redact(meta) as Record<string, unknown>) : {})
     };
 
-    // eslint-disable-next-line
-    // @ts-ignore
-    process.stdout.write(JSON.stringify(entry) + '\n');
+    // Fallback safely for edge runtimes which don't have process.stdout
+    if (typeof process !== 'undefined' && process.stdout && process.stdout.write) {
+      process.stdout.write(JSON.stringify(entry) + '\n');
+    } else {
+      // eslint-disable-next-line
+      console.info(JSON.stringify(entry));
+    }
   },
 
   debug: (message: string, meta?: Record<string, unknown>) => logger.log('debug', message, meta),
