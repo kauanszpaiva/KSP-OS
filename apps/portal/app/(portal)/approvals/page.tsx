@@ -2,16 +2,22 @@ import { Badge, Card, EmptyState, Reveal } from '@ksp/ui';
 import { requirePortalSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate, formatMoney } from '../../../lib/format';
-import { getChangeOrderDecisions, getChangeOrderItems, getChangeOrderVersions, getPublishedProjects, latestPerProject } from '../data';
+import { getChangeOrderDecisions, getChangeOrderItems, getChangeOrderVersions, getPublishedProjects, latestPerProject, getDeliverableVersions, getApprovalRequestsForVersions, getCommentsForObject } from '../data';
+import { DeliverableReview } from '../_components/deliverable-review';
+import { postComment, recordDeliverableDecision } from '../../actions';
 import { DecisionForm } from './_components/decision-form';
 
 export default async function PortalApprovalsPage() {
   await requirePortalSession();
   const supabase = await getServerSupabase();
 
-  const [versions, decisions, publications] = supabase
-    ? await Promise.all([getChangeOrderVersions(supabase), getChangeOrderDecisions(supabase), getPublishedProjects(supabase)])
-    : [[], [], []];
+  const [versions, decisions, publications, deliverableVersions] = supabase
+    ? await Promise.all([getChangeOrderVersions(supabase), getChangeOrderDecisions(supabase), getPublishedProjects(supabase), getDeliverableVersions(supabase)])
+    : [[], [], [], []];
+
+  const deliverableRequests = supabase ? await getApprovalRequestsForVersions(supabase, deliverableVersions.map((v) => v.id)) : [];
+  const deliverableComments = supabase ? await Promise.all(deliverableVersions.map((v) => getCommentsForObject(supabase, 'deliverable_versions', v.id))) : [];
+
 
   const items = supabase ? await getChangeOrderItems(supabase, versions.map((v) => v.id)) : [];
   const projectTitleById = new Map(latestPerProject(publications).map((p) => [p.project_id, p.title]));
@@ -31,7 +37,38 @@ export default async function PortalApprovalsPage() {
       </Reveal>
 
       <div>
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Awaiting your decision</p>
+
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Deliverables awaiting review</p>
+        {deliverableVersions.filter((v) => {
+            const req = deliverableRequests.find((r) => r.deliverable_version_id === v.id);
+            return req && req.status === 'pending_approval';
+        }).length === 0 ? (
+          <EmptyState icon="decisions" title="No deliverables awaiting review." hint="Deliverables KSP publishes for your approval will show up here." />
+        ) : (
+          <div className="space-y-4 mb-8">
+            {deliverableVersions.filter((v) => {
+              const req = deliverableRequests.find((r) => r.deliverable_version_id === v.id);
+              return req && req.status === 'pending_approval';
+            }).map((v) => {
+              const req = deliverableRequests.find((r) => r.deliverable_version_id === v.id)!;
+              const comments = deliverableComments[deliverableVersions.indexOf(v)] || [];
+              return (
+                <DeliverableReview
+                  key={v.id}
+                  version={v}
+                  deliverableName={v.deliverableName}
+                  approvalRequest={req}
+                  comments={comments}
+                  postCommentAction={postComment}
+                  recordDecisionAction={recordDeliverableDecision}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        <p className="mt-8 mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Change orders awaiting decision</p>
+
         {awaiting.length === 0 ? (
           <EmptyState icon="decisions" title="Nothing awaiting your review." hint="Change orders KSP publishes for review will show up here." />
         ) : (

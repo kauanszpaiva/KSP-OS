@@ -145,7 +145,7 @@ export function Shell({
   }, [query, groups]);
 
   return (
-    <div className="flex min-h-screen w-full overflow-x-hidden bg-canvas text-ink">
+    <div className="flex min-h-screen w-full  bg-canvas text-ink">
       <CommandPalette perms={palettePerms} />
       {/* Desktop sidebar */}
       <aside
@@ -174,7 +174,7 @@ export function Shell({
                 <Icon name="search" className="h-4 w-4" />
               </span>
               <input
-                value={query}
+                value={query} aria-label="Search"
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search modules"
                 className="h-9 w-full rounded-lg border border-line bg-surface-2 pl-8 pr-3 text-[13px] text-ink placeholder:text-ink-4 focus:border-brand focus:bg-surface focus:outline-none"

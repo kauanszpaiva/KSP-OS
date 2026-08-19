@@ -4,7 +4,9 @@ import { Badge, Card, EmptyState, ProgressBar, Reveal } from '@ksp/ui';
 import { getServerSupabase } from '../../../../lib/supabase';
 import { requirePortalSession } from '../../../../lib/session';
 import { formatDate, formatMoney, isOverdue } from '../../../../lib/format';
-import { getChangeOrderDecisions, getChangeOrderVersions, getMilestonesForProjects, getPublishedProjects, getUpdatesForProject } from '../../data';
+import { getChangeOrderDecisions, getChangeOrderVersions, getMilestonesForProjects, getPublishedProjects, getUpdatesForProject, getDeliverableVersions, getApprovalRequestsForVersions, getCommentsForObject } from '../../data';
+import { DeliverableReview } from '../../_components/deliverable-review';
+import { postComment, recordDeliverableDecision } from '../../../actions';
 
 const MILESTONE_TONE: Record<string, 'neutral' | 'brand' | 'good' | 'warn' | 'risk'> = {
   pending: 'neutral',
@@ -40,7 +42,10 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
   const latest = projectPublications[0];
   const milestones = supabase ? await getMilestonesForProjects(supabase, [projectId]) : [];
   const updates = supabase ? await getUpdatesForProject(supabase, projectId) : [];
-  const [allChangeOrderVersions, decisions] = supabase ? await Promise.all([getChangeOrderVersions(supabase), getChangeOrderDecisions(supabase)]) : [[], []];
+  const [allChangeOrderVersions, decisions, allDeliverableVersions] = supabase ? await Promise.all([getChangeOrderVersions(supabase), getChangeOrderDecisions(supabase), getDeliverableVersions(supabase)]) : [[], [], []];
+  const deliverableVersions = allDeliverableVersions.filter((v) => v.projectId === projectId);
+  const approvalRequests = supabase ? await getApprovalRequestsForVersions(supabase, deliverableVersions.map((v) => v.id)) : [];
+  const deliverableComments = supabase ? await Promise.all(deliverableVersions.map((v) => getCommentsForObject(supabase, 'deliverable_versions', v.id))) : [];
   const changeOrderVersions = allChangeOrderVersions.filter((v) => v.projectId === projectId);
   const decisionByVersionId = new Map(decisions.map((d) => [d.change_order_version_id, d]));
 
@@ -124,7 +129,33 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
       </Reveal>
 
       <Reveal delay={100} className="mt-8">
+
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Deliverables</p>
+        {deliverableVersions.length === 0 ? (
+          <Card className="p-5 mb-8">
+            <p className="text-[13px] text-ink-3">No deliverables published for this project yet.</p>
+          </Card>
+        ) : (
+          <div className="space-y-4 mb-8">
+            {deliverableVersions.map((v, i) => {
+              const req = approvalRequests.find((r) => r.deliverable_version_id === v.id) || null;
+              const comments = deliverableComments[i] || [];
+              return (
+                <DeliverableReview
+                  key={v.id}
+                  version={v}
+                  deliverableName={v.deliverableName}
+                  approvalRequest={req}
+                  comments={comments}
+                  postCommentAction={postComment}
+                  recordDecisionAction={recordDeliverableDecision}
+                />
+              );
+            })}
+          </div>
+        )}
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Change orders</p>
+
         {changeOrderVersions.length === 0 ? (
           <Card className="p-5">
             <p className="text-[13px] text-ink-3">No change orders published for this project yet.</p>

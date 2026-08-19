@@ -20,14 +20,14 @@ function TaskForm() {
         <label className={label} htmlFor="t-title">
           New private task
         </label>
-        <input id="t-title" name="title" className={field} placeholder="What needs doing…" required />
+        <input id="t-title" name="title" aria-label="Title" className={field} placeholder="What needs doing…" required />
       </div>
       <div className="grid gap-3 sm:grid-cols-[170px_1fr]">
         <div>
           <label className={label} htmlFor="t-priority">
             Priority
           </label>
-          <select id="t-priority" name="priority" className={field} defaultValue="normal">
+          <select id="t-priority" name="priority" aria-label="Priority" className={field} defaultValue="normal">
             <option value="low">Low</option>
             <option value="normal">Normal</option>
             <option value="high">High</option>
@@ -37,7 +37,7 @@ function TaskForm() {
           <label className={label} htmlFor="t-due">
             Due <span className="text-ink-4">(optional)</span>
           </label>
-          <input id="t-due" name="dueDate" type="date" className={field} />
+          <input id="t-due" name="dueDate" aria-label="Due Date" type="date" className={field} />
         </div>
       </div>
       {!state.ok && state.error && <p className="text-[13px] text-risk">{state.error}</p>}
@@ -64,9 +64,9 @@ function WaitingControl({ task }: { task: FounderTask }) {
       </button>
       {open && (
         <form action={action} className="mt-1.5 flex items-center gap-1.5">
-          <input type="hidden" name="id" value={task.id} />
-          <input type="hidden" name="status" value="waiting" />
-          <input name="waitingOn" className="rounded-md border border-line-2 bg-surface px-2 py-1 text-[12px]" placeholder="waiting on…" required />
+          <input aria-label="Input field" type="hidden" name="id" value={task.id} />
+          <input type="hidden" name="status" aria-label="Status" value="waiting" />
+          <input aria-label="waiting on…" name="waitingOn" className="rounded-md border border-line-2 bg-surface px-2 py-1 text-[12px]" placeholder="waiting on…" required />
           <button type="submit" className="rounded-md bg-surface-2 px-2 py-1 text-[12px] font-medium text-ink-2 hover:text-brand">
             Set
           </button>
@@ -99,8 +99,8 @@ function TaskRow({ task }: { task: FounderTask }) {
           <div className="mt-2 flex flex-wrap items-center gap-4">
             {task.status !== 'in_progress' && (
               <form action={advanceTaskStatus}>
-                <input type="hidden" name="id" value={task.id} />
-                <input type="hidden" name="status" value="in_progress" />
+                <input aria-label="Input field" type="hidden" name="id" value={task.id} />
+                <input type="hidden" name="status" aria-label="Status" value="in_progress" />
                 <button type="submit" className="text-[12px] text-ink-3 hover:text-brand">
                   Start
                 </button>
@@ -108,8 +108,8 @@ function TaskRow({ task }: { task: FounderTask }) {
             )}
             {task.status !== 'waiting' && <WaitingControl task={task} />}
             <form action={advanceTaskStatus}>
-              <input type="hidden" name="id" value={task.id} />
-              <input type="hidden" name="status" value="done" />
+              <input aria-label="Input field" type="hidden" name="id" value={task.id} />
+              <input type="hidden" name="status" aria-label="Status" value="done" />
               <button type="submit" className="text-[12px] font-medium text-ink-3 hover:text-good">
                 Done
               </button>
