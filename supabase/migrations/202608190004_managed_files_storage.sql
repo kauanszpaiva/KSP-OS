@@ -1,5 +1,7 @@
 -- Pack 04: private managed-files storage with document-backed authorization.
 -- File bytes stay private. Metadata in public.documents remains the source of truth.
+-- Supabase owns storage.objects and ships it with ENABLE ROW LEVEL SECURITY;
+-- this migration adds bucket-scoped policies without attempting to take table ownership.
 
 insert into storage.buckets (id, name, public)
 values ('managed-files', 'managed-files', false)
