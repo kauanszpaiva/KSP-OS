@@ -6,6 +6,7 @@ import { getPortalAuthContext } from '@ksp/auth';
 import { canPerform } from '@ksp/permissions';
 import { acceptPortalInvitationSchema, recordChangeOrderDecisionSchema, submitClientRequestSchema } from '@ksp/validation';
 import { getServerSupabase } from '../lib/supabase';
+import { sendNewClientRequestEmail, sendApprovalCompletedEmail } from '@ksp/notifications';
 
 export interface ActionResult {
   ok: boolean;
@@ -76,10 +77,10 @@ export async function recordChangeOrderDecision(_prev: ActionResult, form: FormD
 
   const { data: version, error: versionError } = await supabase
     .from('change_order_versions')
-    .select('id, change_orders!inner(organization_id, client_organization_id)')
+    .select('id, version_number, change_orders!inner(organization_id, client_organization_id)')
     .eq('id', parsed.data.changeOrderVersionId)
     .eq('state', 'published_to_client')
-    .maybeSingle<{ id: string; change_orders: { organization_id: string; client_organization_id: string } }>();
+    .maybeSingle<{ id: string; version_number: number; change_orders: { organization_id: string; client_organization_id: string } }>();
   if (versionError || !version) return { ok: false, error: 'This change order version is not available for decision.' };
 
   const decision = canPerform(ctx.membership, 'change_order.client_approve', {
@@ -98,6 +99,10 @@ export async function recordChangeOrderDecision(_prev: ActionResult, form: FormD
     decision: parsed.data.decision
   });
   if (error) return { ok: false, error: 'Could not record your decision. Contact KSP if this continues.' };
+
+  // Send notification to KSP that client has decided
+  void sendApprovalCompletedEmail('team@ksp.example.com', `Change Order v${version.version_number ?? ''}`, `${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/approvals`);
+
 
   revalidatePath('/approvals');
   return { ok: true };
@@ -146,6 +151,45 @@ export async function submitClientRequest(_prev: ActionResult, form: FormData): 
   });
   if (error) return { ok: false, error: 'Could not submit your request. Contact KSP if this continues.' };
 
+  // Send notification to KSP that client has requested
+  void sendNewClientRequestEmail('team@ksp.example.com', parsed.data.title, `${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/requests`);
+
+
   revalidatePath('/requests');
   return { ok: true };
+}
+
+export async function postComment(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const supabase = await getServerSupabase();
+  if (!supabase) return { ok: false, error: 'Supabase is not configured in this environment.' };
+  const ctx = await getPortalAuthContext(supabase);
+  if (!ctx || ctx.memberships.length === 0) return { ok: false, error: 'No active client membership found.' };
+  const objectTable = form.get('objectTable');
+  const objectId = form.get('objectId');
+  const body = form.get('body');
+  if (!objectTable || !objectId || !body || typeof body !== 'string') { return { ok: false, error: 'Missing required fields.' }; }
+  const { error } = await supabase.from('comments').insert({ organization_id: ctx.organizationId, object_table: objectTable.toString(), object_id: objectId.toString(), author_id: ctx.user.id, body: body.toString(), visibility: 'client' });
+  if (error) return { ok: false, error: 'Could not post comment. Contact KSP if this continues.' };
+  return { ok: true };
+}
+
+export async function recordDeliverableDecision(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const supabase = await getServerSupabase();
+  if (!supabase) return { ok: false, error: 'Supabase is not configured in this environment.' };
+  const ctx = await getPortalAuthContext(supabase);
+  if (!ctx || ctx.memberships.length === 0) return { ok: false, error: 'No active client membership found.' };
+  const approvalRequestId = form.get('approvalRequestId');
+  const decision = form.get('decision');
+  if (!approvalRequestId || !decision || typeof decision !== 'string') { return { ok: false, error: 'Missing required fields.' }; }
+  const { error } = await supabase.from('approval_decisions').insert({ organization_id: ctx.organizationId, approval_request_id: approvalRequestId.toString(), approver_id: ctx.user.id, decision: decision.toString() });
+  if (error) return { ok: false, error: 'Could not record decision. Contact KSP if this continues.' };
+  return { ok: true };
+}
+
+export async function markNotificationRead(id: string) {
+  const supabase = await getServerSupabase();
+  if (!supabase) return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id).eq('recipient_id', user.id);
 }
