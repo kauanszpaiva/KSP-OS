@@ -69,7 +69,7 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
 
   const organizationId = active[0].organization_id as string;
   const internalRoles = [
-    ...new Set(active.filter((m) => m.organization_id === organizationId).map((m) => m.internal_role as InternalRole))
+    ...new Set(active.filter((m: any) => m.organization_id === organizationId).map((m: any) => m.internal_role as InternalRole))
   ];
 
   const { data: projectRows } = await supabase.from('project_memberships').select('project_id').eq('profile_id', user.id);

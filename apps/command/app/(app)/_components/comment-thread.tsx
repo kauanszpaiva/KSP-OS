@@ -40,10 +40,10 @@ export function CommentThread({ objectTable, objectId, comments }: { objectTable
         </ul>
       )}
       <form action={action} className="flex items-center gap-2">
-        <input type="hidden" name="objectTable" value={objectTable} />
-        <input type="hidden" name="objectId" value={objectId} />
+        <input aria-label="Input field" type="hidden" name="objectTable" value={objectTable} />
+        <input aria-label="Input field" type="hidden" name="objectId" value={objectId} />
         <input
-          name="body"
+          name="body" aria-label="Body"
           placeholder="Write a comment…"
           className="min-w-0 flex-1 rounded-full border border-line-2 bg-surface px-4 py-2 text-[13px] text-ink placeholder:text-ink-4 transition-[border-color,box-shadow] duration-fast focus:border-brand focus:outline-none focus:shadow-focus"
           required
