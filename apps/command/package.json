@@ -12,6 +12,7 @@
     "@ksp/observability": "workspace:*",
     "@ksp/auth": "workspace:*",
     "@ksp/database": "workspace:*",
+    "@ksp/notifications": "workspace:*",
     "@ksp/permissions": "workspace:*",
     "@ksp/ui": "workspace:*",
     "@ksp/validation": "workspace:*",
