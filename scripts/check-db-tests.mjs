@@ -45,7 +45,7 @@ if (docker.status !== 0) {
 }
 
 const containerName = `ksp-os-db-test-${process.pid}-${Date.now()}`;
-const image = 'postgres:17.6';
+const image = 'postgres:15';
 const migrations = fs.readdirSync('supabase/migrations').filter((file) => file.endsWith('.sql')).sort();
 const reconciliationName = '202608130001_runtime_reconciliation.sql';
 const reconciliation = fs.readFileSync(`supabase/migrations/${reconciliationName}`, 'utf8');

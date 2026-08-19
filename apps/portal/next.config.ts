@@ -41,9 +41,6 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ['@ksp/permissions', '@ksp/ui', '@ksp/auth', '@ksp/database', '@ksp/validation'],
   env: readVersionedProductionSupabaseEnv(),
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   }
