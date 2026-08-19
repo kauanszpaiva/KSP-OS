@@ -456,14 +456,67 @@ export interface Subscription {
   status: RecordStatus;
 }
 
+export type IntegrationConnectionStatus = 'active' | 'inactive' | 'error' | 'revoked';
+export type IntegrationWebhookEventStatus = 'received' | 'processing' | 'processed' | 'failed' | 'dead_letter';
+export type IntegrationSyncJobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'dead_letter';
+export type IntegrationSyncDirection = 'inbound' | 'outbound' | 'reconcile';
+
 export interface IntegrationConnection {
   id: string;
-  organization_id: string;
+  /** Pack 11 canonical tenancy key. `organization_id` remains optional during brownfield migration. */
+  workspace_id: string;
+  organization_id?: string;
   provider: string;
+  status: IntegrationConnectionStatus;
+  /** Reference to a secret manager entry only. Never store raw provider credentials here. */
+  credentials_ref: string | null;
   scopes: string[];
-  token_expires_at: string | null;
-  status: RecordStatus;
   metadata: Record<string, unknown>;
+  last_sync_at: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Legacy field retained only while the existing database column is migrated in Pack 11. */
+  token_expires_at?: string | null;
+}
+
+export interface IntegrationWebhookEvent {
+  id: string;
+  workspace_id: string;
+  integration_connection_id: string;
+  provider: string;
+  external_event_id: string | null;
+  event_type: string;
+  idempotency_key: string;
+  signature_verified: boolean;
+  status: IntegrationWebhookEventStatus;
+  payload: Record<string, unknown>;
+  attempts: number;
+  received_at: string;
+  processed_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntegrationSyncJob {
+  id: string;
+  workspace_id: string;
+  integration_connection_id: string;
+  direction: IntegrationSyncDirection;
+  resource_type: string;
+  cursor: string | null;
+  idempotency_key: string;
+  status: IntegrationSyncJobStatus;
+  attempts: number;
+  run_after: string;
+  started_at: string | null;
+  completed_at: string | null;
+  records_read: number;
+  records_written: number;
+  last_error: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ChartAccount {
