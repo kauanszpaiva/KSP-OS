@@ -52,7 +52,7 @@ import {
   updateTaskStatusSchema
 } from '@ksp/validation';
 import { getServerSupabase } from '../../lib/supabase';
-import { sendApprovalRequestedEmail, sendFeedbackReceivedEmail } from '@ksp/notifications';
+import { sendFeedbackReceivedEmail } from '@ksp/notifications';
 import { searchAll, type SearchResult } from './data';
 
 export interface ActionResult {
