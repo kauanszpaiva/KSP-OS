@@ -62,6 +62,9 @@ importers:
       '@ksp/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@ksp/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@ksp/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
@@ -101,6 +104,9 @@ importers:
       '@ksp/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@ksp/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@ksp/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
@@ -139,6 +145,9 @@ importers:
 
   packages/database:
     dependencies:
+      '@ksp/observability':
+        specifier: workspace:*
+        version: link:../observability
       '@supabase/ssr':
         specifier: ^0.5.2
         version: 0.5.2(@supabase/supabase-js@2.110.7)
