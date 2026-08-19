@@ -9,6 +9,7 @@
     "format:check": "node ../../scripts/check-format.mjs apps/command"
   },
   "dependencies": {
+    "@ksp/observability": "workspace:*",
     "@ksp/auth": "workspace:*",
     "@ksp/database": "workspace:*",
     "@ksp/permissions": "workspace:*",
@@ -20,6 +21,7 @@
     "next": "15.5.20",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "resend": "^6.20.0",
     "zod": "3.25.76"
   }
 }

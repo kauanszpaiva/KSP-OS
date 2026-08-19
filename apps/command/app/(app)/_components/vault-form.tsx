@@ -15,11 +15,11 @@ export function VaultForm() {
       <div className="grid gap-3 sm:grid-cols-[1fr_170px]">
         <div>
           <label className={label} htmlFor="v-title">Title</label>
-          <input id="v-title" name="title" className={field} required />
+          <input id="v-title" name="title" aria-label="Title" className={field} required />
         </div>
         <div>
           <label className={label} htmlFor="v-type">Type</label>
-          <select id="v-type" name="entryType" className={field} defaultValue="note">
+          <select aria-label="Type"  id="v-type" name="entryType" className={field} defaultValue="note">
             <option value="note">Reflection</option>
             <option value="goal">Personal goal</option>
             <option value="routine">Routine</option>
@@ -30,7 +30,7 @@ export function VaultForm() {
       </div>
       <div>
         <label className={label} htmlFor="v-body">Details</label>
-        <textarea id="v-body" name="body" rows={3} className={field} />
+        <textarea id="v-body" name="body" aria-label="Body" rows={3} className={field} />
       </div>
       {!state.ok && state.error && <p className="text-[13px] text-risk">{state.error}</p>}
       <button
