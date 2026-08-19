@@ -26,7 +26,6 @@ Apply the remaining `EXPECTED` migrations exactly in this sequence:
 9. `202608160001_fix_rls_recursion_and_finance_rpc.sql`
 10. `202608200001_service_templates_work_packages.sql`
 11. `202608200002_workflows_and_deliverables.sql`
-12. `202608200004_releases.sql`
 
 ## Step 3: Expected Object Changes
 - Add `start_date` to `tasks` and `mission_milestones`.

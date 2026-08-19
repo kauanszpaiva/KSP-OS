@@ -29,7 +29,7 @@ This document reconciles the KSP OS repository migration history with the actual
 | `202608160001_fix_rls_recursion_and_finance_rpc` | **EXPECTED** | Verified in repo, applying soon. |
 | `202608200001_service_templates_work_packages` | **EXPECTED** | Verified in repo, applying soon. |
 | `202608200002_workflows_and_deliverables` | **EXPECTED** | Verified in repo, applying soon. |
-| `202608200004_releases` | **EXPECTED** | Verified in repo, applying soon. |
+| `202608200004_releases` | **DEFERRED** | Moved out of standard path, gated behind Pack 05. |
 | `202608200003_social_media_domain` | **DEFERRED** | Moved out of standard path, gated behind Pack 05. |
 | `portfolio_os_foundation` | **CONFLICT** | Live-only drift. Left untouched to protect lineage. |
 | `portfolio_os_function_hardening` | **CONFLICT** | Live-only drift. Left untouched to protect lineage. |
