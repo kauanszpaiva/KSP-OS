@@ -3,7 +3,7 @@ alter table comments add column visibility text not null default 'internal' chec
 
 -- Update comments policies to allow portal members to read and create client-visible comments
 -- We need a function to determine if a portal member can access the parent object
-create or replace function can_portal_member_access_comment_target(p_object_table text, p_object_id uuid) returns boolean language sql stable as \$\$
+create or replace function can_portal_member_access_comment_target(p_object_table text, p_object_id uuid) returns boolean language sql stable as $$
   select case
     when p_object_table = 'client_requests' then
       exists(select 1 from client_requests where id = p_object_id and is_portal_member(client_organization_id))
@@ -17,7 +17,7 @@ create or replace function can_portal_member_access_comment_target(p_object_tabl
       )
     else false
   end;
-\$\$;
+$$;
 
 drop policy if exists comments_read on comments;
 create policy comments_read on comments for select using (
