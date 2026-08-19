@@ -52,7 +52,7 @@ function ExpiryCalendarView({ connections }: { connections: IntegrationConnectio
     title: c.provider,
     subtitle: c.scopes.length > 0 ? c.scopes.join(', ') : 'No scopes recorded',
     date: c.token_expires_at as string,
-    state: isOverdue(c.token_expires_at) ? 'blocked' : 'active'
+    state: isOverdue(c.token_expires_at as string) ? 'blocked' : 'active'
   }));
   return <CalendarView items={items} />;
 }
