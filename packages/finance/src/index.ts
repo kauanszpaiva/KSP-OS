@@ -21,3 +21,43 @@ export function validateBalancedJournal(lines: JournalLineInput[]): void {
   const credit = lines.reduce((sum, line) => sum + line.creditMinor, 0);
   if (debit !== credit) throw new Error('journal_entry_must_balance');
 }
+
+export type InvoiceStatus = 'draft' | 'approved' | 'issued' | 'partially_paid' | 'paid' | 'overdue' | 'disputed' | 'voided' | 'written_off';
+
+export interface CustomerInvoice {
+  id: string;
+  organizationId: string;
+  clientOrganizationId: string;
+  projectId?: string;
+  invoiceNumber: string;
+  issueDate?: string;
+  dueDate?: string;
+  amountMinor: number;
+  currency: string;
+  status: InvoiceStatus;
+  url?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceLine {
+  id: string;
+  organizationId: string;
+  invoiceId: string;
+  description: string;
+  amountMinor: number;
+  quantity: number;
+  currency: string;
+}
+
+export interface CustomerPayment {
+  id: string;
+  organizationId: string;
+  invoiceId: string;
+  amountMinor: number;
+  currency: string;
+  paymentDate: string;
+  status: string;
+  receiptUrl?: string;
+  createdAt: string;
+}
