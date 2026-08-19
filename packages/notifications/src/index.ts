@@ -4,8 +4,7 @@ type EmailPayload = {
   html: string;
 };
 
-function externalEmailDisabled(event: string, to: string) {
-  console.info(`[notifications disabled] ${event} -> ${to}`);
+function externalEmailDisabled(_event: string, _to: string) {
   return Promise.resolve({ disabled: true as const });
 }
 
