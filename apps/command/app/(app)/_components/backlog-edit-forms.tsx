@@ -19,7 +19,7 @@ function ErrorText({ state }: { state: BacklogActionResult }) {
 export function TaskEditForm({
   task
 }: {
-  task: { id: string; title: string; start_date?: string | null; due_date: string | null; link?: string | null };
+  task: { id: string; title: string; due_date: string | null; link?: string | null };
 }) {
   const [state, action, pending] = useActionState(updateTaskDetails, initial);
   return (
@@ -29,15 +29,9 @@ export function TaskEditForm({
         <label className={label} htmlFor={`task-edit-title-${task.id}`}>Task</label>
         <input id={`task-edit-title-${task.id}`} name="title" className={field} defaultValue={task.title} required />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className={label} htmlFor={`task-edit-start-${task.id}`}>Start date</label>
-          <input id={`task-edit-start-${task.id}`} name="startDate" type="date" className={field} defaultValue={task.start_date ?? ''} />
-        </div>
-        <div>
-          <label className={label} htmlFor={`task-edit-due-${task.id}`}>Due date</label>
-          <input id={`task-edit-due-${task.id}`} name="dueDate" type="date" className={field} defaultValue={task.due_date ?? ''} />
-        </div>
+      <div>
+        <label className={label} htmlFor={`task-edit-due-${task.id}`}>Due date</label>
+        <input id={`task-edit-due-${task.id}`} name="dueDate" type="date" className={field} defaultValue={task.due_date ?? ''} />
       </div>
       <div>
         <label className={label} htmlFor={`task-edit-link-${task.id}`}>Reference link</label>
