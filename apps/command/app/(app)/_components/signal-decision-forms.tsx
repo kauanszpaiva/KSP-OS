@@ -32,11 +32,11 @@ export function SignalForm() {
       <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
         <div>
           <label className={label} htmlFor="s-title">What happened?</label>
-          <input id="s-title" name="title" aria-label="Title" className={field} placeholder="Client mentioned a scope change on the call" required />
+          <input id="s-title" name="title" className={field} placeholder="Client mentioned a scope change on the call" required />
         </div>
         <div>
           <label className={label} htmlFor="s-type">Type</label>
-          <select aria-label="Type"  id="s-type" name="itemType" className={field} defaultValue="note">
+          <select id="s-type" name="itemType" className={field} defaultValue="note">
             <option value="note">Note</option>
             <option value="client">Client signal</option>
             <option value="risk">Risk</option>
@@ -47,7 +47,7 @@ export function SignalForm() {
       </div>
       <div>
         <label className={label} htmlFor="s-body">Details</label>
-        <textarea id="s-body" name="body" aria-label="Body" rows={3} className={field} />
+        <textarea id="s-body" name="body" rows={3} className={field} />
       </div>
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
@@ -61,8 +61,8 @@ export function TriageSignalForm({ id, target, children }: { id: string; target:
   const [, action, pending] = useActionState(triageSignal, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
-      <input aria-label="Input field" type="hidden" name="triageStatus" value={target} />
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="triageStatus" value={target} />
       <button type="submit" disabled={pending} className="rounded-lg px-2 py-1 text-[12px] font-medium text-ink-3 transition-colors duration-fast hover:bg-brand-tint hover:text-brand disabled:opacity-50">
         {children}
       </button>
@@ -75,8 +75,9 @@ export function SignalStatusSelectForm({ id, currentStatus }: { id: string; curr
   const [, action] = useActionState(triageSignal, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
-      <select aria-label="Select field" name="triageStatus"
+      <input type="hidden" name="id" value={id} />
+      <select
+        name="triageStatus"
         defaultValue={currentStatus}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
         className="rounded-md border border-line-2 bg-surface px-1.5 py-0.5 text-[11.5px] text-ink transition-colors duration-fast focus:border-brand focus:outline-none"
@@ -94,9 +95,9 @@ export function ConvertSignalForm({ signalId, defaultTitle }: { signalId: string
   const [state, action, pending] = useActionState(convertSignalToCommitment, initial);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
-      <input aria-label="Input field" type="hidden" name="signalId" value={signalId} />
+      <input type="hidden" name="signalId" value={signalId} />
       <input
-        name="title" aria-label="Title"
+        name="title"
         defaultValue={defaultTitle}
         className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink transition-colors duration-fast focus:border-brand focus:outline-none"
         required
@@ -132,7 +133,7 @@ export function DecisionRequestForm() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={label} htmlFor="d-type">Approval type</label>
-          <select aria-label="Type"  id="d-type" name="approvalType" className={field} defaultValue={APPROVAL_TYPES[0]}>
+          <select id="d-type" name="approvalType" className={field} defaultValue={APPROVAL_TYPES[0]}>
             {APPROVAL_TYPES.map((t) => (
               <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
             ))}
@@ -140,7 +141,7 @@ export function DecisionRequestForm() {
         </div>
         <div>
           <label className={label} htmlFor="d-risk">Risk level</label>
-          <select aria-label="Risk"  id="d-risk" name="riskLevel" className={field} defaultValue="medium">
+          <select id="d-risk" name="riskLevel" className={field} defaultValue="medium">
             <option value="low">Low</option>
             <option value="medium">Medium</option>
             <option value="high">High</option>
@@ -151,11 +152,11 @@ export function DecisionRequestForm() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={label} htmlFor="d-amount">Amount (minor units, optional)</label>
-          <input aria-label="500000" id="d-amount" name="amountMinor" type="number" min={0} className={field} placeholder="500000" />
+          <input id="d-amount" name="amountMinor" type="number" min={0} className={field} placeholder="500000" />
         </div>
         <div>
           <label className={label} htmlFor="d-due">Due (optional)</label>
-          <input id="d-due" name="dueAt" aria-label="Due At" type="date" className={field} />
+          <input id="d-due" name="dueAt" type="date" className={field} />
         </div>
       </div>
       <FormError state={state} />
@@ -170,8 +171,9 @@ export function DecisionForm({ approvalRequestId }: { approvalRequestId: string 
   const [state, action, pending] = useActionState(recordDecision, initial);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
-      <input aria-label="Input field" type="hidden" name="approvalRequestId" value={approvalRequestId} />
-      <input aria-label="Input field" name="comments"
+      <input type="hidden" name="approvalRequestId" value={approvalRequestId} />
+      <input
+        name="comments"
         placeholder="Comment (optional)"
         className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 transition-colors duration-fast focus:border-brand focus:outline-none"
       />

@@ -80,7 +80,7 @@ export function FounderShell({
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <div className="flex min-h-screen w-full  bg-canvas text-ink">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-canvas text-ink">
       {/* Desktop sidebar */}
       <aside
         className={cx(

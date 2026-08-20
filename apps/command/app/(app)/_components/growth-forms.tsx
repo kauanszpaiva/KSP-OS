@@ -44,25 +44,25 @@ export function LeadForm() {
     <form action={action} className="space-y-3">
       <div>
         <label className={label} htmlFor="l-name">Lead name</label>
-        <input id="l-name" name="name" aria-label="Name" className={field} placeholder="Acme Co — website revamp" required />
+        <input id="l-name" name="name" className={field} placeholder="Acme Co — website revamp" required />
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className={label} htmlFor="l-value">Expected value</label>
-          <input aria-label="500000" id="l-value" name="expectedValueMinor" type="number" min={0} className={field} placeholder="500000" />
+          <input id="l-value" name="expectedValueMinor" type="number" min={0} className={field} placeholder="500000" />
         </div>
         <div>
           <label className={label} htmlFor="l-prob">Probability %</label>
-          <input id="l-prob" name="probability" aria-label="Probability" type="number" min={0} max={100} className={field} placeholder="40" />
+          <input id="l-prob" name="probability" type="number" min={0} max={100} className={field} placeholder="40" />
         </div>
         <div>
           <label className={label} htmlFor="l-close">Target close</label>
-          <input id="l-close" name="targetCloseDate" aria-label="Target Close Date" type="date" className={field} />
+          <input id="l-close" name="targetCloseDate" type="date" className={field} />
         </div>
       </div>
       <div>
         <label className={label} htmlFor="l-next">Next action</label>
-        <input aria-label="Send proposal" id="l-next" name="nextAction" className={field} placeholder="Send proposal" required />
+        <input id="l-next" name="nextAction" className={field} placeholder="Send proposal" required />
       </div>
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
@@ -76,8 +76,8 @@ export function LeadStatusForm({ id, target, children }: { id: string; target: s
   const [, action, pending] = useActionState(updateLeadStatus, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
-      <input type="hidden" name="status" aria-label="Status" value={target} />
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="status" value={target} />
       <button type="submit" disabled={pending} className="rounded-lg px-2 py-1 text-[12px] font-medium text-ink-3 transition-colors duration-fast hover:bg-brand-tint hover:text-brand disabled:opacity-50">
         {children}
       </button>
@@ -91,11 +91,11 @@ export function ClientForm() {
     <form action={action} className="space-y-3">
       <div>
         <label className={label} htmlFor="cl-legal">Legal name</label>
-        <input id="cl-legal" name="legalName" aria-label="Legal Name" className={field} placeholder="Acme Co LLC" required />
+        <input id="cl-legal" name="legalName" className={field} placeholder="Acme Co LLC" required />
       </div>
       <div>
         <label className={label} htmlFor="cl-display">Display name</label>
-        <input id="cl-display" name="displayName" aria-label="Display Name" className={field} placeholder="Acme Co" required />
+        <input id="cl-display" name="displayName" className={field} placeholder="Acme Co" required />
       </div>
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
@@ -109,14 +109,14 @@ export function ClientEditForm({ id, legalName, displayName }: { id: string; leg
   const [state, action, pending] = useActionState(updateClient, initial);
   return (
     <form action={action} className="space-y-3">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} />
       <div>
         <label className={label} htmlFor={`ce-legal-${id}`}>Legal name</label>
-        <input id={`ce-legal-${id}`} name="legalName" aria-label="Legal Name" className={field} defaultValue={legalName} required />
+        <input id={`ce-legal-${id}`} name="legalName" className={field} defaultValue={legalName} required />
       </div>
       <div>
         <label className={label} htmlFor={`ce-display-${id}`}>Display name</label>
-        <input id={`ce-display-${id}`} name="displayName" aria-label="Display Name" className={field} defaultValue={displayName} required />
+        <input id={`ce-display-${id}`} name="displayName" className={field} defaultValue={displayName} required />
       </div>
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
@@ -130,8 +130,9 @@ export function ClientHealthForm({ id, currentHealth }: { id: string; currentHea
   const [, action] = useActionState(updateClientHealth, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
-      <select aria-label="Select field" name="relationshipHealth"
+      <input type="hidden" name="id" value={id} />
+      <select
+        name="relationshipHealth"
         defaultValue={currentHealth}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
         className="rounded-md border border-line-2 bg-surface px-1.5 py-0.5 text-[11.5px] text-ink transition-colors duration-fast focus:border-brand focus:outline-none"
@@ -149,9 +150,9 @@ export function ContactForm({ clientId }: { clientId: string }) {
   const [state, action, pending] = useActionState(createContact, initial);
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
-      <input type="hidden" name="clientId" aria-label="Client" value={clientId} />
-      <input name="name" aria-label="Name" placeholder="Contact name" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
-      <input name="email" aria-label="Email" type="email" placeholder="Email (optional)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
+      <input type="hidden" name="clientId" value={clientId} />
+      <input name="name" placeholder="Contact name" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
+      <input name="email" type="email" placeholder="Email (optional)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
       <button type="submit" disabled={pending} className={ghostBtn}>{pending ? 'Adding…' : 'Add contact'}</button>
       <FormError state={state} />
     </form>
@@ -162,23 +163,23 @@ export function InviteContactForm({ clientId }: { clientId: string }) {
   const [state, action, pending] = useActionState(createPortalInvitation, inviteInitial);
   return (
     <form action={action} className="space-y-2">
-      <input aria-label="Input field" type="hidden" name="clientOrganizationId" value={clientId} />
+      <input type="hidden" name="clientOrganizationId" value={clientId} />
       <div className="flex flex-wrap items-end gap-2">
         <input
-          name="email" aria-label="Email"
+          name="email"
           type="email"
           placeholder="contact@client.com"
           required
           className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none"
         />
-        <select aria-label="Select field" name="initialRole" defaultValue="client_viewer" className="rounded-lg border border-line-2 bg-surface px-2 py-1.5 text-[12.5px] text-ink focus:border-brand focus:outline-none">
+        <select name="initialRole" defaultValue="client_viewer" className="rounded-lg border border-line-2 bg-surface px-2 py-1.5 text-[12.5px] text-ink focus:border-brand focus:outline-none">
           <option value="client_owner">Owner</option>
           <option value="client_project_approver">Approver</option>
           <option value="client_billing_contact">Billing</option>
           <option value="client_collaborator">Collaborator</option>
           <option value="client_viewer">Viewer</option>
         </select>
-        <select aria-label="Select field" name="expiresInDays" defaultValue="14" className="rounded-lg border border-line-2 bg-surface px-2 py-1.5 text-[12.5px] text-ink focus:border-brand focus:outline-none">
+        <select name="expiresInDays" defaultValue="14" className="rounded-lg border border-line-2 bg-surface px-2 py-1.5 text-[12.5px] text-ink focus:border-brand focus:outline-none">
           <option value="7">7 days</option>
           <option value="14">14 days</option>
           <option value="30">30 days</option>
@@ -223,20 +224,20 @@ export function MeetingForm({ clientId }: { clientId: string }) {
   const [state, action, pending] = useActionState(createClientMeeting, initial);
   return (
     <form action={action} className="space-y-2">
-      <input aria-label="Input field" type="hidden" name="clientOrganizationId" value={clientId} />
-      <input name="title" aria-label="Title" placeholder="Meeting title (e.g. Kickoff call)" required className={field} />
+      <input type="hidden" name="clientOrganizationId" value={clientId} />
+      <input name="title" placeholder="Meeting title (e.g. Kickoff call)" required className={field} />
       <div className="grid gap-2 sm:grid-cols-2">
         <div>
           <label className={label} htmlFor={`m-when-${clientId}`}>When</label>
-          <input  id={`m-when-${clientId}`} name="scheduledAt" type="datetime-local" required className={field} />
+          <input id={`m-when-${clientId}`} name="scheduledAt" type="datetime-local" required className={field} />
         </div>
         <div>
           <label className={label} htmlFor={`m-dur-${clientId}`}>Duration (min)</label>
-          <input id={`m-dur-${clientId}`} name="durationMinutes" aria-label="Duration Minutes" type="number" min={1} max={1440} placeholder="60" className={field} />
+          <input id={`m-dur-${clientId}`} name="durationMinutes" type="number" min={1} max={1440} placeholder="60" className={field} />
         </div>
       </div>
-      <input name="location" aria-label="Location" placeholder="Location or video link (optional)" className={field} />
-      <textarea name="agenda" aria-label="Agenda" placeholder="Agenda (optional)" rows={2} className={field} />
+      <input name="location" placeholder="Location or video link (optional)" className={field} />
+      <textarea name="agenda" placeholder="Agenda (optional)" rows={2} className={field} />
       <FormError state={state} />
       <button type="submit" disabled={pending} className={ghostBtn}>
         {pending ? 'Scheduling…' : 'Schedule meeting'}
@@ -249,8 +250,8 @@ export function MeetingStatusButton({ id, status, children }: { id: string; stat
   const [, action, pending] = useActionState(updateMeetingStatus, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
-      <input type="hidden" name="status" aria-label="Status" value={status} />
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="status" value={status} />
       <button
         type="submit"
         disabled={pending}
@@ -266,8 +267,8 @@ export function ClientNoteForm({ clientId }: { clientId: string }) {
   const [state, action, pending] = useActionState(addClientNote, initial);
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
-      <input type="hidden" name="clientId" aria-label="Client" value={clientId} />
-      <input name="body" aria-label="Body" placeholder="Internal note (never client-visible)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
+      <input type="hidden" name="clientId" value={clientId} />
+      <input name="body" placeholder="Internal note (never client-visible)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
       <button type="submit" disabled={pending} className={ghostBtn}>{pending ? 'Saving…' : 'Add note'}</button>
       <FormError state={state} />
     </form>
@@ -280,16 +281,16 @@ export function ProductForm() {
     <form action={action} className="space-y-3">
       <div>
         <label className={label} htmlFor="p-name">Product name</label>
-        <input id="p-name" name="name" aria-label="Name" className={field} placeholder="Ops Diagnostic" required />
+        <input id="p-name" name="name" className={field} placeholder="Ops Diagnostic" required />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={label} htmlFor="p-price">Price (minor units)</label>
-          <input aria-label="150000" id="p-price" name="priceMinor" type="number" min={0} className={field} placeholder="150000" />
+          <input id="p-price" name="priceMinor" type="number" min={0} className={field} placeholder="150000" />
         </div>
         <div>
           <label className={label} htmlFor="p-category">Category</label>
-          <input id="p-category" name="category" aria-label="Category" className={field} placeholder="Diagnostics" />
+          <input id="p-category" name="category" className={field} placeholder="Diagnostics" />
         </div>
       </div>
       <FormError state={state} />
@@ -304,8 +305,8 @@ export function ProductActiveForm({ id, active }: { id: string; active: boolean 
   const [, action, pending] = useActionState(toggleProductActive, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
-      <input aria-label="Input field" type="hidden" name="active" value={(!active).toString()} />
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="active" value={(!active).toString()} />
       <button type="submit" disabled={pending} className={ghostBtn}>
         {active ? 'Archive' : 'Reactivate'}
       </button>
@@ -317,8 +318,8 @@ export function CampaignForm() {
   const [state, action, pending] = useActionState(createCampaign, initial);
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
-      <input name="name" aria-label="Name" placeholder="Campaign name" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
-      <input name="channel" aria-label="Channel" placeholder="Channel" className="w-32 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
+      <input name="name" placeholder="Campaign name" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
+      <input name="channel" placeholder="Channel" className="w-32 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
       <button type="submit" disabled={pending} className={ghostBtn}>{pending ? 'Creating…' : 'New campaign'}</button>
       <FormError state={state} />
     </form>
@@ -331,16 +332,16 @@ export function ContentItemForm({ campaigns }: { campaigns: Array<{ id: string; 
     <form action={action} className="space-y-3">
       <div>
         <label className={label} htmlFor="ci-title">Title</label>
-        <input id="ci-title" name="title" aria-label="Title" className={field} placeholder="Instagram carousel — Q3 launch" required />
+        <input id="ci-title" name="title" className={field} placeholder="Instagram carousel — Q3 launch" required />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className={label} htmlFor="ci-channel">Channel</label>
-          <input id="ci-channel" name="channel" aria-label="Channel" className={field} placeholder="Instagram" required />
+          <input id="ci-channel" name="channel" className={field} placeholder="Instagram" required />
         </div>
         <div>
           <label className={label} htmlFor="ci-campaign">Campaign</label>
-          <select id="ci-campaign" name="campaignId" aria-label="Campaign" className={field} defaultValue="">
+          <select id="ci-campaign" name="campaignId" className={field} defaultValue="">
             <option value="">None</option>
             {campaigns.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -350,7 +351,7 @@ export function ContentItemForm({ campaigns }: { campaigns: Array<{ id: string; 
       </div>
       <div>
         <label className={label} htmlFor="ci-date">Publish date</label>
-        <input aria-label="Published Date"  id="ci-date" name="publishDate" type="date" className={field} />
+        <input id="ci-date" name="publishDate" type="date" className={field} />
       </div>
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
@@ -366,9 +367,9 @@ export function ContentStatusForm({ id, currentStatus }: { id: string; currentSt
   const [, action] = useActionState(updateContentStatus, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} />
       <select
-        name="status" aria-label="Status"
+        name="status"
         defaultValue={currentStatus}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
         className="rounded-md border border-line-2 bg-surface px-1.5 py-0.5 text-[11.5px] text-ink transition-colors duration-fast focus:border-brand focus:outline-none"

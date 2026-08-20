@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { getAuthContext, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
 import { getServerSupabase } from '../../lib/supabase';
-import { sendEmail } from '@ksp/notifications';
 
 export interface ActionResult {
   ok: boolean;
@@ -66,15 +65,6 @@ export async function createInboxItem(_prev: ActionResult, form: FormData): Prom
   if (error) return { ok: false, error: 'Could not capture the item.' };
   revalidatePath('/founder/inbox');
   revalidatePath('/founder/home');
-
-  if (itemType === 'reminder') {
-    await sendEmail({
-      to: ctx.user.email,
-      subject: `Founder OS Reminder: ${title}`,
-      html: `<p>You requested a private reminder for: <strong>${title}</strong></p><p><a href="https://command.kspdominion.group/founder/inbox">View in Inbox</a></p>`
-    });
-  }
-
   return { ok: true };
 }
 
@@ -115,15 +105,6 @@ export async function createFounderTask(_prev: ActionResult, form: FormData): Pr
   if (error) return { ok: false, error: 'Could not create the task.' };
   revalidatePath('/founder/work');
   revalidatePath('/founder/home');
-
-  if (priority === 'high') {
-    await sendEmail({
-      to: ctx.user.email,
-      subject: `Founder OS Action Required: ${title}`,
-      html: `<p>A new high-priority private task requires your attention: <strong>${title}</strong></p><p><a href="https://command.kspdominion.group/founder/work">View in My Work</a></p>`
-    });
-  }
-
   return { ok: true };
 }
 

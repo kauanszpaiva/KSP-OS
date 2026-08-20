@@ -32,9 +32,9 @@ export function MemberRoleForm({ profileId, role, disabled }: { profileId: strin
   const [state, action] = useActionState(updateMemberRole, initial);
   return (
     <form action={action} className="inline-flex flex-col items-start gap-0.5">
-      <input aria-label="Input field" type="hidden" name="profileId" value={profileId} />
+      <input type="hidden" name="profileId" value={profileId} />
       <select
-        name="role" aria-label="Role"
+        name="role"
         defaultValue={role}
         disabled={disabled}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
@@ -55,8 +55,8 @@ export function MemberSuspendForm({ profileId, suspended, disabled }: { profileI
   const [state, action, pending] = useActionState(setMemberSuspended, initial);
   return (
     <form action={action} className="inline-flex flex-col items-end gap-0.5">
-      <input aria-label="Input field" type="hidden" name="profileId" value={profileId} />
-      <input aria-label="Input field" type="hidden" name="suspended" value={(!suspended).toString()} />
+      <input type="hidden" name="profileId" value={profileId} />
+      <input type="hidden" name="suspended" value={(!suspended).toString()} />
       <button
         type="submit"
         disabled={disabled || pending}

@@ -10,8 +10,5 @@
     "lint": "node ../../scripts/check-source.mjs packages/notifications",
     "format:check": "node ../../scripts/check-format.mjs packages/notifications",
     "build": "tsc --noEmit"
-  },
-  "dependencies": {
-    "resend": "^6.20.0"
   }
 }

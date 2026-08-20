@@ -6,9 +6,6 @@ import type {
   ClientPublication,
   ClientRequest,
   ClientUpdate,
-  Notification,
-  Deliverable,
-  DeliverableVersion,
   DocumentRecord,
   MissionMilestone,
   RequestComment,
@@ -166,23 +163,4 @@ export async function getRequestStatusHistory(supabase: SupabaseClient, requestI
     .eq('client_request_id', requestId)
     .order('created_at', { ascending: true });
   return (data ?? []) as RequestStatusHistory[];
-}
-
-export interface DeliverableVersionView extends DeliverableVersion { deliverableName: string; projectId: string; }
-export async function getDeliverableVersions(supabase: SupabaseClient): Promise<DeliverableVersionView[]> {
-  const { data } = await supabase.from('deliverable_versions').select('*, deliverables!inner(name, work_packages!inner(project_id))').order('created_at', { ascending: false });
-  return ((data ?? []) as any[]).map((v) => ({ ...v, deliverableName: v.deliverables.name, projectId: v.deliverables.work_packages.project_id }));
-}
-export async function getApprovalRequestsForVersions(supabase: SupabaseClient, versionIds: string[]) {
-  if (versionIds.length === 0) return [];
-  const { data } = await supabase.from('approval_requests').select('*').in('deliverable_version_id', versionIds);
-  return data ?? [];
-}
-export async function getCommentsForObject(supabase: SupabaseClient, objectTable: string, objectId: string) {
-  const { data } = await supabase.from('comments').select('*').eq('object_table', objectTable).eq('object_id', objectId).order('created_at', { ascending: true });
-  return data ?? [];
-}
-export async function getNotifications(supabase: SupabaseClient): Promise<Notification[]> {
-  const { data } = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(20);
-  return (data ?? []) as Notification[];
 }

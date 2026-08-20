@@ -85,7 +85,7 @@ export function PortalShell({
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen w-full flex-col  bg-canvas text-ink">
+    <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-canvas text-ink">
       <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-line bg-surface/95 px-4 backdrop-blur lg:px-8">
         <Link href="/home">
           <BrandMark />

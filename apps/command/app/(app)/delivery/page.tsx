@@ -1,9 +1,7 @@
 import Link from 'next/link';
 import { Icon } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
-import { getServerSupabase } from '../../../lib/supabase';
-import { PageHeader, Panel, SectionLabel, Figure } from '../_components/ui';
-import { getTasks, getMissions, getCommitments } from '../data';
+import { PageHeader } from '../_components/ui';
 
 const deliveryLanes = [
   {
@@ -37,65 +35,14 @@ const sharedSurfaces = [
 
 export default async function DeliveryPage() {
   await requireSession();
-  const supabase = await getServerSupabase();
-  if (!supabase) throw new Error('Supabase required');
-
-  const [tasks, missions, commitments] = await Promise.all([
-    getTasks(supabase),
-    getMissions(supabase),
-    getCommitments(supabase)
-  ]);
-
-  const activeMissions = missions.filter((m) => m.status === 'active');
-  const upcomingCommitments = commitments.filter((c) => c.state !== 'completed' && c.due_date && new Date(c.due_date) >= new Date());
-  const blockedTasks = tasks.filter((t) => t.blocked);
-  const reviewTasks = tasks.filter((t) => t.status === 'pending_approval' || t.status === 'draft'); // Using draft/pending as generic reviews here
 
   return (
     <div>
       <PageHeader
         eyebrow="Delivery"
-        title="Delivery Operations Hub"
-        description="Cross-service operational visibility and execution surfaces."
+        title="Delivery Overview"
+        description="One operating layer for KSP client delivery across systems, consulting, marketing, and media."
       />
-
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4 mb-8">
-        <Panel className="p-5 flex flex-col justify-between">
-          <SectionLabel>Active Work Packages</SectionLabel>
-          <div className="flex flex-col gap-4">
-            <Link href="/missions" className="hover:opacity-80 transition-opacity">
-              <Figure label="Active Missions" value={activeMissions.length} tone="brand" suffix=" (real)" />
-            </Link>
-          </div>
-        </Panel>
-
-        <Panel className="p-5 flex flex-col justify-between">
-          <SectionLabel>Milestones & Schedule</SectionLabel>
-          <div className="flex flex-col gap-4">
-            <Link href="/commitments" className="hover:opacity-80 transition-opacity">
-              <Figure label="Upcoming Deadlines" value={upcomingCommitments.length} suffix=" (real)" />
-            </Link>
-          </div>
-        </Panel>
-
-        <Panel className="p-5 flex flex-col justify-between">
-          <SectionLabel>Review & Approval</SectionLabel>
-          <div className="flex flex-col gap-4">
-            <Link href="/workspace" className="hover:opacity-80 transition-opacity">
-              <Figure label="Review Queues" value={reviewTasks.length} tone={reviewTasks.length > 0 ? 'warn' : 'neutral'} suffix=" (calc)" />
-            </Link>
-          </div>
-        </Panel>
-
-        <Panel className="p-5 flex flex-col justify-between">
-          <SectionLabel>Bottlenecks</SectionLabel>
-          <div className="flex flex-col gap-4">
-            <Link href="/workspace" className="hover:opacity-80 transition-opacity">
-               <Figure label="Blocked Tasks" value={blockedTasks.length} tone={blockedTasks.length > 0 ? 'risk' : 'neutral'} suffix=" (real)" />
-            </Link>
-          </div>
-        </Panel>
-      </div>
 
       <div className="mb-8 grid gap-4 xl:grid-cols-3">
         {deliveryLanes.map((lane) => (

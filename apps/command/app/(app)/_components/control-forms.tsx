@@ -31,15 +31,15 @@ export function DocumentForm() {
     <form action={action} className="space-y-3">
       <div>
         <label className={label} htmlFor="doc-title">Title</label>
-        <input id="doc-title" name="title" aria-label="Title" className={field} placeholder="Client onboarding runbook" required />
+        <input id="doc-title" name="title" className={field} placeholder="Client onboarding runbook" required />
       </div>
       <div>
         <label className={label} htmlFor="doc-path">Link or storage path</label>
-        <input aria-label="https://drive.google.com/…" id="doc-path" name="storagePath" className={field} placeholder="https://drive.google.com/…" required />
+        <input id="doc-path" name="storagePath" className={field} placeholder="https://drive.google.com/…" required />
       </div>
       <div>
         <label className={label} htmlFor="doc-class">Classification</label>
-        <select id="doc-class" name="classification" aria-label="Classification" className={field} defaultValue="confidential">
+        <select id="doc-class" name="classification" className={field} defaultValue="confidential">
           <option value="public">Public</option>
           <option value="internal">Internal</option>
           <option value="confidential">Confidential</option>
@@ -58,9 +58,9 @@ export function DocumentClassificationForm({ id, currentClassification }: { id: 
   const [, action] = useActionState(updateDocumentClassification, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} />
       <select
-        name="classification" aria-label="Classification"
+        name="classification"
         defaultValue={currentClassification}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
         className="rounded-md border border-line-2 bg-surface px-1.5 py-0.5 text-[11.5px] text-ink transition-colors duration-fast focus:border-brand focus:outline-none"
@@ -78,8 +78,8 @@ export function ConnectionForm() {
   const [state, action, pending] = useActionState(createConnection, initial);
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
-      <input name="provider" aria-label="Provider" placeholder="Provider (e.g. github)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
-      <input name="scopes" aria-label="Scopes" placeholder="Scopes, comma-separated (optional)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
+      <input name="provider" placeholder="Provider (e.g. github)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
+      <input name="scopes" placeholder="Scopes, comma-separated (optional)" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
       <button type="submit" disabled={pending} className={ghostBtn}>{pending ? 'Connecting…' : 'Add connection'}</button>
       <FormError state={state} />
     </form>
@@ -90,7 +90,7 @@ export function RevokeConnectionForm({ id }: { id: string }) {
   const [, action, pending] = useActionState(revokeConnection, initial);
   return (
     <form action={action} className="inline">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} />
       <button type="submit" disabled={pending} className={ghostBtn}>
         {pending ? 'Revoking…' : 'Revoke'}
       </button>
@@ -102,9 +102,9 @@ export function TaskLinkForm({ id, currentLink }: { id: string; currentLink: str
   const [state, action, pending] = useActionState(updateTaskLink, initial);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} />
       <input
-        name="link" aria-label="Link"
+        name="link"
         defaultValue={currentLink ?? ''}
         placeholder="PR / deploy link"
         className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none"

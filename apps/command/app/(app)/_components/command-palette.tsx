@@ -101,7 +101,7 @@ export function CommandPalette({ perms }: { perms: PalettePerms }) {
             <Icon name="search" className="h-4 w-4 shrink-0 text-ink-4" />
             <input
               ref={inputRef}
-              value={query} aria-label="Search"
+              value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search records, or jump to an action…"
               className="w-full bg-transparent text-[14px] text-ink placeholder:text-ink-4 focus:outline-none"

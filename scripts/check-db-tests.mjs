@@ -13,8 +13,7 @@ const required = [
   'client publication protection',
   'no self-approval',
   'expired access denial',
-  'suspended access denial',
-  'finance negative permissions'
+  'suspended access denial'
 ];
 const combined = testFiles.map((file) => fs.readFileSync(`supabase/tests/${file}`, 'utf8')).join('\n');
 const missing = required.filter((term) => !combined.includes(term));
@@ -50,7 +49,6 @@ const image = 'postgres:15';
 const migrations = fs.readdirSync('supabase/migrations').filter((file) => file.endsWith('.sql')).sort();
 const reconciliationName = '202608130001_runtime_reconciliation.sql';
 const reconciliation = fs.readFileSync(`supabase/migrations/${reconciliationName}`, 'utf8');
-const managedFilesTest = fs.readFileSync('supabase/tests/managed_files.test.sql', 'utf8');
 if (!migrations.includes(reconciliationName)) throw new Error(`${reconciliationName} missing`);
 
 function dockerExec(args, options = {}) {
@@ -74,27 +72,6 @@ function bootstrapDb(name) {
     $$;
     grant usage on schema auth to anon, authenticated;
     grant execute on function auth.uid() to anon, authenticated;
-
-    -- Minimal Supabase Storage catalog used only by the Docker rehearsal.
-    -- Production already provides these tables via the Supabase Storage service.
-    create schema storage;
-    create table storage.buckets (
-      id text primary key,
-      name text not null unique,
-      public boolean not null default false,
-      file_size_limit bigint,
-      allowed_mime_types text[]
-    );
-    create table storage.objects (
-      id bigint generated always as identity primary key,
-      bucket_id text not null references storage.buckets(id),
-      name text not null,
-      metadata jsonb not null default '{}',
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now(),
-      unique (bucket_id, name)
-    );
-    alter table storage.objects enable row level security;
   `);
 }
 function applyMigration(db, file) {
@@ -109,12 +86,6 @@ function grantAppTableAccess(db) {
     grant select on all tables in schema public to anon;
     grant select, insert, update, delete on all tables in schema public to authenticated;
     grant usage, select on all sequences in schema public to authenticated;
-
-    grant usage on schema storage to anon, authenticated;
-    grant select on storage.buckets to anon, authenticated;
-    grant select on storage.objects to anon;
-    grant select, insert, update, delete on storage.objects to authenticated;
-    grant usage, select on all sequences in schema storage to authenticated;
   `);
 }
 function verifyReconciliation(db) {
@@ -254,6 +225,8 @@ const actorTests = `
     end;
   end $$;
 
+  -- Founder OS private isolation. Seed founder-owned private rows as the
+  -- table owner (RLS bypassed here), then assert the access matrix under RLS.
   insert into founder_inbox_items (organization_id, owner_id, item_type, title)
     values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'idea', 'founder-private-capture');
   insert into founder_tasks (organization_id, owner_id, title)
@@ -261,6 +234,7 @@ const actorTests = `
   insert into founder_promotions (organization_id, owner_id, source_table, source_id, target_table, target_id)
     values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder_inbox_items', gen_random_uuid(), 'commitments', gen_random_uuid());
 
+  -- Founder reads their own private rows.
   begin;
     set local role authenticated;
     select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000001', true);
@@ -271,6 +245,7 @@ const actorTests = `
     end $$;
   rollback;
 
+  -- Normal team member: zero rows, and inserts denied (own owner_id or impersonated).
   begin;
     set local role authenticated;
     select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
@@ -295,6 +270,7 @@ const actorTests = `
     end $$;
   rollback;
 
+  -- Anonymous principal: zero rows.
   begin;
     set local role anon;
     select set_config('request.jwt.claim.sub', '', true);
@@ -304,6 +280,7 @@ const actorTests = `
     end $$;
   rollback;
 
+  -- Founder of a DIFFERENT org: is a founder, but not of the KSP org.
   begin;
     set local role authenticated;
     select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000005', true);
@@ -317,6 +294,7 @@ const actorTests = `
     end $$;
   rollback;
 
+  -- Founder-private invariants.
   do $$ begin
     begin
       insert into founder_tasks (organization_id, owner_id, title, status)
@@ -364,11 +342,14 @@ try {
   verifyReconciliation('drift');
   psql('drift', reconciliation);
   verifyReconciliation('drift');
+  // Apply migrations that land AFTER the reconciliation catch-up (e.g. the
+  // Founder OS foundation) so the seeded actor matrix runs against the full
+  // forward schema, not just the reconciled baseline. Models production moving
+  // forward after a reconciliation.
   const postReconciliation = migrations.filter((file) => file > reconciliationName);
   applyMigrations('drift', postReconciliation);
   grantAppTableAccess('drift');
   psql('drift', actorTests);
-  psql('drift', managedFilesTest);
 
   psql('drift', `insert into organizations (name, slug) values ('Recovery Marker', 'runtime-recovery-marker');`);
   const dump = dockerExec([containerName, 'pg_dump', '-U', 'postgres', '-d', 'drift', '-Fc'], { encoding: null }).stdout;
@@ -377,7 +358,7 @@ try {
   const recoveryProbe = psql('recovery', `select count(*) from organizations where slug='runtime-recovery-marker';`);
   if (!recoveryProbe.stdout.match(/\b1\b/)) throw new Error('Backup/restore rehearsal did not recover the marker row.');
 
-  console.log(`Behavioral DB rehearsal passed on ${image}: full chain, production-like drift reconciliation, idempotence, rollback, actor-level RLS, managed-files RLS, tenant/client isolation, invariants, and backup/restore.`);
+  console.log(`Behavioral DB rehearsal passed on ${image}: full chain, production-like drift reconciliation, idempotence, rollback, actor-level RLS, tenant/client isolation, invariants, and backup/restore.`);
 } finally {
   run('docker', ['rm', '-f', containerName], { allowFailure: true });
 }

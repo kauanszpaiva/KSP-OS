@@ -12,7 +12,6 @@
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "@ksp/observability": "workspace:*",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10"
   }

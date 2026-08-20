@@ -3,14 +3,9 @@
 import { useState } from 'react';
 import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
 import type { ChartAccount, Subscription } from '@ksp/database';
-import type { AccountingPeriod, JournalEntry, Invoice, ClientRef } from '../data';
 import { formatDate, isOverdue } from '../../../lib/format';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { CalendarView, type CalendarItem } from './calendar-view';
-import { JournalWorkbench } from '../finance/_components/journal-workbench';
-import { PeriodsConsole } from '../finance/_components/periods-console';
-import { SubscriptionsConsole } from '../finance/_components/subscriptions-console';
-import { InvoicesConsole } from '../finance/_components/invoices-console';
 
 function money(minor: number): string {
   return (minor / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -90,22 +85,14 @@ export function FinanceView({
   chartAccounts,
   subscriptions,
   draftEntryCount,
-  postedEntryCount,
-  periods,
-  entries,
-  invoices,
-  clients
+  postedEntryCount
 }: {
   chartAccounts: ChartAccount[];
   subscriptions: Subscription[];
   draftEntryCount: number;
   postedEntryCount: number;
-  periods: AccountingPeriod[];
-  entries: JournalEntry[];
-  invoices: Invoice[];
-  clients: ClientRef[];
 }) {
-  const [view, setView] = useState<'list' | 'renewals' | 'chart' | 'journal' | 'periods' | 'subscriptions' | 'invoices'>('list');
+  const [view, setView] = useState<'list' | 'renewals' | 'chart'>('list');
 
   if (chartAccounts.length === 0) {
     return <EmptyState icon="finance" title="No chart of accounts yet." hint="Once accounts exist, this overview will show posting activity and subscription burn." />;
@@ -118,23 +105,15 @@ export function FinanceView({
           items={[
             { value: 'list', label: 'List' },
             { value: 'renewals', label: 'Renewals' },
-            { value: 'chart', label: 'Chart' },
-            { value: 'journal', label: 'Journal Workbench' },
-            { value: 'periods', label: 'Periods Console' },
-            { value: 'subscriptions', label: 'Subscriptions Console' },
-            { value: 'invoices', label: 'Invoices Console' }
+            { value: 'chart', label: 'Chart' }
           ]}
           value={view}
-          onValueChange={(v) => setView(v as any)}
+          onValueChange={(v) => setView(v as 'list' | 'renewals' | 'chart')}
         />
       </div>
       {view === 'list' && <ListView chartAccounts={chartAccounts} />}
       {view === 'renewals' && <RenewalsView subscriptions={subscriptions} />}
       {view === 'chart' && <ChartView subscriptions={subscriptions} draftEntryCount={draftEntryCount} postedEntryCount={postedEntryCount} />}
-      {view === 'journal' && <JournalWorkbench entries={entries} accounts={chartAccounts} />}
-      {view === 'periods' && <PeriodsConsole periods={periods} />}
-      {view === 'subscriptions' && <SubscriptionsConsole subscriptions={subscriptions} />}
-      {view === 'invoices' && <InvoicesConsole invoices={invoices} clients={clients} />}
     </div>
   );
 }

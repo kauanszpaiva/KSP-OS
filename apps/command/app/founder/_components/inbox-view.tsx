@@ -41,13 +41,13 @@ function CaptureForm() {
           <label className={label} htmlFor="i-title">
             Capture
           </label>
-          <input id="i-title" name="title" aria-label="Title" className={field} placeholder="Anything on your mind…" required />
+          <input id="i-title" name="title" className={field} placeholder="Anything on your mind…" required />
         </div>
         <div>
           <label className={label} htmlFor="i-type">
             Type
           </label>
-          <select aria-label="Type"  id="i-type" name="itemType" className={field} defaultValue="note">
+          <select id="i-type" name="itemType" className={field} defaultValue="note">
             {TYPE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -60,7 +60,7 @@ function CaptureForm() {
         <label className={label} htmlFor="i-body">
           Details <span className="text-ink-4">(optional)</span>
         </label>
-        <textarea id="i-body" name="body" aria-label="Body" rows={2} className={field} />
+        <textarea id="i-body" name="body" rows={2} className={field} />
       </div>
       {!state.ok && state.error && <p className="text-[13px] text-risk">{state.error}</p>}
       <button
@@ -95,12 +95,13 @@ function PromoteControl({ item }: { item: FounderInboxItem }) {
       </button>
       {open && (
         <form action={action} className="mt-2 rounded-lg border border-line bg-surface-2 p-3">
-          <input aria-label="Input field" type="hidden" name="id" value={item.id} />
+          <input type="hidden" name="id" value={item.id} />
           <p className="mb-1.5 text-[11.5px] text-ink-3">
             Creates a company commitment. Only the title and this outcome statement become company-visible — the private
             body stays private.
           </p>
-          <input aria-label="Input field" name="outcomeStatement"
+          <input
+            name="outcomeStatement"
             className={field}
             placeholder={`Outcome statement (defaults to "${item.title}")`}
           />
@@ -139,7 +140,7 @@ function InboxRow({ item }: { item: FounderInboxItem }) {
         <div className="mt-3 flex flex-wrap items-center gap-4 border-t border-line pt-3">
           {!promoted && (
             <form action={convertInboxToTask}>
-              <input aria-label="Input field" type="hidden" name="id" value={item.id} />
+              <input type="hidden" name="id" value={item.id} />
               <button type="submit" className="text-[12px] font-medium text-ink-3 transition-colors hover:text-brand">
                 Make private task →
               </button>
@@ -147,7 +148,7 @@ function InboxRow({ item }: { item: FounderInboxItem }) {
           )}
           <PromoteControl item={item} />
           <form action={archiveInboxItem} className="ml-auto">
-            <input aria-label="Input field" type="hidden" name="id" value={item.id} />
+            <input type="hidden" name="id" value={item.id} />
             <button type="submit" className="text-[12px] text-ink-4 transition-colors hover:text-risk">
               Archive
             </button>

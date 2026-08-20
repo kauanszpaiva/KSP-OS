@@ -9,7 +9,6 @@
     "format:check": "node ../../scripts/check-format.mjs apps/portal"
   },
   "dependencies": {
-    "@ksp/observability": "workspace:*",
     "@ksp/auth": "workspace:*",
     "@ksp/database": "workspace:*",
     "@ksp/permissions": "workspace:*",

@@ -55,7 +55,7 @@ export function DeleteButton({
         });
       }}
     >
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} />
       <button
         type="submit"
         disabled={pending}
@@ -120,7 +120,7 @@ export function ArchiveButton({
         });
       }}
     >
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} />
       <button
         type="submit"
         disabled={pending}
@@ -142,7 +142,7 @@ export function RestoreButton({ action, id }: { action: DeleteAction; id: string
   useActionToast(state, 'Restored');
   return (
     <form action={formAction} className="inline-flex items-center">
-      <input aria-label="Input field" type="hidden" name="id" value={id} />
+      <input type="hidden" name="id" value={id} />
       <button
         type="submit"
         disabled={pending}
