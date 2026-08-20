@@ -15,11 +15,24 @@ export interface NavGroup {
 }
 
 /**
- * Role-aware information architecture. `live` items are implemented; `planned`
- * items are surfaced but disabled so the IA is legible without pretending unbuilt
- * modules work.
+ * Simple-first information architecture.
+ *
+ * The operating system remains broad underneath, but the first layer answers
+ * four plain-language questions: how are we doing, what do I do now, what are
+ * we building, and what needs my attention. Specialist modules stay available
+ * below that layer instead of competing with it for primary navigation space.
  */
 export const NAV_GROUPS: NavGroup[] = [
+  {
+    key: 'start',
+    label: 'Start here',
+    items: [
+      { label: 'Home', href: '/home', status: 'live', icon: 'home' },
+      { label: 'Today', href: '/today', status: 'live', icon: 'focus' },
+      { label: 'Projects', href: '/missions', status: 'live', icon: 'missions' },
+      { label: 'Inbox', href: '/inbox', status: 'live', icon: 'inbox' }
+    ]
+  },
   {
     key: 'command',
     label: 'Command',
@@ -37,7 +50,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Outcomes', href: '/outcomes', status: 'live', icon: 'outcomes' },
       { label: 'Commitments', href: '/commitments', status: 'live', icon: 'commitments' },
       { label: 'Workspace', href: '/workspace', status: 'live', icon: 'workspace' },
-      { label: 'Missions', href: '/missions', status: 'live', icon: 'missions' },
       { label: 'Schedule', href: '/schedule', status: 'live', icon: 'schedule' },
       { label: 'Horizon', href: '/horizon', status: 'live', icon: 'horizon' },
       { label: 'Team', href: '/team', status: 'live', icon: 'team' }
@@ -84,8 +96,8 @@ export const FOUNDER_NAV: NavItem[] = [
 ];
 
 export const MOBILE_PRIMARY: NavItem[] = [
-  { label: 'Pulse', href: '/pulse', status: 'live', icon: 'pulse' },
-  { label: 'Focus', href: '/focus', status: 'live', icon: 'focus' },
-  { label: 'Outcomes', href: '/outcomes', status: 'live', icon: 'outcomes' },
-  { label: 'Commitments', href: '/commitments', status: 'live', icon: 'commitments' }
+  { label: 'Home', href: '/home', status: 'live', icon: 'home' },
+  { label: 'Today', href: '/today', status: 'live', icon: 'focus' },
+  { label: 'Projects', href: '/missions', status: 'live', icon: 'missions' },
+  { label: 'Inbox', href: '/inbox', status: 'live', icon: 'inbox' }
 ];
