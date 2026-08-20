@@ -66,10 +66,11 @@ async function record(
 }
 
 /**
- * Edit the mutable task details that belong to Workspace. Owner changes keep
- * using the existing reassignment control so there is one accountability path.
- * `start_date` is intentionally included: this action must not be promoted to a
- * runtime that has not applied the reviewed runtime-reconciliation migration.
+ * Edit task fields that already exist in the connected live runtime. Owner
+ * changes continue through the existing reassignment control, keeping one
+ * accountability path. Timeline start_date remains part of the separately
+ * reviewed runtime-reconciliation migration and is deliberately not required
+ * for this edit surface.
  */
 export async function updateTaskDetails(_prev: BacklogActionResult, form: FormData): Promise<BacklogActionResult> {
   const gate = await authed();
@@ -79,33 +80,25 @@ export async function updateTaskDetails(_prev: BacklogActionResult, form: FormDa
 
   const id = text(form, 'id');
   const title = text(form, 'title');
-  const startDate = dateOrNull(text(form, 'startDate'));
   const dueDate = dateOrNull(text(form, 'dueDate'));
   const link = text(form, 'link');
 
   if (!UUID_RE.test(id)) return { ok: false, error: 'Invalid task id.' };
   if (title.length < 2 || title.length > 200) return { ok: false, error: 'Task title must be 2–200 characters.' };
-  if (startDate === undefined || dueDate === undefined) return { ok: false, error: 'Use valid YYYY-MM-DD dates.' };
-  if (startDate && dueDate && startDate > dueDate) return { ok: false, error: 'Start date cannot be after due date.' };
+  if (dueDate === undefined) return { ok: false, error: 'Use a valid YYYY-MM-DD due date.' };
   if (link.length > 2000) return { ok: false, error: 'Link is too long.' };
 
   const { error } = await supabase
     .from('tasks')
     .update({
       title,
-      start_date: startDate,
       due_date: dueDate,
       link: link || null
     })
     .eq('id', id)
     .eq('organization_id', ctx.organizationId);
 
-  if (error) {
-    if (error.message.includes('start_date')) {
-      return { ok: false, error: 'Task editing needs the reviewed runtime-reconciliation migration before this build can be promoted.' };
-    }
-    return { ok: false, error: 'Could not update task details (check your access).' };
-  }
+  if (error) return { ok: false, error: 'Could not update task details (check your access).' };
 
   await record(supabase, ctx, 'task.updated', 'tasks', id, `Updated task details: ${title}`);
   revalidatePath('/workspace');
