@@ -20,7 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
  */
 export default async function FounderLayout({ children }: { children: ReactNode }) {
   const ctx = await requireSession();
-  if (!isFounder(ctx)) redirect('/pulse');
+  if (!isFounder(ctx)) redirect('/home');
 
   const primaryRole = ctx.internalRoles[0] ?? 'member';
   const user = {
