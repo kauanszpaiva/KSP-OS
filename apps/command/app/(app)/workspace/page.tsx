@@ -21,6 +21,10 @@ export default async function WorkspacePage() {
         description="The team's general task board — anything that isn't a company commitment but still needs to get done."
       />
 
+      <div className="mb-4 flex justify-end">
+        <a href="/backlog-editor" className="text-[12px] font-medium text-brand hover:underline">Edit backlog details →</a>
+      </div>
+
       <details className="mb-6 rounded-xl border border-line bg-surface shadow-card">
         <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
           + New task
