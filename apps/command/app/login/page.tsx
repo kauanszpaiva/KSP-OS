@@ -27,7 +27,7 @@ export default function LoginPage() {
       setError('Invalid email or password.');
       return;
     }
-    router.push('/pulse');
+    router.push('/home');
     router.refresh();
   }
 

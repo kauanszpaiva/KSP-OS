@@ -17,13 +17,13 @@ export default async function MissionsPage() {
     <div>
       <PageHeader
         eyebrow="Execution"
-        title="Missions"
-        description="The engagements, products, and campaigns commitments ladder up to. Track milestones and what's blocking what."
+        title="Projects"
+        description="Every active engagement, product, campaign, and internal build in one place. Open a project when you need milestones, dependencies, health, and deeper controls."
       />
 
       <details className="mb-6 rounded-xl border border-line bg-surface shadow-card">
         <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
-          + New mission
+          + New project
         </summary>
         <div className="animate-fade-slide-up border-t border-line p-4">
           <MissionForm clients={clients} />
@@ -31,7 +31,7 @@ export default async function MissionsPage() {
       </details>
 
       {missions.length === 0 ? (
-        <EmptyState icon="missions" title="No missions yet." hint="Create one to group commitments and milestones under a shared objective." />
+        <EmptyState icon="missions" title="No projects yet." hint="Create one to group milestones, dependencies, work, and outcomes under a shared objective." />
       ) : (
         <MissionsView missions={missions} clients={clients} commentsByMission={commentsByMission} />
       )}

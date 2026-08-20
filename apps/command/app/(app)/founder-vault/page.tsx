@@ -9,6 +9,6 @@ import { requireSession } from '../../../lib/session';
  */
 export default async function FounderVaultRedirect() {
   const ctx = await requireSession();
-  if (!canViewFounderVault(ctx)) redirect('/pulse');
+  if (!canViewFounderVault(ctx)) redirect('/home');
   redirect('/founder/vault');
 }
