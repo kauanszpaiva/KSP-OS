@@ -37,36 +37,40 @@ function parseDay(date: string): number {
   return Math.floor(new Date(`${date}T00:00:00Z`).getTime() / 86_400_000);
 }
 
-/**
- * Date-axis Gantt: renders a real duration bar when an item has a `start`
- * distinct from its `end` (only true for missions/tasks post-migration
- * 202607230009), and falls back to the original marker-dot rendering for
- * every item that only carries a single point-in-time date (commitments
- * and anything else not covered by that migration) — the same honest
- * fallback this component has used since Phase C3.6, just no longer the
- * only rendering path.
- *
- * Dependencies render as a small inline "waits on: …" annotation on the
- * dependent row rather than a drawn elbow connector between rows — a
- * pixel-accurate connector (matching the ClickUp/Asana screenshots
- * exactly) needs real DOM measurement (ResizeObserver/getBoundingClientRect
- * across a scrollable, variable-width axis), not pure data math; this is a
- * stated v1 simplification, not a silent gap.
- */
+type GanttZoom = 'compact' | 'standard' | 'detailed';
+
+const ZOOM_CONFIG: Record<GanttZoom, { pxPerDay: number; markEvery: number; label: string }> = {
+  compact: { pxPerDay: 5, markEvery: 14, label: '2 weeks' },
+  standard: { pxPerDay: 9, markEvery: 7, label: 'Week' },
+  detailed: { pxPerDay: 18, markEvery: 2, label: '2 days' }
+};
+
+function stateLabel(state: string): string {
+  return state.replace(/_/g, ' ');
+}
+
 function GanttView({ items, dependencies }: { items: TimelineItem[]; dependencies: TimelineDependency[] }) {
-  const { startDay, totalDays, weekMarks } = useMemo(() => {
+  const [zoom, setZoom] = useState<GanttZoom>('standard');
+  const zoomConfig = ZOOM_CONFIG[zoom];
+
+  const { startDay, totalDays, marks } = useMemo(() => {
     const days = items.flatMap((i) => [parseDay(i.end), ...(i.start ? [parseDay(i.start)] : [])]);
-    const minDay = Math.min(...days);
-    const maxDay = Math.max(...days);
-    const start = minDay - 2;
-    const total = Math.max(maxDay - start + 3, 14);
-    const marks: Array<{ day: number; label: string }> = [];
-    for (let d = 0; d <= total; d += 7) {
+    const today = parseDay(new Date().toISOString().slice(0, 10));
+    const minDay = days.length > 0 ? Math.min(...days, today) : today;
+    const maxDay = days.length > 0 ? Math.max(...days, today) : today;
+    const start = minDay - 3;
+    const total = Math.max(maxDay - start + 6, 21);
+    const axisMarks: Array<{ day: number; label: string; month: string }> = [];
+    for (let d = 0; d <= total; d += zoomConfig.markEvery) {
       const date = new Date((start + d) * 86_400_000);
-      marks.push({ day: d, label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) });
+      axisMarks.push({
+        day: d,
+        label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      });
     }
-    return { startDay: start, totalDays: total, weekMarks: marks };
-  }, [items]);
+    return { startDay: start, totalDays: total, marks: axisMarks };
+  }, [items, zoomConfig.markEvery]);
 
   const dependentsByToId = useMemo(() => {
     const byId = new Map(items.map((i) => [i.id, i]));
@@ -86,78 +90,167 @@ function GanttView({ items, dependencies }: { items: TimelineItem[]; dependencie
     return t >= 0 && t <= totalDays ? (t / totalDays) * 100 : null;
   }, [startDay, totalDays]);
 
+  const stats = useMemo(() => {
+    const durations = items.filter((item) => item.start && parseDay(item.start) < parseDay(item.end)).length;
+    const milestones = items.length - durations;
+    const overdue = items.filter((item) => isOverdue(item.end) && !['done', 'completed'].includes(item.state)).length;
+    return { durations, milestones, overdue };
+  }, [items]);
+
+  const timelineWidth = Math.max(totalDays * zoomConfig.pxPerDay, 760);
   let lastGroup: string | undefined;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-      <div className="relative" style={{ minWidth: `${Math.max(totalDays * 10, 640)}px` }}>
-        {todayOffset !== null && (
-          <span className="pointer-events-none absolute bottom-0 top-8 z-10 w-px bg-brand/40" style={{ left: `${todayOffset}%` }} aria-hidden>
-            <span className="absolute -top-[7px] left-1/2 -translate-x-1/2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-semibold text-on-brand">
-              Today
-            </span>
-          </span>
-        )}
-        <div className="relative h-8 border-b border-line">
-          {weekMarks.map((mark) => (
-            <span
-              key={mark.day}
-              className="absolute top-0 -translate-x-1/2 whitespace-nowrap px-1 pt-2 text-[10.5px] text-ink-4"
-              style={{ left: `${(mark.day / totalDays) * 100}%` }}
+    <div className="rounded-xl border border-line bg-surface shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-3 py-2.5 sm:px-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-ink-3">
+          <span><strong className="font-semibold text-ink-2">{items.length}</strong> items</span>
+          <span><strong className="font-semibold text-ink-2">{stats.durations}</strong> ranges</span>
+          <span><strong className="font-semibold text-ink-2">{stats.milestones}</strong> milestones</span>
+          {stats.overdue > 0 && <span className="font-medium text-risk">{stats.overdue} overdue</span>}
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-0.5" aria-label="Gantt zoom">
+          {(Object.keys(ZOOM_CONFIG) as GanttZoom[]).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setZoom(value)}
+              className={`rounded-md px-2.5 py-1 text-[10.5px] font-medium transition-colors ${zoom === value ? 'bg-surface text-ink shadow-sm' : 'text-ink-3 hover:text-ink'}`}
+              title={`Timeline marks every ${ZOOM_CONFIG[value].label.toLowerCase()}`}
             >
-              {mark.label}
-            </span>
+              {value === 'compact' ? 'Compact' : value === 'standard' ? 'Week' : 'Detail'}
+            </button>
           ))}
         </div>
-        <div className="space-y-0">
-          {items.map((item, i) => {
-            const endDay = parseDay(item.end) - startDay;
-            const startDayOffset = item.start ? parseDay(item.start) - startDay : null;
-            const hasRange = startDayOffset !== null && startDayOffset < endDay;
-            const overdue = isOverdue(item.end) && item.state !== 'done' && item.state !== 'completed';
-            const waitsOn = dependentsByToId.get(item.id);
-            const showGroupHeader = item.groupLabel && item.groupLabel !== lastGroup;
-            if (item.groupLabel) lastGroup = item.groupLabel;
-            return (
-              <div key={item.id}>
-                {showGroupHeader && (
-                  <div className="border-t border-line bg-surface-2/60 px-3 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-4">
-                    {item.groupLabel}
-                  </div>
-                )}
-                <div className="relative flex h-11 items-center gap-3 border-t border-line px-3 transition-colors duration-fast first:border-t-0 hover:bg-surface-2/60">
-                  <div className="w-40 shrink-0 truncate text-[12.5px] text-ink-2 sm:w-56">
-                    <span className="font-medium text-ink">{item.title}</span>
-                    <span className="text-ink-4"> · {item.subtitle}</span>
-                    {waitsOn && waitsOn.length > 0 && (
-                      <span className="mt-0.5 flex items-center gap-1">
-                        <span className="inline-flex max-w-full items-center gap-1 truncate rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-ink-3">
-                          ⛓ {waitsOn.join(', ')}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative h-5 flex-1">
-                    {hasRange ? (
-                      <span
-                        className={`absolute top-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-white/25 to-transparent shadow-sm ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/40' : ''} h-3.5`}
-                        style={{ left: `${(startDayOffset / totalDays) * 100}%`, width: `${Math.max(((endDay - startDayOffset) / totalDays) * 100, 1.2)}%` }}
-                        title={`${item.title} — ${formatDate(item.start ?? null)} → ${formatDate(item.end)}`}
-                      />
-                    ) : (
-                      <span
-                        className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-white/30 to-transparent shadow-sm ring-2 ring-surface ${stateToneDotClass(item.state)} ${overdue ? 'ring-risk/50' : ''} h-3 w-3`}
-                        style={{ left: `${(endDay / totalDays) * 100}%` }}
-                        title={`${item.title} — ${formatDate(item.end)}`}
-                      />
-                    )}
-                  </div>
-                  <span className={`tnum w-16 shrink-0 text-right text-[11.5px] ${overdue ? 'font-medium text-risk' : 'text-ink-3'}`}>{formatDate(item.end)}</span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <div className="relative" style={{ minWidth: `${timelineWidth + 360}px` }}>
+          <div className="sticky top-0 z-30 flex h-11 border-b border-line bg-surface/95 backdrop-blur-sm">
+            <div className="sticky left-0 z-40 flex w-[300px] shrink-0 items-center border-r border-line bg-surface px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-4 sm:w-[340px]">
+              Project / milestone
+            </div>
+            <div className="relative" style={{ width: `${timelineWidth}px` }}>
+              {marks.map((mark) => (
+                <div
+                  key={mark.day}
+                  className="absolute bottom-0 top-0 border-l border-line/70"
+                  style={{ left: `${(mark.day / totalDays) * 100}%` }}
+                >
+                  <span className="absolute left-1.5 top-1.5 whitespace-nowrap text-[10.5px] font-medium text-ink-3">{mark.label}</span>
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+            <div className="sticky right-0 z-40 flex w-20 shrink-0 items-center justify-end border-l border-line bg-surface px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-4">
+              Due
+            </div>
+          </div>
+
+          <div className="relative">
+            {todayOffset !== null && (
+              <span
+                className="pointer-events-none absolute bottom-0 top-0 z-20 w-px bg-brand/60"
+                style={{ left: `calc(300px + ${todayOffset}% * ${timelineWidth / 100})` }}
+                aria-hidden
+              />
+            )}
+
+            {items.map((item) => {
+              const endDay = parseDay(item.end) - startDay;
+              const startDayOffset = item.start ? parseDay(item.start) - startDay : null;
+              const hasRange = startDayOffset !== null && startDayOffset < endDay;
+              const overdue = isOverdue(item.end) && !['done', 'completed'].includes(item.state);
+              const waitsOn = dependentsByToId.get(item.id);
+              const showGroupHeader = item.groupLabel && item.groupLabel !== lastGroup;
+              if (item.groupLabel) lastGroup = item.groupLabel;
+
+              return (
+                <div key={item.id}>
+                  {showGroupHeader && (
+                    <div className="sticky left-0 z-20 flex h-7 items-center border-b border-line bg-surface-2 px-3 text-[10px] font-semibold uppercase tracking-[0.11em] text-ink-4">
+                      {item.groupLabel}
+                    </div>
+                  )}
+
+                  <div className="group flex min-h-12 border-b border-line last:border-b-0 hover:bg-surface-2/45">
+                    <div className="sticky left-0 z-10 flex w-[300px] shrink-0 items-center border-r border-line bg-surface px-3 py-2 group-hover:bg-surface-2 sm:w-[340px]">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${stateToneDotClass(item.state)}`} aria-hidden />
+                          <p className="truncate text-[12.5px] font-semibold text-ink">{item.title}</p>
+                        </div>
+                        <div className="mt-0.5 flex min-w-0 items-center gap-2 pl-4 text-[10.5px] text-ink-3">
+                          <span className="truncate">{item.subtitle}</span>
+                          <span className="shrink-0 capitalize text-ink-4">{stateLabel(item.state)}</span>
+                        </div>
+                        {waitsOn && waitsOn.length > 0 && (
+                          <div className="mt-1 truncate pl-4 text-[10px] text-ink-4" title={`Waits on ${waitsOn.join(', ')}`}>
+                            ↳ waits on {waitsOn.join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="relative min-h-12" style={{ width: `${timelineWidth}px` }}>
+                      {marks.map((mark) => (
+                        <span
+                          key={mark.day}
+                          className="pointer-events-none absolute bottom-0 top-0 border-l border-line/45"
+                          style={{ left: `${(mark.day / totalDays) * 100}%` }}
+                          aria-hidden
+                        />
+                      ))}
+
+                      {todayOffset !== null && (
+                        <span
+                          className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-brand/55"
+                          style={{ left: `${todayOffset}%` }}
+                          aria-hidden
+                        >
+                          <span className="absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-semibold text-on-brand first:block hidden">
+                            Today
+                          </span>
+                        </span>
+                      )}
+
+                      {hasRange ? (
+                        <div
+                          className={`absolute top-1/2 z-10 h-5 -translate-y-1/2 rounded-md ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/35' : ''} shadow-sm`}
+                          style={{
+                            left: `${(startDayOffset / totalDays) * 100}%`,
+                            width: `${Math.max(((endDay - startDayOffset) / totalDays) * 100, 1.4)}%`
+                          }}
+                          title={`${item.title} — ${formatDate(item.start ?? null)} → ${formatDate(item.end)}`}
+                        >
+                          <span className="absolute inset-y-0 right-1.5 flex items-center text-[9px] font-semibold text-white/90">
+                            {Math.max(endDay - startDayOffset, 1)}d
+                          </span>
+                        </div>
+                      ) : (
+                        <span
+                          className={`absolute top-1/2 z-10 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[3px] ${stateToneDotClass(item.state)} ${overdue ? 'ring-2 ring-risk/40' : ''} shadow-sm`}
+                          style={{ left: `${(endDay / totalDays) * 100}%` }}
+                          title={`${item.title} — ${formatDate(item.end)}`}
+                        />
+                      )}
+                    </div>
+
+                    <div className={`sticky right-0 z-10 flex w-20 shrink-0 items-center justify-end border-l border-line bg-surface px-3 text-[11px] group-hover:bg-surface-2 ${overdue ? 'font-semibold text-risk' : 'text-ink-3'}`}>
+                      {formatDate(item.end)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-line px-3 py-2 text-[10px] text-ink-4 sm:px-4">
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-5 rounded-sm bg-brand" /> Duration</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rotate-45 rounded-[2px] bg-ink-4" /> Milestone</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-3 w-px bg-brand/60" /> Today</span>
+        <span className="ml-auto">Drag horizontally to inspect the timeline</span>
       </div>
     </div>
   );
