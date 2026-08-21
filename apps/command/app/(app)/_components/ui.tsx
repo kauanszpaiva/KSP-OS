@@ -9,19 +9,19 @@ export function PageHeader({
   description,
   action
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   description?: string;
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
-      <div className="max-w-2xl">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">{eyebrow}</p>
-        <h1 className="mt-1.5 text-[26px] font-semibold leading-tight text-ink">{title}</h1>
-        {description && <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">{description}</p>}
+    <div className="mb-5 flex flex-col gap-3 border-b border-line pb-4 md:mb-6 md:flex-row md:items-end md:justify-between md:gap-5 md:pb-4">
+      <div className="min-w-0 max-w-3xl">
+        {eyebrow && <p className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4 sm:block">{eyebrow}</p>}
+        <h1 className={`${eyebrow ? 'sm:mt-1' : ''} text-[23px] font-semibold leading-[1.15] text-ink md:text-[25px]`}>{title}</h1>
+        {description && <p className="mt-1.5 max-w-3xl text-[13px] leading-snug text-ink-3 md:text-[13.5px]">{description}</p>}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
@@ -40,8 +40,8 @@ export function Panel({
 
 export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-center justify-between">
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">{children}</h2>
+    <div className="mb-2.5 flex min-h-5 items-center justify-between gap-3">
+      <h2 className="text-[12.5px] font-semibold leading-tight text-ink-2">{children}</h2>
       {right}
     </div>
   );
@@ -49,14 +49,14 @@ export function SectionLabel({ children, right }: { children: ReactNode; right?:
 
 export function EmptyState({ icon, title, hint }: { icon?: IconName; title: string; hint?: string }) {
   return (
-    <div className="animate-fade-in rounded-xl border border-dashed border-line-2 bg-surface/50 px-5 py-8 text-center">
+    <div className="animate-fade-in rounded-xl border border-dashed border-line-2 bg-surface/50 px-4 py-6 text-center sm:px-5 sm:py-8">
       {icon && (
-        <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-2 text-ink-3">
+        <span className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2 text-ink-3 sm:h-11 sm:w-11 sm:rounded-xl">
           <Icon name={icon} className="h-5 w-5" />
         </span>
       )}
-      <p className="text-sm font-medium text-ink-2">{title}</p>
-      {hint && <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-3">{hint}</p>}
+      <p className="text-[13.5px] font-medium text-ink-2 sm:text-sm">{title}</p>
+      {hint && <p className="mx-auto mt-1 max-w-md text-[12.5px] leading-snug text-ink-3 sm:text-[13px]">{hint}</p>}
     </div>
   );
 }
@@ -172,7 +172,7 @@ export function StatePill({ state }: { state: string }) {
   const cls = TONE_CLASS[tone];
   return (
     <span className={`inline-flex items-center gap-1.5 text-[12px] font-medium capitalize ${cls.text}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${cls.dot}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${cls.dot}`} aria-hidden />
       {state.replace(/_/g, ' ')}
     </span>
   );
@@ -183,8 +183,8 @@ export function Figure({ label, value, tone = 'neutral', suffix }: { label: stri
   const color = tone === 'risk' ? 'text-risk' : tone === 'warn' ? 'text-warn' : tone === 'good' ? 'text-good' : 'text-ink';
   return (
     <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-ink-3">{label}</p>
-      <p className={`tnum mt-0.5 text-2xl font-semibold ${color}`}>
+      <p className="text-[10.5px] font-medium uppercase tracking-wide text-ink-3 sm:text-[11px]">{label}</p>
+      <p className={`tnum mt-0.5 text-xl font-semibold sm:text-2xl ${color}`}>
         {value}
         {suffix && <span className="ml-0.5 text-sm font-normal text-ink-3">{suffix}</span>}
       </p>
