@@ -1,8 +1,13 @@
-type EmailPayload = {
+import { invoiceEmailConfigured, sendInvoiceEmail } from './resend';
+
+export { buildInvoiceEmail, type InvoiceEmailInput, type InvoiceEmailLine } from './invoice-email';
+export { invoiceEmailConfigured };
+
+interface EmailPayload {
   to: string;
   subject: string;
   html: string;
-};
+}
 
 function externalEmailDisabled(_event: string, _to: string) {
   return Promise.resolve({ disabled: true as const });
@@ -24,18 +29,37 @@ export async function sendApprovalCompletedEmail(to: string, _itemName: string, 
   return externalEmailDisabled('approval-completed', to);
 }
 
+// Legacy compatibility surface remains disabled. Customer invoice delivery is
+// intentionally available only through the structured sendInvoiceIssued path.
 export async function sendInvoiceIssuedEmail(to: string, _clientName: string, _invoiceId: string, _amountMinor: number) {
-  return externalEmailDisabled('invoice-issued', to);
+  return externalEmailDisabled('legacy-invoice-issued', to);
 }
 
 export async function sendInvoiceIssued(params: {
   to: string;
+  clientName: string;
   invoiceNumber: string;
   amountMinor: number;
   currency: string;
   invoiceId: string;
+  dueDate: string | null;
+  lines: Array<{ description: string; amountMinor: number }>;
+  invoiceUrl?: string | null;
+  idempotencyKey: string;
 }) {
-  return externalEmailDisabled('invoice-issued', params.to);
+  return sendInvoiceEmail(
+    {
+      to: params.to,
+      clientName: params.clientName,
+      invoiceNumber: params.invoiceNumber,
+      amountMinor: params.amountMinor,
+      currency: params.currency,
+      dueDate: params.dueDate,
+      lines: params.lines,
+      invoiceUrl: params.invoiceUrl
+    },
+    params.idempotencyKey
+  );
 }
 
 export async function sendInvoiceDueReminder(params: {

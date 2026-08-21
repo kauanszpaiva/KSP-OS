@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
 import type { ChartAccount, Subscription } from '@ksp/database';
-import type { AccountingPeriod, JournalEntry, Invoice, ClientRef } from '../data';
+import type { AccountingPeriod, JournalEntry } from '../data';
 import type { CashControlData } from '../finance/data';
-import { formatDate, isOverdue } from '../../../lib/format';
+import type { InvoiceConsoleData } from '../finance/invoice-data';
+import { isOverdue } from '../../../lib/format';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { CalendarView, type CalendarItem } from './calendar-view';
 import { CashControl } from '../finance/_components/cash-control';
@@ -99,8 +100,7 @@ export function FinanceView({
   postedEntryCount,
   periods,
   entries,
-  invoices,
-  clients
+  invoiceData
 }: {
   cash: CashControlData;
   chartAccounts: ChartAccount[];
@@ -109,8 +109,7 @@ export function FinanceView({
   postedEntryCount: number;
   periods: AccountingPeriod[];
   entries: JournalEntry[];
-  invoices: Invoice[];
-  clients: ClientRef[];
+  invoiceData: InvoiceConsoleData;
 }) {
   const [view, setView] = useState<'cash' | 'accounts' | 'renewals' | 'chart' | 'journal' | 'periods' | 'subscriptions' | 'invoices'>('cash');
 
@@ -139,7 +138,7 @@ export function FinanceView({
       {view === 'journal' && <JournalWorkbench entries={entries} accounts={chartAccounts} />}
       {view === 'periods' && <PeriodsConsole periods={periods} />}
       {view === 'subscriptions' && <SubscriptionsConsole subscriptions={subscriptions} />}
-      {view === 'invoices' && <InvoicesConsole invoices={invoices} clients={clients} />}
+      {view === 'invoices' && <InvoicesConsole data={invoiceData} />}
     </div>
   );
 }
