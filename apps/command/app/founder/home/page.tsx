@@ -21,9 +21,9 @@ const toneClass: Record<StatusTone, string> = {
   risk: 'bg-risk'
 };
 
-function StatusCard({ label, value, detail, href, tone = 'neutral' }: { label: string; value: number; detail: string; href: string; tone?: StatusTone }) {
+function StatusCard({ label, value, detail, href, tone = 'neutral', className = '' }: { label: string; value: number; detail: string; href: string; tone?: StatusTone; className?: string }) {
   return (
-    <Link href={href} className="group min-w-0 rounded-xl border border-line bg-surface px-4 py-3.5 transition-colors duration-fast hover:border-brand">
+    <Link href={href} className={`group min-w-0 px-4 py-3.5 transition-colors duration-fast hover:bg-surface-2 ${className}`}>
       <div className="flex items-center gap-2">
         <span className={`h-1.5 w-1.5 rounded-full ${toneClass[tone]}`} aria-hidden />
         <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-4">{label}</span>
@@ -102,11 +102,11 @@ export default async function FounderHomePage() {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.55fr)]">
         <FounderQuickCapture />
-        <section className="grid grid-cols-2 gap-2.5" aria-label="Second Brain status">
+        <section className="grid grid-cols-2 overflow-hidden rounded-2xl border border-line bg-surface shadow-card" aria-label="Second Brain status">
           <StatusCard label="Inbox" value={inbox.length} detail="captures to organize" href="/founder/inbox" tone={inbox.length ? 'warn' : 'good'} />
-          <StatusCard label="Truth" value={truthReview.length} detail="items need review" href="/founder/truth" tone={truthReview.length ? 'warn' : 'good'} />
-          <StatusCard label="Sources" value={sourceReview.length} detail="need trust review" href="/founder/sources" tone={sourceReview.length ? 'warn' : 'good'} />
-          <StatusCard label="Context" value={activePacks.length} detail="active context packs" href="/founder/context" tone="brand" />
+          <StatusCard label="Truth" value={truthReview.length} detail="items need review" href="/founder/truth" tone={truthReview.length ? 'warn' : 'good'} className="border-l border-line" />
+          <StatusCard label="Sources" value={sourceReview.length} detail="need trust review" href="/founder/sources" tone={sourceReview.length ? 'warn' : 'good'} className="border-t border-line" />
+          <StatusCard label="Context" value={activePacks.length} detail="active context packs" href="/founder/context" tone="brand" className="border-l border-t border-line" />
         </section>
       </div>
 
