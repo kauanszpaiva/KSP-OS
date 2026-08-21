@@ -19,6 +19,11 @@ function LayerLink({ href, icon, title, detail, count }: { href: string; icon: '
   );
 }
 
+const EXPLORE = [
+  ['/founder/ideas', 'Ideas'], ['/founder/projects', 'Projects'], ['/founder/handoffs', 'Handoffs'],
+  ['/founder/ai-access', 'AI Access / MCP'], ['/founder/ai-inbox', 'AI Inbox'], ['/founder/vault', 'Vault']
+] as const;
+
 export default async function FounderKnowledgePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   await requireSession();
   const supabase = await getServerSupabase();
@@ -57,6 +62,13 @@ export default async function FounderKnowledgePage({ searchParams }: { searchPar
           <LayerLink href="/founder/truth" icon="decisions" title="Truth" detail="Claims with verification, confidence and provenance." count={truth.length} />
           <LayerLink href="/founder/sources" icon="knowledge" title="Sources" detail="Where information came from and how much it is trusted." count={sources.length} />
           <LayerLink href="/founder/context" icon="workspace" title="Context Packs" detail="Bounded context packages prepared for AI work." count={packs.filter((pack) => pack.status === 'active').length} />
+        </div>
+      </section>
+
+      <section className="mt-7">
+        <h2 className="mb-2 text-[13px] font-semibold text-ink">Explore the Brain</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {EXPLORE.map(([href, label]) => <Link key={href} href={href} className="rounded-xl border border-line bg-surface px-3 py-3 text-[12px] font-medium text-ink-2 hover:border-brand hover:text-brand">{label}</Link>)}
         </div>
       </section>
 
