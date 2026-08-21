@@ -84,13 +84,13 @@ export const NAV_GROUPS: NavGroup[] = [
 
 /**
  * Founder OS navigation — a separate operating context rendered only inside the
- * `/founder` shell, only for the founder. Never merged into NAV_GROUPS (the
- * company IA) and never surfaced to non-founders. Vault reuses the existing
- * founder_vault_entries backing; Home/Inbox/My Work are founder-private.
+ * `/founder` shell, only for the founder. Truth is the first Second Brain
+ * surface: a private knowledge ledger with explicit verification state.
  */
 export const FOUNDER_NAV: NavItem[] = [
   { label: 'Home', href: '/founder/home', status: 'live', icon: 'home' },
   { label: 'Inbox', href: '/founder/inbox', status: 'live', icon: 'inbox' },
+  { label: 'Truth', href: '/founder/truth', status: 'live', icon: 'decisions' },
   { label: 'My Work', href: '/founder/work', status: 'live', icon: 'workspace' },
   { label: 'Vault', href: '/founder/vault', status: 'live', icon: 'vault' }
 ];
