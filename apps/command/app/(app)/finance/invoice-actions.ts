@@ -132,7 +132,7 @@ export async function issueInvoiceAndEmail(_previous: InvoiceActionResult, form:
       if (issueError) return { ok: false, error: issueError.message };
     }
 
-    const idempotencyKey = existingDelivery?.idempotency_key || `invoice-issued/${invoiceId}/${String(invoice.billing_email).toLowerCase()}`;
+    const idempotencyKey = existingDelivery?.idempotency_key || `invoice-issued/${invoiceId}`;
     const attempts = Number(existingDelivery?.attempt_count ?? 0) + 1;
     const deliveryPayload = {
       organization_id: ctx.organizationId,
