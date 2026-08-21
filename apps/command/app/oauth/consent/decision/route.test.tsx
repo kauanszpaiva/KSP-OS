@@ -45,10 +45,10 @@ describe('OAuth consent decision route', () => {
   it('uses 303 after approval so the OAuth callback is followed with GET', async () => {
     const request = new Request('https://ksp-os-command.vercel.app/oauth/consent/decision', {
       method: 'POST',
-      body: new URLSearchParams({
-        authorizationId: 'authorization-1',
-        decision: 'approve'
-      })
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded'
+      },
+      body: 'authorizationId=authorization-1&decision=approve'
     });
 
     const response = await POST(request);
