@@ -16,9 +16,8 @@ async function financeGate(): Promise<FinanceGate> {
   const ctx = await getAuthContext(supabase);
   if (!ctx || !isExecutive(ctx)) throw new Error('Executive finance access required.');
 
-  // The readiness marker is created by the final migration in this vertical slice.
-  // This prevents partial mutations when application code reaches an environment
-  // whose Finance V2 schema/audit policy has not been released yet.
+  // Cash Control mutations remain independently gated by the Finance V2 schema.
+  // Customer invoices use their own canonical schema and actions in invoice-actions.ts.
   const { data: ready, error: readinessError } = await supabase.rpc('finance_v2_cash_schema_ready');
   if (readinessError || ready !== true) {
     throw new Error('Finance V2 schema has not been released on this environment yet.');
@@ -160,55 +159,5 @@ export async function reconcileCashStatement(form: FormData) {
         : error.message;
     throw new Error(message);
   }
-  revalidatePath('/finance');
-}
-
-// Invoice safety bridge: these actions preserve the current simple invoice UI but
-// never invent a billing recipient and never send an external email implicitly.
-export async function draftInvoiceSafely(form: FormData) {
-  const { supabase, ctx } = await financeGate();
-  const clientId = text(form, 'client_id', true);
-  const { data: client } = await supabase.from('client_organizations').select('id').eq('id', clientId).eq('organization_id', ctx.organizationId).maybeSingle();
-  if (!client) throw new Error('Client not found in the active organization.');
-
-  const { data, error } = await supabase.from('invoices').insert({
-    organization_id: ctx.organizationId,
-    client_id: clientId,
-    status: 'draft'
-  }).select('id').single();
-  if (error || !data) throw new Error(error?.message || 'Could not draft the invoice.');
-  await audit(supabase, ctx, 'finance.invoice_drafted', 'invoices', data.id, 'Invoice drafted');
-  revalidatePath('/finance');
-}
-
-export async function issueInvoiceSafely(form: FormData) {
-  const { supabase, ctx } = await financeGate();
-  const id = text(form, 'invoice_id', true);
-  const { data, error } = await supabase.from('invoices')
-    .update({ status: 'active', issued_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('organization_id', ctx.organizationId)
-    .eq('status', 'draft')
-    .select('id')
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Invoice not found in draft state for this organization.');
-  await audit(supabase, ctx, 'finance.invoice_issued', 'invoices', id, 'Invoice issued internally; no email sent without a verified billing recipient');
-  revalidatePath('/finance');
-}
-
-export async function markInvoicePaidSafely(form: FormData) {
-  const { supabase, ctx } = await financeGate();
-  const id = text(form, 'invoice_id', true);
-  const { data, error } = await supabase.from('invoices')
-    .update({ status: 'posted', balance_minor: 0 })
-    .eq('id', id)
-    .eq('organization_id', ctx.organizationId)
-    .eq('status', 'active')
-    .select('id')
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Invoice not found in active state for this organization.');
-  await audit(supabase, ctx, 'finance.invoice_marked_paid', 'invoices', id, 'Invoice marked paid');
   revalidatePath('/finance');
 }
