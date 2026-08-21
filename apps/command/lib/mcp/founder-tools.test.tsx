@@ -66,12 +66,12 @@ describe('Founder MCP writes', () => {
   });
 
   it('writes private capture rows under the caller identity, never service role', async () => {
-    let written: Record<string, unknown> | null = null;
+    const writes: Record<string, unknown>[] = [];
     const supabase = {
       from: (table: string) => ({
         insert: (row: Record<string, unknown>) => {
           expect(table).toBe('founder_inbox_items');
-          written = row;
+          writes.push(row);
           return { select: () => ({ single: async () => ({ data: { id: '33333333-3333-4333-8333-333333333333' }, error: null }) }) };
         }
       })
@@ -79,6 +79,8 @@ describe('Founder MCP writes', () => {
     const capture = founderWriteTools.find((tool) => tool.name === 'capture')!;
     const result = await capture.run({ type: 'idea', title: 'Private idea', body: 'Context' }, { supabase, identity });
     expect(result).toEqual({ ok: true, id: '33333333-3333-4333-8333-333333333333' });
+    expect(writes).toHaveLength(1);
+    const written = writes[0];
     expect(written?.organization_id).toBe(identity.organizationId);
     expect(written?.owner_id).toBe(identity.userId);
     expect(written?.metadata).toEqual({ via: 'founder_mcp' });
