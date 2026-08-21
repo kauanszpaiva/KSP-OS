@@ -18,6 +18,15 @@ export interface FounderInboxItem {
   created_at: string;
 }
 
+export interface AiInboxItem {
+  id: string;
+  title: string;
+  body: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FounderTask {
   id: string;
   title: string;
@@ -45,6 +54,20 @@ export async function getInboxItems(supabase: SupabaseClient): Promise<FounderIn
     .select('id, item_type, title, body, triage_status, target_table, target_id, created_at')
     .order('created_at', { ascending: false });
   return (data ?? []) as FounderInboxItem[];
+}
+
+/**
+ * AI Inbox intentionally reuses founder_vault_entries because that table is
+ * already deployed and founder-only in Production. entry_type isolates these
+ * rows from ordinary vault notes without introducing another schema dependency.
+ */
+export async function getAiInboxItems(supabase: SupabaseClient): Promise<AiInboxItem[]> {
+  const { data } = await supabase
+    .from('founder_vault_entries')
+    .select('id, title, body, metadata, created_at, updated_at')
+    .eq('entry_type', 'ai_request')
+    .order('created_at', { ascending: false });
+  return (data ?? []) as AiInboxItem[];
 }
 
 export async function getFounderTasks(supabase: SupabaseClient): Promise<FounderTask[]> {
@@ -82,6 +105,7 @@ export async function getRecentVault(supabase: SupabaseClient, limit = 3): Promi
   const { data } = await supabase
     .from('founder_vault_entries')
     .select('id, entry_type, title, created_at')
+    .neq('entry_type', 'ai_request')
     .order('created_at', { ascending: false })
     .limit(limit);
   return (data ?? []) as VaultRef[];
