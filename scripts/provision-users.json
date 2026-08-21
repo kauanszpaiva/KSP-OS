@@ -1,7 +1,3 @@
 [
-  { "email": "kauan@kspdominion.group", "name": "Kauan Paiva", "role": "founder_ceo" },
-  { "email": "magaly@kspdominion.group", "name": "Magaly", "role": "executive_operations" },
-  { "email": "vanessa@kspdominion.group", "name": "Vanessa", "role": "executive_operations" },
-  { "email": "eric@kspdominion.group", "name": "Eric", "role": "sales_specialist" },
-  { "email": "joshua@kspdominion.group", "name": "Joshua", "role": "designer" }
+  { "email": "bruno@kspdominion.group", "name": "Bruno", "role": "editor" }
 ]
