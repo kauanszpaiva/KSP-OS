@@ -87,9 +87,8 @@ create trigger founder_context_packs_touch before update on founder_context_pack
 create index founder_context_packs_owner_status_idx
   on founder_context_packs (owner_id, status, updated_at desc);
 
--- Optional provenance links for a context pack. The application always writes
--- links using the same owner/org as both parent rows; RLS independently protects
--- the link record as well.
+-- Optional provenance links for a context pack. The RLS insert policy below
+-- additionally proves that BOTH parent rows belong to this same owner/org.
 create table founder_context_pack_sources (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id),
@@ -135,6 +134,8 @@ create index founder_handoffs_owner_agent_idx
 -- ---------------------------------------------------------------------------
 -- Row Level Security: the authenticated principal must own the row AND be the
 -- founder for its organization. No service-role application path uses these.
+-- Relationship writes also prove parent ownership so a known UUID can never
+-- create a cross-owner/cross-organization link.
 -- ---------------------------------------------------------------------------
 alter table founder_truth_items enable row level security;
 alter table founder_sources enable row level security;
@@ -175,16 +176,59 @@ create policy founder_context_packs_delete on founder_context_packs for delete
 create policy founder_context_pack_sources_select on founder_context_pack_sources for select
   using (owner_id = auth.uid() and is_founder(organization_id));
 create policy founder_context_pack_sources_insert on founder_context_pack_sources for insert
-  with check (owner_id = auth.uid() and is_founder(organization_id));
+  with check (
+    owner_id = auth.uid()
+    and is_founder(organization_id)
+    and exists (
+      select 1
+      from founder_context_packs p
+      where p.id = founder_context_pack_sources.context_pack_id
+        and p.organization_id = founder_context_pack_sources.organization_id
+        and p.owner_id = founder_context_pack_sources.owner_id
+    )
+    and exists (
+      select 1
+      from founder_sources s
+      where s.id = founder_context_pack_sources.source_id
+        and s.organization_id = founder_context_pack_sources.organization_id
+        and s.owner_id = founder_context_pack_sources.owner_id
+    )
+  );
 create policy founder_context_pack_sources_delete on founder_context_pack_sources for delete
   using (owner_id = auth.uid() and is_founder(organization_id));
 
 create policy founder_handoffs_select on founder_handoffs for select
   using (owner_id = auth.uid() and is_founder(organization_id));
 create policy founder_handoffs_insert on founder_handoffs for insert
-  with check (owner_id = auth.uid() and is_founder(organization_id));
+  with check (
+    owner_id = auth.uid()
+    and is_founder(organization_id)
+    and (
+      context_pack_id is null
+      or exists (
+        select 1
+        from founder_context_packs p
+        where p.id = founder_handoffs.context_pack_id
+          and p.organization_id = founder_handoffs.organization_id
+          and p.owner_id = founder_handoffs.owner_id
+      )
+    )
+  );
 create policy founder_handoffs_update on founder_handoffs for update
   using (owner_id = auth.uid() and is_founder(organization_id))
-  with check (owner_id = auth.uid() and is_founder(organization_id));
+  with check (
+    owner_id = auth.uid()
+    and is_founder(organization_id)
+    and (
+      context_pack_id is null
+      or exists (
+        select 1
+        from founder_context_packs p
+        where p.id = founder_handoffs.context_pack_id
+          and p.organization_id = founder_handoffs.organization_id
+          and p.owner_id = founder_handoffs.owner_id
+      )
+    )
+  );
 create policy founder_handoffs_delete on founder_handoffs for delete
   using (owner_id = auth.uid() and is_founder(organization_id));
