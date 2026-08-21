@@ -103,6 +103,36 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* The application shell owns phone safe areas so fixed navigation never hides
+ * content and the sticky top bar remains comfortable in standalone/PWA modes. */
+.app-topbar {
+  min-height: calc(3.5rem + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+}
+
+.app-main {
+  padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+}
+
+.mobile-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-sheet {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  .app-topbar {
+    min-height: 3.5rem;
+    padding-top: 0;
+  }
+
+  .app-main {
+    padding-bottom: 3rem;
+  }
+}
+
 /* Figures align in columns — essential for an operations tool. */
 .tnum {
   font-variant-numeric: tabular-nums;
