@@ -2,6 +2,7 @@ import { canViewFinance } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getFinanceOverview, getSubscriptions, getAccountingPeriods, getJournalEntries, getInvoices, getClientRefs } from '../data';
+import { getCashControlData } from './data';
 import { EmptyState, Figure, PageHeader } from '../_components/ui';
 import { FinanceView } from '../_components/finance-view';
 
@@ -22,33 +23,49 @@ export default async function FinancePage() {
     );
   }
 
-  const [overview, subscriptions, periods, entries, invoices, clients] = supabase
+  const [overview, subscriptions, periods, entries, invoices, clients, cash] = supabase
     ? await Promise.all([
         getFinanceOverview(supabase),
         getSubscriptions(supabase),
         getAccountingPeriods(supabase),
         getJournalEntries(supabase),
         getInvoices(supabase),
-        getClientRefs(supabase)
+        getClientRefs(supabase),
+        getCashControlData(supabase)
       ])
-    : [{ chartAccounts: [], draftEntryCount: 0, postedEntryCount: 0, monthlySubscriptionBurnMinor: 0 }, [], [], [], [], []];
+    : [
+        { chartAccounts: [], draftEntryCount: 0, postedEntryCount: 0, monthlySubscriptionBurnMinor: 0 },
+        [],
+        [],
+        [],
+        [],
+        [],
+        { accounts: [], transactions: [], statements: [], unreconciledCount: 0, unknownBalanceAccountCount: 0 }
+      ];
+
+  const cashStatus = cash.accounts.length === 0
+    ? 'Not configured'
+    : cash.unknownBalanceAccountCount > 0
+      ? 'Needs reconciliation'
+      : `${cash.unreconciledCount} unreconciled`;
 
   return (
     <div>
       <PageHeader
         eyebrow="Control"
         title="Finance"
-        description="Robust controlled financial operations workspace."
+        description="Cash truth, receivables, recurring spend and controlled accounting operations."
         action={
           <div className="flex gap-6">
-            <Figure label="Draft entries" value={overview.draftEntryCount} />
+            <Figure label="Cash status" value={cashStatus} />
+            <Figure label="Tracked subscriptions" value={money(overview.monthlySubscriptionBurnMinor)} />
             <Figure label="Posted entries" value={overview.postedEntryCount} tone="good" />
-            <Figure label="Monthly burn" value={money(overview.monthlySubscriptionBurnMinor)} />
           </div>
         }
       />
 
       <FinanceView
+        cash={cash}
         chartAccounts={overview.chartAccounts}
         subscriptions={subscriptions}
         draftEntryCount={overview.draftEntryCount}
