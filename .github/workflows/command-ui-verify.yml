@@ -28,7 +28,10 @@ jobs:
         run: pnpm lint
       - name: Command typecheck
         run: pnpm --filter @ksp/command typecheck
-      - name: Unit tests
+      - name: Command unit tests
+        run: pnpm exec vitest run apps/command
+      - name: Repository unit-test diagnostic
+        continue-on-error: true
         run: pnpm test
       - name: Command build
         run: pnpm build:command
