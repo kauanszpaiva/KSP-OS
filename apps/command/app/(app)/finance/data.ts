@@ -65,7 +65,9 @@ export interface CashControlData {
 export async function getCashControlData(supabase: SupabaseClient): Promise<CashControlData> {
   const [{ data: accounts }, { data: transactions }, { data: statements }] = await Promise.all([
     supabase.from('financial_accounts').select('*').order('name', { ascending: true }),
-    supabase.from('cash_transactions').select('*').order('occurred_on', { ascending: false }).limit(250),
+    // Cash truth must be calculated from the full ledger. Do not page or truncate
+    // this query until balances are moved to a server-side aggregate/view.
+    supabase.from('cash_transactions').select('*').order('occurred_on', { ascending: false }),
     supabase.from('reconciliation_statements').select('*').order('statement_end_date', { ascending: false }).limit(50)
   ]);
 
