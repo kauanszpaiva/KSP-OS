@@ -33,7 +33,8 @@ describe('Google Jules client', () => {
 
     expect(session.name).toBe('sessions/456');
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({ 'x-goog-api-key': 'test-key' });
+    const sourceHeaders = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(sourceHeaders.get('x-goog-api-key')).toBe('test-key');
     const createInit = fetchMock.mock.calls[1]?.[1];
     const createBody = JSON.parse(String(createInit?.body));
     expect(createBody.sourceContext).toEqual({
@@ -49,8 +50,14 @@ describe('Google Jules client', () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response({ error: { message: secret } }, 403));
     const client = createJulesClient({ apiKey: secret, fetchImpl: fetchMock });
 
-    await expect(client.findGithubSource('kauanszpaiva', 'KSP-OS')).rejects.toThrow('rejected the configured API credential');
-    await expect(client.findGithubSource('kauanszpaiva', 'KSP-OS')).rejects.not.toThrow(secret);
+    try {
+      await client.findGithubSource('kauanszpaiva', 'KSP-OS');
+      throw new Error('Expected Jules request to fail');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      expect(message).toContain('rejected the configured API credential');
+      expect(message).not.toContain(secret);
+    }
   });
 
   it('builds a bounded task prompt with repository safety rules', () => {
