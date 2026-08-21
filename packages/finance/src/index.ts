@@ -81,3 +81,35 @@ export interface CustomerPayment {
   receiptUrl?: string;
   createdAt: string;
 }
+
+export type CashDirection = 'inflow' | 'outflow';
+
+export interface CashTransactionInput {
+  amountMinor: number;
+  currency: string;
+  direction: CashDirection;
+}
+
+export function validateCashTransaction(input: CashTransactionInput): void {
+  if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) throw new Error('cash_amount_must_be_positive_minor_units');
+  if (!/^[A-Z]{3}$/.test(input.currency)) throw new Error('currency_must_be_iso_4217');
+  if (input.direction !== 'inflow' && input.direction !== 'outflow') throw new Error('cash_direction_invalid');
+}
+
+export function signedCashAmount(input: CashTransactionInput): number {
+  validateCashTransaction(input);
+  return input.direction === 'inflow' ? input.amountMinor : -input.amountMinor;
+}
+
+export function calculateBookBalance(openingBalanceMinor: number | null, transactions: CashTransactionInput[]): number | null {
+  if (openingBalanceMinor == null) return null;
+  if (!Number.isSafeInteger(openingBalanceMinor)) throw new Error('opening_balance_must_use_minor_units');
+  return transactions.reduce((balance, transaction) => balance + signedCashAmount(transaction), openingBalanceMinor);
+}
+
+export function assertStatementReconciles(openingBalanceMinor: number | null, transactions: CashTransactionInput[], endingBalanceMinor: number): void {
+  if (!Number.isSafeInteger(endingBalanceMinor)) throw new Error('statement_balance_must_use_minor_units');
+  const book = calculateBookBalance(openingBalanceMinor, transactions);
+  if (book == null) throw new Error('opening_balance_required_before_reconciliation');
+  if (book !== endingBalanceMinor) throw new Error('statement_does_not_reconcile');
+}
