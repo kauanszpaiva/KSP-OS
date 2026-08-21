@@ -58,14 +58,22 @@ describe('Founder OS navigation isolation', () => {
     expect(founder.some((i) => i.href === '/founder')).toBe(true);
   });
 
-  it('keeps every Founder OS nav route inside the /founder namespace', () => {
-    expect(FOUNDER_NAV.length).toBeGreaterThanOrEqual(4);
-    for (const item of FOUNDER_NAV) expect(item.href.startsWith('/founder/')).toBe(true);
-    expect(FOUNDER_NAV.map((i) => i.href)).toEqual([
+  it('keeps every Second Brain nav route inside the /founder namespace', () => {
+    const expected = [
       '/founder/home',
       '/founder/inbox',
+      '/founder/ideas',
+      '/founder/projects',
+      '/founder/knowledge',
+      '/founder/context',
+      '/founder/handoffs',
+      '/founder/ai-access',
+      '/founder/ai-inbox',
       '/founder/work',
       '/founder/vault'
-    ]);
+    ];
+    expect(FOUNDER_NAV.map((item) => item.href)).toEqual(expected);
+    expect(new Set(FOUNDER_NAV.map((item) => item.href)).size).toBe(FOUNDER_NAV.length);
+    for (const item of FOUNDER_NAV) expect(item.href.startsWith('/founder/')).toBe(true);
   });
 });
