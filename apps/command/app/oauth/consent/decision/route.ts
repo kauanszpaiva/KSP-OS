@@ -31,5 +31,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: result.error?.message ?? 'authorization_failed' }, { status: 400 });
   }
 
-  return NextResponse.redirect(result.data.redirect_url);
+  // Consent is a single-use POST. A 303 enforces Post/Redirect/Get so the
+  // browser follows the OAuth callback with GET instead of replaying this POST.
+  return NextResponse.redirect(result.data.redirect_url, { status: 303 });
 }
