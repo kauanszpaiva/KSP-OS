@@ -118,6 +118,16 @@ export async function createSource(_prev: BrainActionResult, form: FormData): Pr
   return { ok: true };
 }
 
+export async function setSourceTrust(form: FormData): Promise<void> {
+  const gate = await founderGate();
+  if ('error' in gate) return;
+  const id = value(form, 'id');
+  const trustStatus = value(form, 'trustStatus');
+  if (!UUID.test(id) || !TRUST_STATUSES.has(trustStatus)) return;
+  await gate.supabase.from('founder_sources').update({ trust_status: trustStatus }).eq('id', id);
+  refreshBrain('/founder/sources', '/founder/context');
+}
+
 export async function createContextPack(_prev: BrainActionResult, form: FormData): Promise<BrainActionResult> {
   const gate = await founderGate();
   if ('error' in gate) return { ok: false, error: gate.error };
