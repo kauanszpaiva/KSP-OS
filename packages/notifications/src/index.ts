@@ -29,19 +29,10 @@ export async function sendApprovalCompletedEmail(to: string, _itemName: string, 
   return externalEmailDisabled('approval-completed', to);
 }
 
-export async function sendInvoiceIssuedEmail(to: string, clientName: string, invoiceId: string, amountMinor: number) {
-  return sendInvoiceEmail(
-    {
-      to,
-      clientName,
-      invoiceNumber: invoiceId,
-      amountMinor,
-      currency: 'USD',
-      dueDate: null,
-      lines: [{ description: 'Invoice total', amountMinor }]
-    },
-    `invoice-issued/${invoiceId}/${to.toLowerCase()}`
-  );
+// Legacy compatibility surface remains disabled. Customer invoice delivery is
+// intentionally available only through the structured sendInvoiceIssued path.
+export async function sendInvoiceIssuedEmail(to: string, _clientName: string, _invoiceId: string, _amountMinor: number) {
+  return externalEmailDisabled('legacy-invoice-issued', to);
 }
 
 export async function sendInvoiceIssued(params: {
