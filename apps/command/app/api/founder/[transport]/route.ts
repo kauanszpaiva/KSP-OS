@@ -7,7 +7,7 @@ import { registerFounderTools } from '../../../../lib/mcp/founder-tools';
  * Founder-only Second Brain MCP.
  * Endpoint: /api/founder/mcp
  * Transport: stateless Streamable HTTP.
- * Auth: user-scoped Supabase bearer token + founder_ceo gate before tool listing.
+ * Auth: user-scoped Supabase bearer/OAuth token + founder_ceo gate before tool listing.
  * Every tool then executes through the same RLS-scoped user client.
  */
 export const dynamic = 'force-dynamic';
@@ -22,6 +22,9 @@ const baseHandler = createMcpHandler(
 const verifyFounder = async (_req: Request, bearerToken?: string): Promise<AuthInfo | undefined> =>
   resolveFounderMcpAuth(bearerToken);
 
-const handler = withMcpAuth(baseHandler, verifyFounder, { required: true });
+const handler = withMcpAuth(baseHandler, verifyFounder, {
+  required: true,
+  resourceMetadataPath: '/.well-known/oauth-protected-resource/api/founder/mcp'
+});
 
 export { handler as GET, handler as POST, handler as DELETE };
