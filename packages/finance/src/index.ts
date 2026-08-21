@@ -40,6 +40,8 @@ export function validateInvoice(invoice: InvoiceInput): void {
   if (invoice.balanceMinor > invoice.amountMinor) {
     throw new Error('invoice_balance_cannot_exceed_amount');
   }
+}
+
 export type InvoiceStatus = 'draft' | 'approved' | 'issued' | 'partially_paid' | 'paid' | 'overdue' | 'disputed' | 'voided' | 'written_off';
 
 export interface CustomerInvoice {
