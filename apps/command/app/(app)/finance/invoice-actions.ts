@@ -109,7 +109,7 @@ export async function issueInvoiceAndEmail(_previous: InvoiceActionResult, form:
       .maybeSingle();
     if (invoiceError || !invoice) return { ok: false, error: invoiceError?.message || 'Invoice not found.' };
     if (!['draft', 'approved', 'issued'].includes(invoice.status)) return { ok: false, error: `Invoice cannot be emailed from status ${invoice.status}.` };
-    if (!invoice.billing_email) return { ok: false, error: 'This invoice has no verified billing email.' };
+    if (!invoice.billing_email) return { ok: false, error: 'This invoice has no billing email.' };
 
     const [{ data: client }, { data: lines, error: linesError }, { data: existingDelivery }] = await Promise.all([
       db.from('client_organizations').select('display_name').eq('id', invoice.client_organization_id).eq('organization_id', ctx.organizationId).maybeSingle(),
@@ -187,49 +187,10 @@ export async function issueInvoiceAndEmail(_previous: InvoiceActionResult, form:
       last_error: null,
       updated_at: new Date().toISOString()
     }).eq('id', delivery.id);
-    await audit(supabase, ctx, 'finance.invoice_issued_emailed', 'customer_invoices', invoiceId, `Invoice emailed to verified billing recipient ${invoice.billing_email}`);
+    await audit(supabase, ctx, 'finance.invoice_issued_emailed', 'customer_invoices', invoiceId, `Invoice emailed to billing recipient ${invoice.billing_email}`);
     revalidatePath('/finance');
     return { ok: true, message: `Invoice ${invoice.invoice_number} was issued and emailed to ${invoice.billing_email}.` };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'Could not issue and email the invoice.' };
-  }
-}
-
-export async function markCustomerInvoicePaid(_previous: InvoiceActionResult, form: FormData): Promise<InvoiceActionResult> {
-  try {
-    const { supabase, ctx } = await invoiceGate();
-    const db = supabase as any;
-    const invoiceId = text(form, 'invoice_id', true);
-    const { data: invoice, error } = await db.from('customer_invoices')
-      .select('id, amount_minor, currency, status')
-      .eq('id', invoiceId)
-      .eq('organization_id', ctx.organizationId)
-      .maybeSingle();
-    if (error || !invoice) return { ok: false, error: error?.message || 'Invoice not found.' };
-    if (invoice.status === 'paid') return { ok: true, message: 'Invoice is already marked paid.' };
-    if (!['issued', 'partially_paid', 'overdue'].includes(invoice.status)) return { ok: false, error: 'Only an issued invoice can be marked paid.' };
-
-    const { data: payments } = await db.from('customer_payments').select('amount_minor').eq('invoice_id', invoiceId).eq('organization_id', ctx.organizationId);
-    const paidMinor = ((payments ?? []) as Array<{ amount_minor: number }>).reduce((sum, payment) => sum + Number(payment.amount_minor), 0);
-    const remaining = Math.max(0, Number(invoice.amount_minor) - paidMinor);
-    if (remaining > 0) {
-      const { error: paymentError } = await db.from('customer_payments').insert({
-        organization_id: ctx.organizationId,
-        invoice_id: invoiceId,
-        amount_minor: remaining,
-        currency: invoice.currency,
-        payment_date: new Date().toISOString().slice(0, 10),
-        status: 'completed'
-      });
-      if (paymentError) return { ok: false, error: paymentError.message };
-    }
-
-    const { error: updateError } = await db.from('customer_invoices').update({ status: 'paid' }).eq('id', invoiceId).eq('organization_id', ctx.organizationId);
-    if (updateError) return { ok: false, error: updateError.message };
-    await audit(supabase, ctx, 'finance.invoice_marked_paid', 'customer_invoices', invoiceId, 'Invoice marked paid');
-    revalidatePath('/finance');
-    return { ok: true, message: 'Invoice marked paid.' };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : 'Could not mark the invoice paid.' };
   }
 }
