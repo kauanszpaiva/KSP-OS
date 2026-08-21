@@ -5,6 +5,12 @@ import { getAuthContext, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
 import { getServerSupabase } from '../../lib/supabase';
 import { sendEmail } from '@ksp/notifications';
+import {
+  buildJulesTaskPrompt,
+  createJulesClient,
+  julesSessionPullRequestUrl,
+  mapJulesState
+} from '../../lib/jules';
 
 export interface ActionResult {
   ok: boolean;
@@ -81,12 +87,188 @@ export async function setAiInboxStatus(form: FormData): Promise<void> {
     .eq('entry_type', 'ai_request')
     .maybeSingle();
   if (!data) return;
+  const metadata = (data.metadata ?? {}) as Record<string, unknown>;
+  if (metadata.sensitive === true && next === 'queued') return;
   await supabase
     .from('founder_vault_entries')
-    .update({ metadata: { ...(data.metadata ?? {}), status: next } })
+    .update({ metadata: { ...metadata, status: next } })
     .eq('id', id)
     .eq('entry_type', 'ai_request');
   revalidatePath('/founder/ai-inbox');
+}
+
+async function readAiRequest(supabase: SupabaseClient, id: string) {
+  const { data } = await supabase
+    .from('founder_vault_entries')
+    .select('id, title, body, metadata')
+    .eq('id', id)
+    .eq('entry_type', 'ai_request')
+    .maybeSingle();
+  return data as { id: string; title: string; body: string | null; metadata: Record<string, unknown> | null } | null;
+}
+
+async function updateAiRequestMetadata(
+  supabase: SupabaseClient,
+  id: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  await supabase
+    .from('founder_vault_entries')
+    .update({ metadata })
+    .eq('id', id)
+    .eq('entry_type', 'ai_request');
+}
+
+async function auditJulesAction(
+  supabase: SupabaseClient,
+  ctx: AuthContext,
+  id: string,
+  action: string,
+  metadata: Record<string, unknown> = {}
+): Promise<void> {
+  await supabase.from('activity_events').insert({
+    organization_id: ctx.organizationId,
+    actor_id: ctx.user.id,
+    verb: action,
+    object_table: 'founder_vault_entries',
+    object_id: id,
+    summary: `Google Jules: ${action}`
+  });
+  await supabase.from('audit_events').insert({
+    organization_id: ctx.organizationId,
+    actor_id: ctx.user.id,
+    action: `founder.jules.${action}`,
+    target_table: 'founder_vault_entries',
+    target_id: id,
+    classification: 'internal',
+    metadata
+  });
+}
+
+export async function dispatchAiInboxToJules(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await founderGate();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+  const id = String(form.get('id') ?? '').trim();
+  if (!id) return { ok: false, error: 'Missing AI Inbox request.' };
+
+  const item = await readAiRequest(supabase, id);
+  if (!item) return { ok: false, error: 'AI Inbox request not found.' };
+  const metadata = item.metadata ?? {};
+  if (metadata.sensitive === true) return { ok: false, error: 'This request requires human execution and cannot be sent to Jules.' };
+  if (metadata.status !== 'queued') return { ok: false, error: 'This request is not ready for Jules.' };
+  if (typeof metadata.jules_session_name === 'string') return { ok: false, error: 'This request already has a Jules session.' };
+
+  const repository = typeof metadata.repository === 'string' ? metadata.repository : 'kauanszpaiva/KSP-OS';
+  const [owner, repo] = repository.split('/');
+  if (!owner || !repo) return { ok: false, error: 'Invalid repository configuration.' };
+  const baseBranch = typeof metadata.base_branch === 'string' ? metadata.base_branch : 'main';
+
+  await updateAiRequestMetadata(supabase, id, { ...metadata, status: 'dispatching' });
+
+  try {
+    const session = await createJulesClient().createRepositorySession({
+      owner,
+      repo,
+      startingBranch: baseBranch,
+      title: item.title,
+      prompt: buildJulesTaskPrompt({ title: item.title, body: item.body })
+    });
+    const nextMetadata = {
+      ...metadata,
+      status: mapJulesState(session.state),
+      jules_session_name: session.name,
+      jules_session_id: session.id ?? null,
+      jules_session_url: session.url ?? null,
+      jules_state: session.state ?? null,
+      dispatched_at: new Date().toISOString(),
+      last_error: null
+    };
+    await updateAiRequestMetadata(supabase, id, nextMetadata);
+    await auditJulesAction(supabase, ctx, id, 'dispatched', {
+      jules_session_name: session.name,
+      repository,
+      base_branch: baseBranch,
+      require_plan_approval: true
+    });
+    revalidatePath('/founder/ai-inbox');
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Google Jules dispatch failed.';
+    await updateAiRequestMetadata(supabase, id, {
+      ...metadata,
+      status: 'queued',
+      last_error: message,
+      last_attempt_at: new Date().toISOString()
+    });
+    revalidatePath('/founder/ai-inbox');
+    return { ok: false, error: message };
+  }
+}
+
+export async function refreshAiInboxJules(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await founderGate();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase } = gate;
+  const id = String(form.get('id') ?? '').trim();
+  if (!id) return { ok: false, error: 'Missing AI Inbox request.' };
+
+  const item = await readAiRequest(supabase, id);
+  if (!item) return { ok: false, error: 'AI Inbox request not found.' };
+  const metadata = item.metadata ?? {};
+  const sessionName = typeof metadata.jules_session_name === 'string' ? metadata.jules_session_name : '';
+  if (!sessionName) return { ok: false, error: 'No Jules session is attached to this request.' };
+
+  try {
+    const session = await createJulesClient().getSession(sessionName);
+    const prUrl = julesSessionPullRequestUrl(session);
+    await updateAiRequestMetadata(supabase, id, {
+      ...metadata,
+      status: mapJulesState(session.state),
+      jules_state: session.state ?? null,
+      jules_session_url: session.url ?? metadata.jules_session_url ?? null,
+      pr_url: prUrl ?? metadata.pr_url ?? null,
+      last_synced_at: new Date().toISOString(),
+      last_error: null
+    });
+    revalidatePath('/founder/ai-inbox');
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not refresh Google Jules.';
+    return { ok: false, error: message };
+  }
+}
+
+export async function approveAiInboxJulesPlan(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await founderGate();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+  const id = String(form.get('id') ?? '').trim();
+  if (!id) return { ok: false, error: 'Missing AI Inbox request.' };
+
+  const item = await readAiRequest(supabase, id);
+  if (!item) return { ok: false, error: 'AI Inbox request not found.' };
+  const metadata = item.metadata ?? {};
+  if (metadata.sensitive === true) return { ok: false, error: 'Sensitive work cannot be approved for Jules.' };
+  const sessionName = typeof metadata.jules_session_name === 'string' ? metadata.jules_session_name : '';
+  if (!sessionName) return { ok: false, error: 'No Jules session is attached to this request.' };
+
+  try {
+    const session = await createJulesClient().approvePlan(sessionName);
+    await updateAiRequestMetadata(supabase, id, {
+      ...metadata,
+      status: mapJulesState(session.state || 'IN_PROGRESS'),
+      jules_state: session.state ?? 'IN_PROGRESS',
+      plan_approved_at: new Date().toISOString(),
+      last_error: null
+    });
+    await auditJulesAction(supabase, ctx, id, 'plan_approved', { jules_session_name: sessionName });
+    revalidatePath('/founder/ai-inbox');
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Could not approve the Jules plan.';
+    return { ok: false, error: message };
+  }
 }
 
 // --------------------------------------------------------------------------
