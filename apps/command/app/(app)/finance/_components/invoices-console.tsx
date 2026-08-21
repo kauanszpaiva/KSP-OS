@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useMemo, useState } from 'react';
-import { createInvoiceDraft, issueInvoiceAndEmail, markCustomerInvoicePaid, type InvoiceActionResult } from '../invoice-actions';
+import { createInvoiceDraft, issueInvoiceAndEmail, type InvoiceActionResult } from '../invoice-actions';
 import type { InvoiceConsoleData, InvoiceView } from '../invoice-data';
 
 const initial: InvoiceActionResult = { ok: false };
@@ -96,7 +96,7 @@ function CreateInvoiceForm({ data }: { data: InvoiceConsoleData }) {
 
       <ResultMessage state={state} />
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11.5px] text-ink-4">Amounts are stored in cents; email is sent only after you explicitly issue the draft.</p>
+        <p className="text-[11.5px] text-ink-4">Email is sent only after you explicitly issue the draft.</p>
         <button type="submit" className={primaryButton} disabled={pending || !selected}>{pending ? 'Creating…' : 'Create draft'}</button>
       </div>
     </form>
@@ -112,19 +112,7 @@ function IssueEmailForm({ invoice, emailConfigured }: { invoice: InvoiceView; em
     <form action={action} className="space-y-1.5">
       <input type="hidden" name="invoice_id" value={invoice.id} />
       <button type="submit" className={primaryButton} disabled={pending || !emailConfigured}>{pending ? 'Sending…' : failed || invoice.status === 'issued' ? 'Retry email' : 'Issue & email'}</button>
-      {!emailConfigured && <p className="max-w-[220px] text-[11px] leading-snug text-warn">RESEND_API_KEY must be configured in the deployment before external delivery.</p>}
-      <ResultMessage state={state} />
-    </form>
-  );
-}
-
-function MarkPaidForm({ invoice }: { invoice: InvoiceView }) {
-  const [state, action, pending] = useActionState(markCustomerInvoicePaid, initial);
-  if (!['issued', 'partially_paid', 'overdue'].includes(invoice.status)) return null;
-  return (
-    <form action={action} className="space-y-1.5">
-      <input type="hidden" name="invoice_id" value={invoice.id} />
-      <button type="submit" className={secondaryButton} disabled={pending}>{pending ? 'Saving…' : 'Mark paid'}</button>
+      {!emailConfigured && <p className="max-w-[220px] text-[11px] leading-snug text-warn">Invoice email delivery is not configured in this deployment.</p>}
       <ResultMessage state={state} />
     </form>
   );
@@ -155,7 +143,7 @@ export function InvoicesConsole({ data }: { data: InvoiceConsoleData }) {
         <div className="mb-2 flex items-end justify-between gap-3">
           <div>
             <h3 className="text-[13px] font-semibold text-ink">Invoices</h3>
-            <p className="mt-0.5 text-[11.5px] text-ink-4">Draft → issue + email → payment record.</p>
+            <p className="mt-0.5 text-[11.5px] text-ink-4">Draft → issue + email → delivery status.</p>
           </div>
           <span className="tnum text-[11.5px] text-ink-4">{data.invoices.length} total</span>
         </div>
@@ -188,7 +176,6 @@ export function InvoicesConsole({ data }: { data: InvoiceConsoleData }) {
                 </div>
                 <div className="flex flex-wrap items-start gap-2">
                   {invoice.status !== 'paid' && <IssueEmailForm invoice={invoice} emailConfigured={data.emailConfigured} />}
-                  <MarkPaidForm invoice={invoice} />
                   {invoice.status === 'paid' && <span className="text-[11.5px] font-semibold text-good">Paid</span>}
                 </div>
               </div>
