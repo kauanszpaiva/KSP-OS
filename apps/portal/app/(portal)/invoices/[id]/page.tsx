@@ -31,11 +31,13 @@ export default async function InvoiceDetailPage({
   const ctx = await requirePortalSession();
   const cookieStore = await cookies();
   const db = createServerClient(cookieStore as any);
+  const clientOrganizationIds = [...new Set(ctx.memberships.map((membership) => membership.clientOrganizationId))];
 
   const { data: invoice, error } = await db!
     .from('customer_invoices')
     .select('*, projects(name), invoice_lines(*), customer_payments(*)')
     .eq('id', id)
+    .in('client_organization_id', clientOrganizationIds)
     .single();
 
   if (error || !invoice) {
