@@ -76,7 +76,7 @@ export function TruthCapture({ disabled = false }: { disabled?: boolean }) {
       <input name="sourceUrl" placeholder="Optional source URL" disabled={disabled || pending} className="mt-2 w-full rounded-lg border border-line bg-surface-2 px-2.5 py-2 text-[12px] text-ink-2 outline-none placeholder:text-ink-4 focus:border-brand" />
 
       {state.error && <p className="mt-3 text-[12px] text-risk" role="alert">{state.error}</p>}
-      {state.ok && <p className="mt-3 text-[12px] text-success" role="status">Saved to your private Truth layer.</p>}
+      {state.ok && <p className="mt-3 text-[12px] text-brand" role="status">Saved to your private Truth layer.</p>}
     </form>
   );
 }
