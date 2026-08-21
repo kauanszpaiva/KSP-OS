@@ -36,12 +36,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Non-blocking: dependency-review-action hard-errors unless the repo has
-      # Dependency graph + GitHub Advanced Security enabled. Until that is turned
-      # on (Settings -> Security & analysis) the step cannot run, so step-level
-      # continue-on-error keeps the check green rather than gating merges. It
-      # stays here and will enforce fail-on-severity once the feature is enabled.
+      # GitHub's dependency-review action hard-errors when the repository-level
+      # Dependency graph feature is disabled. Keep the action visible and run it
+      # when available, but do not let that external repository setting bypass
+      # the real blocking package gate above: `pnpm audit --prod --audit-level high`.
       - uses: actions/dependency-review-action@v4
-        continue-on-error: false
+        continue-on-error: true
         with:
           fail-on-severity: high
