@@ -1,16 +1,14 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import { resolveMcpAuth, type McpIdentity } from '../../../../lib/mcp/context';
+import { resolveFounderMcpAuth } from '../../../../lib/mcp/founder-auth';
 import { registerFounderTools } from '../../../../lib/mcp/founder-tools';
 
 /**
  * Founder-only Second Brain MCP.
- *
  * Endpoint: /api/founder/mcp
  * Transport: stateless Streamable HTTP.
- * Auth: the same user-scoped Supabase bearer token used by the Company MCP,
- * plus a hard founder_ceo role requirement before the tool catalog is exposed.
- * Every tool still executes through the caller's RLS-scoped Supabase client.
+ * Auth: user-scoped Supabase bearer token + founder_ceo gate before tool listing.
+ * Every tool then executes through the same RLS-scoped user client.
  */
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -21,12 +19,8 @@ const baseHandler = createMcpHandler(
   { basePath: '/api/founder', disableSse: true, verboseLogs: false }
 );
 
-const verifyFounder = async (_req: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
-  const auth = await resolveMcpAuth(bearerToken);
-  const identity = auth?.extra?.identity as McpIdentity | undefined;
-  if (!auth || !identity?.roles.includes('founder_ceo')) return undefined;
-  return auth;
-};
+const verifyFounder = async (_req: Request, bearerToken?: string): Promise<AuthInfo | undefined> =>
+  resolveFounderMcpAuth(bearerToken);
 
 const handler = withMcpAuth(baseHandler, verifyFounder, { required: true });
 
