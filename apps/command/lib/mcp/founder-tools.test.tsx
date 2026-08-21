@@ -42,6 +42,19 @@ describe('Founder MCP catalog', () => {
     expect(founderReadTools.length).toBeGreaterThanOrEqual(6);
     expect(founderWriteTools.length).toBeGreaterThanOrEqual(6);
   });
+
+  it('prevents AI tools from self-verifying Truth or self-trusting Sources', () => {
+    const addTruth = founderWriteTools.find((tool) => tool.name === 'add_truth');
+    const addSource = founderWriteTools.find((tool) => tool.name === 'add_source');
+    expect(addTruth).toBeDefined();
+    expect(addSource).toBeDefined();
+
+    expect(addTruth!.inputSchema.status.safeParse('verified').success).toBe(false);
+    expect(addTruth!.inputSchema.status.safeParse('unverified').success).toBe(true);
+    expect(addSource!.inputSchema.trust.safeParse('trusted').success).toBe(false);
+    expect(addSource!.inputSchema.trust.safeParse('primary').success).toBe(false);
+    expect(addSource!.inputSchema.trust.safeParse('unverified').success).toBe(true);
+  });
 });
 
 describe('Founder MCP writes', () => {
