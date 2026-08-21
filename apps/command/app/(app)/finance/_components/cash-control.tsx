@@ -20,6 +20,18 @@ const label = 'mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] 
 const button = 'rounded-lg bg-ink px-4 py-2.5 text-[12.5px] font-semibold text-canvas transition hover:bg-brand';
 
 export function CashControl({ data }: { data: CashControlData }) {
+  if (!data.schemaReady) {
+    return (
+      <Panel className="p-6">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-4">Cash Control</p>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">Schema migration required</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-ink-3">
+          This environment does not yet have the complete Finance V2 Cash Control schema. Existing finance views remain readable, but Cash Control mutations are blocked until the reviewed migrations are released.
+        </p>
+      </Panel>
+    );
+  }
+
   const activeAccounts = data.accounts.filter((account) => account.status === 'active');
   const truthState = activeAccounts.length === 0
     ? 'Not configured'
@@ -153,7 +165,7 @@ export function CashControl({ data }: { data: CashControlData }) {
           <SectionLabel>Reconciliation queue</SectionLabel>
           <Panel className="divide-y divide-line">
             {data.statements.length === 0 ? <p className="p-5 text-[13px] text-ink-3">No statements added.</p> : data.statements.map((statement) => {
-              const account = data.accounts.find((item) => item.id === statement.financial_account_id);
+              const account = data.accounts.find((item) => item.financial_account_id === statement.financial_account_id);
               return <div key={statement.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[13px] font-medium text-ink">{account?.name ?? 'Unknown account'}</p><p className="mt-0.5 text-[11px] text-ink-4">Ending {statement.statement_end_date} · {money(statement.ending_balance_minor, statement.currency)}</p></div><span className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-4">{statement.status}</span></div>{statement.status === 'draft' && <form action={reconcileCashStatement} className="mt-3"><input type="hidden" name="statement_id" value={statement.id} /><button type="submit" className="text-[12px] font-semibold text-brand hover:underline">Reconcile against book balance</button></form>}</div>;
             })}
           </Panel>
