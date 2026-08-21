@@ -24,6 +24,8 @@ Tables `financial_accounts`, `cash_transactions`, and `reconciliation_statements
 
 `reconcile_cash_statement(uuid, uuid)` is `SECURITY DEFINER` only to perform an atomic reconciliation. It validates `auth.uid()`, actor identity, executive access, account/currency scope, opening-balance presence, and exact statement equality. Execute is revoked from `public` and `anon` and granted only to `authenticated`.
 
+Restricted finance audit inserts are limited to authenticated executives, the active actor, and the explicit finance target tables used by this slice.
+
 ## UI
 
 Finance now lands on **Cash** instead of the chart of accounts. It exposes:
@@ -41,7 +43,7 @@ The header labels recurring spend as **Tracked subscriptions**, not total compan
 
 ## Invoice safety correction
 
-The existing invoice UI previously called a legacy action that could send to the placeholder address `client@example.com`. The UI is now wired to executive-gated finance actions that always set `organization_id`, write restricted audit events, and **do not send external email without a verified billing recipient**.
+The existing invoice UI previously called a legacy action that could send to the placeholder address `client@example.com`. The UI is now wired to executive-gated finance actions that always set and filter by the active `organization_id`, write restricted audit events, and **do not send external email without a verified billing recipient**.
 
 The legacy exported action remains in the older monolithic actions module for compatibility but is no longer wired to the Finance UI. It should be removed when invoice workflows are migrated fully into the Finance module.
 
@@ -55,20 +57,23 @@ Automated coverage added:
 
 ## Migration / production gate
 
-Migration: `202608210002_finance_cash_control.sql`.
+Migrations:
 
-The migration is additive in the repository. Because `CONFLICT-0013` (repository/runtime/database lineage mismatch) remains open, merging this code does **not** authorize blindly applying the migration to the live Supabase project. Production application requires lineage reconciliation, a reviewed forward plan, and a compensating/rollback procedure.
+- `202608210002_finance_cash_control.sql` — cash-control schema, RLS, scope guards, immutability and reconciliation RPC;
+- `202608210003_finance_cash_audit_policy.sql` — restricted executive audit-write policy for finance actions.
+
+The migrations are additive in the repository. Because `CONFLICT-0013` (repository/runtime/database lineage mismatch) remains open, merging this code does **not** authorize blindly applying them to the live Supabase project. Production application requires lineage reconciliation, a reviewed forward plan, and a compensating/rollback procedure.
 
 ## Recovery / rollback
 
 Before production application:
 
 1. confirm the live migration ledger and existence/shape of referenced tables/functions;
-2. rehearse the migration against a production-like schema snapshot;
+2. rehearse the migrations against a production-like schema snapshot;
 3. snapshot/backup the database;
 4. apply forward only after the release gate is approved.
 
-If code must be rolled back before the DB migration is applied, revert the merge commit. If the additive DB migration has already been applied, prefer a compensating migration that disables new UI/use while preserving finance history; do not drop reconciled finance records as a casual rollback.
+If code must be rolled back before the DB migrations are applied, revert the merge commit. If the additive DB migrations have already been applied, prefer a compensating migration that disables new UI/use while preserving finance history; do not drop reconciled finance records as a casual rollback.
 
 ## Follow-ups from #73
 
