@@ -108,28 +108,32 @@ export function CashControl({ data }: { data: CashControlData }) {
           </form>
         </details>
 
-        <details className="rounded-xl border border-line bg-surface p-5" disabled={activeAccounts.length === 0}>
+        <details className="rounded-xl border border-line bg-surface p-5">
           <summary className="cursor-pointer text-[14px] font-semibold text-ink">Record cash activity</summary>
-          <form action={createCashTransaction} className="mt-5 space-y-3">
-            <div><label className={label}>Account</label><select className={input} name="financial_account_id" required>{activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
-            <div className="grid grid-cols-2 gap-3"><div><label className={label}>Date</label><input className={input} type="date" name="occurred_on" required /></div><div><label className={label}>Direction</label><select className={input} name="direction"><option value="outflow">Outflow</option><option value="inflow">Inflow</option></select></div></div>
-            <div><label className={label}>Description</label><input className={input} name="description" required /></div>
-            <div><label className={label}>Amount</label><input className={input} name="amount" inputMode="decimal" placeholder="0.00" required /></div>
-            <div><label className={label}>Vendor / counterparty</label><input className={input} name="vendor_name" /></div>
-            <div><label className={label}>Evidence reference</label><input className={input} name="evidence_reference" placeholder="Receipt, statement, Drive reference…" /></div>
-            <button className={button} type="submit">Record transaction</button>
-          </form>
+          {activeAccounts.length === 0 ? <p className="mt-4 text-[12.5px] text-ink-3">Add a financial account first.</p> : (
+            <form action={createCashTransaction} className="mt-5 space-y-3">
+              <div><label className={label}>Account</label><select className={input} name="financial_account_id" required>{activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+              <div className="grid grid-cols-2 gap-3"><div><label className={label}>Date</label><input className={input} type="date" name="occurred_on" required /></div><div><label className={label}>Direction</label><select className={input} name="direction"><option value="outflow">Outflow</option><option value="inflow">Inflow</option></select></div></div>
+              <div><label className={label}>Description</label><input className={input} name="description" required /></div>
+              <div><label className={label}>Amount</label><input className={input} name="amount" inputMode="decimal" placeholder="0.00" required /></div>
+              <div><label className={label}>Vendor / counterparty</label><input className={input} name="vendor_name" /></div>
+              <div><label className={label}>Evidence reference</label><input className={input} name="evidence_reference" placeholder="Receipt, statement, Drive reference…" /></div>
+              <button className={button} type="submit">Record transaction</button>
+            </form>
+          )}
         </details>
 
-        <details className="rounded-xl border border-line bg-surface p-5" disabled={activeAccounts.length === 0}>
+        <details className="rounded-xl border border-line bg-surface p-5">
           <summary className="cursor-pointer text-[14px] font-semibold text-ink">Add statement</summary>
-          <form action={createReconciliationStatement} className="mt-5 space-y-3">
-            <div><label className={label}>Account</label><select className={input} name="financial_account_id" required>{activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
-            <div><label className={label}>Statement end date</label><input className={input} type="date" name="statement_end_date" required /></div>
-            <div><label className={label}>Ending balance</label><input className={input} name="ending_balance" inputMode="decimal" placeholder="0.00" required /></div>
-            <div><label className={label}>Evidence reference</label><input className={input} name="evidence_reference" placeholder="Statement file/reference" /></div>
-            <button className={button} type="submit">Save statement</button>
-          </form>
+          {activeAccounts.length === 0 ? <p className="mt-4 text-[12.5px] text-ink-3">Add a financial account first.</p> : (
+            <form action={createReconciliationStatement} className="mt-5 space-y-3">
+              <div><label className={label}>Account</label><select className={input} name="financial_account_id" required>{activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></div>
+              <div><label className={label}>Statement end date</label><input className={input} type="date" name="statement_end_date" required /></div>
+              <div><label className={label}>Ending balance</label><input className={input} name="ending_balance" inputMode="decimal" placeholder="0.00" required /></div>
+              <div><label className={label}>Evidence reference</label><input className={input} name="evidence_reference" placeholder="Statement file/reference" /></div>
+              <button className={button} type="submit">Save statement</button>
+            </form>
+          )}
         </details>
       </section>
 
