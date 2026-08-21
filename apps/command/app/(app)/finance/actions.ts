@@ -15,6 +15,15 @@ async function financeGate(): Promise<FinanceGate> {
   if (!supabase) throw new Error('Finance is not configured.');
   const ctx = await getAuthContext(supabase);
   if (!ctx || !isExecutive(ctx)) throw new Error('Executive finance access required.');
+
+  // The readiness marker is created by the final migration in this vertical slice.
+  // This prevents partial mutations when application code reaches an environment
+  // whose Finance V2 schema/audit policy has not been released yet.
+  const { data: ready, error: readinessError } = await supabase.rpc('finance_v2_cash_schema_ready');
+  if (readinessError || ready !== true) {
+    throw new Error('Finance V2 schema has not been released on this environment yet.');
+  }
+
   return { supabase, ctx };
 }
 
@@ -75,7 +84,6 @@ export async function createFinancialAccount(form: FormData) {
     currency: accountCurrency,
     opening_balance_minor: openingBalanceMinor,
     opening_balance_date: openingBalanceDate,
-    // This is a manual founder-entered value until a statement/import explicitly proves another source.
     balance_source: 'manual',
     created_by: ctx.user.id
   }).select('id').single();
