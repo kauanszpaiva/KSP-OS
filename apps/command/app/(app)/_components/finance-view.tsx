@@ -7,6 +7,7 @@ import type { AccountingPeriod, JournalEntry } from '../data';
 import type { CashControlData } from '../finance/data';
 import type { InvoiceConsoleData } from '../finance/invoice-data';
 import { isOverdue } from '../../../lib/format';
+import { defaultFinanceView, FINANCE_VIEWS, type FinanceViewKey } from '../../../lib/finance-view-state';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { CalendarView, type CalendarItem } from './calendar-view';
 import { CashControl } from '../finance/_components/cash-control';
@@ -92,19 +93,6 @@ function ChartView({ subscriptions, draftEntryCount, postedEntryCount }: { subsc
   );
 }
 
-type FinanceViewKey = 'cash' | 'accounts' | 'renewals' | 'chart' | 'journal' | 'periods' | 'subscriptions' | 'invoices';
-
-const FINANCE_VIEWS: Array<{ value: FinanceViewKey; label: string }> = [
-  { value: 'invoices', label: 'Receivables' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'subscriptions', label: 'Subscriptions' },
-  { value: 'renewals', label: 'Renewals' },
-  { value: 'accounts', label: 'Accounting' },
-  { value: 'journal', label: 'Journal' },
-  { value: 'periods', label: 'Close' },
-  { value: 'chart', label: 'Analysis' }
-];
-
 export function FinanceView({
   cash,
   chartAccounts,
@@ -124,8 +112,7 @@ export function FinanceView({
   entries: JournalEntry[];
   invoiceData: InvoiceConsoleData;
 }) {
-  const initialView: FinanceViewKey = cash.schemaReady ? 'cash' : invoiceData.schemaReady ? 'invoices' : 'subscriptions';
-  const [view, setView] = useState<FinanceViewKey>(initialView);
+  const [view, setView] = useState<FinanceViewKey>(() => defaultFinanceView({ cashReady: cash.schemaReady, invoiceReady: invoiceData.schemaReady }));
 
   return (
     <div className="min-w-0">
@@ -147,7 +134,7 @@ export function FinanceView({
 
       <div className="mb-5 hidden max-w-full overflow-x-auto pb-1 sm:block">
         <Segmented
-          items={FINANCE_VIEWS}
+          items={[...FINANCE_VIEWS]}
           value={view}
           onValueChange={(value) => setView(value as FinanceViewKey)}
         />
