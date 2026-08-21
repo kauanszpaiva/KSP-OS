@@ -106,7 +106,10 @@ for all using (is_executive(organization_id)) with check (is_executive(organizat
 
 drop policy if exists customer_invoices_portal_select on customer_invoices;
 create policy customer_invoices_portal_select on customer_invoices
-for select using (status <> 'draft' and is_portal_member(client_organization_id));
+for select using (
+  status in ('issued','partially_paid','paid','overdue')
+  and is_portal_member(client_organization_id)
+);
 
 drop policy if exists invoice_lines_executive_all on invoice_lines;
 create policy invoice_lines_executive_all on invoice_lines
@@ -118,7 +121,7 @@ for select using (
   exists (
     select 1 from customer_invoices i
     where i.id = invoice_lines.invoice_id
-      and i.status <> 'draft'
+      and i.status in ('issued','partially_paid','paid','overdue')
       and is_portal_member(i.client_organization_id)
   )
 );
@@ -133,7 +136,7 @@ for select using (
   exists (
     select 1 from customer_invoices i
     where i.id = customer_payments.invoice_id
-      and i.status <> 'draft'
+      and i.status in ('issued','partially_paid','paid','overdue')
       and is_portal_member(i.client_organization_id)
   )
 );
@@ -204,7 +207,7 @@ begin
     and organization_id = v_org
     and client_id = p_client_organization_id;
   if v_email is null or position('@' in v_email) <= 1 then
-    raise exception 'verified_billing_email_required';
+    raise exception 'billing_email_required';
   end if;
 
   if p_currency is null or p_currency !~ '^[A-Z]{3}$' then raise exception 'invalid_currency'; end if;
