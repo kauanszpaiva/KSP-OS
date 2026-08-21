@@ -1,6 +1,6 @@
 # Founder Second Brain + Private MCP
 
-Status: implementation slice for Founder OS. Private by default. No automatic promotion to Company OS or KSP Canon.
+Status: implementation and release runbook for Founder OS. Private by default. No automatic promotion to Company OS or KSP Canon.
 
 ## Purpose
 
@@ -16,10 +16,10 @@ The Second Brain is not the company task manager. Company projects, commitments,
 - `/founder/projects` — private project thinking; Company Projects remain `/missions`.
 - `/founder/knowledge` — private search + Knowledge hub.
 - `/founder/truth` — facts/decisions/assumptions/questions/constraints with verification state.
-- `/founder/sources` — provenance catalog.
+- `/founder/sources` — provenance catalog + founder-only trust review.
 - `/founder/context` — reusable Context Packs with optional source links.
 - `/founder/handoffs` — explicit AI-to-AI / human-to-AI work transfers and returned outputs.
-- `/founder/ai-access` — MCP endpoint, tool inventory and credential-safety guidance.
+- `/founder/ai-access` — MCP endpoint, OAuth guidance, tool inventory and credential-safety rules.
 - `/founder/ai-inbox` — existing non-urgent AI implementation queue.
 - `/founder/work` — existing founder-private work plus references to assigned company commitments.
 - `/founder/vault` — existing private vault.
@@ -48,9 +48,11 @@ owner_id = auth.uid()
 and is_founder(organization_id)
 ```
 
+Relationship policies additionally prove that a linked Context Pack and Source belong to the same owner/organization, and that a Handoff can reference only one of the same owner's Context Packs. Knowing another row UUID is therefore insufficient to create a cross-owner link.
+
 No service-role application path is used. The server route gate and server actions also require `founder_ceo`; RLS is the final backstop.
 
-## Truth semantics
+## Truth and human trust boundary
 
 Truth item types:
 
@@ -75,6 +77,17 @@ Confidence:
 - high
 
 A private item being `verified` means the founder has accepted it inside the private Brain. It does **not** promote it to `01_KSP_CANON – Approved Truth`. KSP governance remains separate.
+
+Connected AI clients may add Truth only as `unverified`, `needs_review`, `conflict` or `stale`. They cannot mark their own claim `verified`. Only the founder UI can perform that review action.
+
+Source trust states are:
+
+- primary
+- trusted
+- unverified
+- conflict
+
+AI-created Sources may be only `unverified` or `conflict`. They cannot self-promote to `primary` or `trusted`; the founder reviews Source trust in `/founder/sources`.
 
 ## Sources and prompt-injection boundary
 
@@ -117,7 +130,7 @@ https://ksp-os-command.vercel.app/api/founder/mcp
 
 Transport: stateless Streamable HTTP.
 
-Current auth model: bearer Supabase user access token. `resolveFounderMcpAuth` first performs normal KSP MCP authentication and then requires `founder_ceo` before the private tool catalog is exposed. Each tool rebuilds the user-scoped Supabase client, so table RLS remains active.
+The endpoint has a separate tool catalog from the Company MCP. `resolveFounderMcpAuth` performs normal user-scoped KSP/Supabase authentication and then requires `founder_ceo` before tools are exposed. Each tool uses the caller-scoped Supabase client, so table RLS stays active.
 
 ### Read tools
 
@@ -139,23 +152,59 @@ Current auth model: bearer Supabase user access token. `resolveFounderMcpAuth` f
 
 These writes are bounded to founder-private tables. The Founder MCP intentionally contains no tool for payments, finance posting/reconciliation, permission grants, production deployment, client publication, refunds or Canon approval.
 
+## OAuth 2.1
+
+The MCP endpoint advertises OAuth Protected Resource Metadata at:
+
+```text
+/.well-known/oauth-protected-resource/api/founder/mcp
+```
+
+The metadata points clients to the project's Supabase Auth OAuth issuer (`<supabase-url>/auth/v1`). Supabase-issued OAuth access tokens are normal user JWTs, so the same KSP membership checks and Row Level Security apply.
+
+The KSP OS contains the founder-only authorization UI:
+
+```text
+/oauth/consent?authorization_id=...
+```
+
+and the decision route:
+
+```text
+/oauth/consent/decision
+```
+
+If the founder is logged out, login preserves a safe local `next` path and returns to the consent screen. Non-founders cannot approve a Second Brain OAuth authorization request.
+
+### External Supabase setting required
+
+The Supabase project must have its OAuth 2.1 Server enabled in Authentication settings and use the application authorization path:
+
+```text
+/oauth/consent
+```
+
+That provider-level switch is external configuration, not a database migration. Do not claim OAuth client discovery is live until the provider discovery document has been verified after activation.
+
+A raw bearer user access token remains compatible with MCP clients that support custom authorization headers, but it is a fallback rather than the preferred connection UX. Never paste or persist bearer/refresh tokens in Brain data or prompts.
+
 ## Connection workflow
 
 1. Add the remote Founder MCP URL in a client that supports remote Streamable HTTP MCP.
-2. Authenticate as the KSP founder user; never paste the bearer token into a conversation or store it in Brain data.
-3. Call `brain_search` or `list_truth` to verify private access.
-4. Use Context Packs for reusable bounded context.
-5. Use Handoffs to pass jobs/results across connected AI clients.
-
-Bearer access tokens expire. A durable OAuth 2.1 authorization flow is the preferred evolution. Supabase Auth can act as an OAuth 2.1/OIDC authorization server, but enabling that provider and consent path is a separate auth rollout and must not be confused with the already-working bearer/RLS model.
+2. Prefer OAuth when the client offers authentication.
+3. Sign in as the KSP founder user and approve the KSP consent screen.
+4. Call `brain_search` or `list_truth` to verify private access.
+5. Use Context Packs for reusable bounded context.
+6. Use Handoffs to pass jobs/results across connected AI clients.
 
 ## Release gates
 
 Before production release:
 
 - full GitHub CI green on exact PR head;
+- production dependency audit blocks High/Critical vulnerabilities;
 - migration-chain rehearsal green;
-- founder MCP authorization tests green;
+- founder MCP authorization + human-trust boundary tests green;
 - production schema preflight confirms required helper functions exist and no target table names collide;
 - apply missing Founder OS foundation migration separately from broader unresolved repository/database lineage drift;
 - apply Second Brain migration;
@@ -163,6 +212,8 @@ Before production release:
 - run Supabase security advisors;
 - merge exact reviewed head;
 - verify production health and unauthenticated Founder MCP rejection;
+- verify Protected Resource Metadata;
+- activate/verify Supabase OAuth Server if provider configuration access is available, otherwise leave the exact dashboard step as an explicit release remainder;
 - record release evidence and keep broader `CONFLICT-0013` open unless independently reconciled.
 
 ## Rollback
