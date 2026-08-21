@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
 import type { ChartAccount, Subscription } from '@ksp/database';
 import type { AccountingPeriod, JournalEntry, Invoice, ClientRef } from '../data';
+import type { CashControlData } from '../finance/data';
 import { formatDate, isOverdue } from '../../../lib/format';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { CalendarView, type CalendarItem } from './calendar-view';
+import { CashControl } from '../finance/_components/cash-control';
 import { JournalWorkbench } from '../finance/_components/journal-workbench';
 import { PeriodsConsole } from '../finance/_components/periods-console';
 import { SubscriptionsConsole } from '../finance/_components/subscriptions-console';
@@ -21,6 +23,9 @@ function monthlyCost(sub: Subscription): number {
 }
 
 function ListView({ chartAccounts }: { chartAccounts: ChartAccount[] }) {
+  if (chartAccounts.length === 0) {
+    return <EmptyState icon="finance" title="No chart of accounts yet." hint="Cash Control works independently. Add accounting accounts when you are ready to post journals." />;
+  }
   return (
     <Reveal>
       <SectionLabel>Chart of accounts</SectionLabel>
@@ -66,7 +71,7 @@ function ChartView({ subscriptions, draftEntryCount, postedEntryCount }: { subsc
   return (
     <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
       <Reveal>
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Monthly burn by vendor</p>
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Tracked subscriptions by vendor</p>
         <div className="rounded-xl border border-line bg-surface p-5">
           {barData.length === 0 ? <p className="text-[13px] text-ink-3">No active subscriptions.</p> : <BarChart data={barData} valueFormatter={money} />}
         </div>
@@ -87,6 +92,7 @@ function ChartView({ subscriptions, draftEntryCount, postedEntryCount }: { subsc
 }
 
 export function FinanceView({
+  cash,
   chartAccounts,
   subscriptions,
   draftEntryCount,
@@ -96,6 +102,7 @@ export function FinanceView({
   invoices,
   clients
 }: {
+  cash: CashControlData;
   chartAccounts: ChartAccount[];
   subscriptions: Subscription[];
   draftEntryCount: number;
@@ -105,30 +112,28 @@ export function FinanceView({
   invoices: Invoice[];
   clients: ClientRef[];
 }) {
-  const [view, setView] = useState<'list' | 'renewals' | 'chart' | 'journal' | 'periods' | 'subscriptions' | 'invoices'>('list');
-
-  if (chartAccounts.length === 0) {
-    return <EmptyState icon="finance" title="No chart of accounts yet." hint="Once accounts exist, this overview will show posting activity and subscription burn." />;
-  }
+  const [view, setView] = useState<'cash' | 'accounts' | 'renewals' | 'chart' | 'journal' | 'periods' | 'subscriptions' | 'invoices'>('cash');
 
   return (
     <div>
       <div className="mb-5">
         <Segmented
           items={[
-            { value: 'list', label: 'List' },
+            { value: 'cash', label: 'Cash' },
+            { value: 'invoices', label: 'Receivables' },
+            { value: 'subscriptions', label: 'Subscriptions' },
             { value: 'renewals', label: 'Renewals' },
-            { value: 'chart', label: 'Chart' },
-            { value: 'journal', label: 'Journal Workbench' },
-            { value: 'periods', label: 'Periods Console' },
-            { value: 'subscriptions', label: 'Subscriptions Console' },
-            { value: 'invoices', label: 'Invoices Console' }
+            { value: 'accounts', label: 'Accounting' },
+            { value: 'journal', label: 'Journal' },
+            { value: 'periods', label: 'Close' },
+            { value: 'chart', label: 'Analysis' }
           ]}
           value={view}
-          onValueChange={(v) => setView(v as any)}
+          onValueChange={(v) => setView(v as typeof view)}
         />
       </div>
-      {view === 'list' && <ListView chartAccounts={chartAccounts} />}
+      {view === 'cash' && <CashControl data={cash} />}
+      {view === 'accounts' && <ListView chartAccounts={chartAccounts} />}
       {view === 'renewals' && <RenewalsView subscriptions={subscriptions} />}
       {view === 'chart' && <ChartView subscriptions={subscriptions} draftEntryCount={draftEntryCount} postedEntryCount={postedEntryCount} />}
       {view === 'journal' && <JournalWorkbench entries={entries} accounts={chartAccounts} />}
