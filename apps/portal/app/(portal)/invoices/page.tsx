@@ -31,8 +31,13 @@ export default async function InvoicesPage({
   const db = createServerClient(cookieStore as any);
   const params = await searchParams;
   const statusFilter = params.status || 'all';
+  const clientOrganizationIds = [...new Set(ctx.memberships.map((membership) => membership.clientOrganizationId))];
 
-  let query = db!.from('customer_invoices').select('*, projects(name)').order('created_at', { ascending: false });
+  let query = db!
+    .from('customer_invoices')
+    .select('*, projects(name)')
+    .in('client_organization_id', clientOrganizationIds)
+    .order('created_at', { ascending: false });
 
   if (statusFilter === 'unpaid') {
     query = query.in('status', ['issued', 'overdue', 'partially_paid']);
