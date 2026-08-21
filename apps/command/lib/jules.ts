@@ -78,14 +78,13 @@ export function createJulesClient(options: JulesClientOptions = {}) {
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const headers = new Headers(init.headers);
+    if (!headers.has('content-type')) headers.set('content-type', 'application/json');
+    headers.set('x-goog-api-key', apiKey);
     try {
       const response = await fetchImpl(`${JULES_API_BASE}${path}`, {
         ...init,
-        headers: {
-          'content-type': 'application/json',
-          'x-goog-api-key': apiKey,
-          ...(init.headers ?? {})
-        },
+        headers,
         signal: controller.signal
       });
       if (!response.ok) throw new JulesApiError(safeProviderMessage(response.status), response.status);
