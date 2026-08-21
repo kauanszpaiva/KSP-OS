@@ -40,14 +40,16 @@ export default async function FinancePage() {
         [],
         [],
         [],
-        { accounts: [], transactions: [], statements: [], unreconciledCount: 0, unknownBalanceAccountCount: 0 }
+        { schemaReady: false, accounts: [], transactions: [], statements: [], unreconciledCount: 0, unknownBalanceAccountCount: 0 }
       ];
 
-  const cashStatus = cash.accounts.length === 0
-    ? 'Not configured'
-    : cash.unknownBalanceAccountCount > 0
-      ? 'Needs reconciliation'
-      : `${cash.unreconciledCount} unreconciled`;
+  const cashStatus = !cash.schemaReady
+    ? 'Migration required'
+    : cash.accounts.length === 0
+      ? 'Not configured'
+      : cash.unknownBalanceAccountCount > 0
+        ? 'Needs reconciliation'
+        : `${cash.unreconciledCount} unreconciled`;
 
   return (
     <div>
