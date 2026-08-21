@@ -23,7 +23,7 @@ describe('buildInvoiceEmail', () => {
     expect(email.text).toContain('Kauan Paiva');
     expect(email.html).toContain('2026-09-05');
     expect(email.html).toContain('https://portal.example.com/invoices/123');
-    expect(email.html).toContain('https://www.kspdominion.group/assets/logo-circle.png');
+    expect(email.html).toContain('https://www.kspdominion.group/assets/logo-portrait.png');
     expect(email.html).toContain('#8B2FC9');
     expect(email.html).toContain('#7AB314');
     expect(email.html).toContain('Founder &amp; Operator · KSP Dominion Group');
