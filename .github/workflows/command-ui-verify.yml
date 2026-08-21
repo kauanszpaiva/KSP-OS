@@ -1,0 +1,31 @@
+name: command-ui-verify
+
+on:
+  pull_request:
+    paths:
+      - 'apps/command/**'
+      - 'packages/ui/**'
+      - 'packages/database/**'
+      - '.github/workflows/command-ui-verify.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format
+        run: pnpm format:check
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+      - name: Command build
+        run: pnpm build:command
