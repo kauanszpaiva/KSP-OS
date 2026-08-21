@@ -1,14 +1,30 @@
 import { canViewFinance } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getFinanceOverview, getSubscriptions, getAccountingPeriods, getJournalEntries, getInvoices, getClientRefs } from '../data';
+import { getFinanceOverview, getSubscriptions, getAccountingPeriods, getJournalEntries } from '../data';
 import { getCashControlData } from './data';
+import { getInvoiceConsoleData, type InvoiceConsoleData } from './invoice-data';
 import { EmptyState, Figure, PageHeader } from '../_components/ui';
 import { FinanceView } from '../_components/finance-view';
 
 function money(minor: number): string {
   return (minor / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 }
+
+async function safeLoad<T>(work: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await work;
+  } catch {
+    return fallback;
+  }
+}
+
+const emptyInvoiceData: InvoiceConsoleData = {
+  schemaReady: false,
+  emailConfigured: false,
+  clients: [],
+  invoices: []
+};
 
 export default async function FinancePage() {
   const ctx = await requireSession();
@@ -23,25 +39,19 @@ export default async function FinancePage() {
     );
   }
 
-  const [overview, subscriptions, periods, entries, invoices, clients, cash] = supabase
+  const overviewFallback = { chartAccounts: [], draftEntryCount: 0, postedEntryCount: 0, monthlySubscriptionBurnMinor: 0 };
+  const cashFallback = { schemaReady: false, accounts: [], transactions: [], statements: [], unreconciledCount: 0, unknownBalanceAccountCount: 0 };
+
+  const [overview, subscriptions, periods, entries, cash, invoiceData] = supabase
     ? await Promise.all([
-        getFinanceOverview(supabase),
-        getSubscriptions(supabase),
-        getAccountingPeriods(supabase),
-        getJournalEntries(supabase),
-        getInvoices(supabase),
-        getClientRefs(supabase),
-        getCashControlData(supabase)
+        safeLoad(getFinanceOverview(supabase), overviewFallback),
+        safeLoad(getSubscriptions(supabase), []),
+        safeLoad(getAccountingPeriods(supabase), []),
+        safeLoad(getJournalEntries(supabase), []),
+        safeLoad(getCashControlData(supabase), cashFallback),
+        safeLoad(getInvoiceConsoleData(supabase), emptyInvoiceData)
       ])
-    : [
-        { chartAccounts: [], draftEntryCount: 0, postedEntryCount: 0, monthlySubscriptionBurnMinor: 0 },
-        [],
-        [],
-        [],
-        [],
-        [],
-        { schemaReady: false, accounts: [], transactions: [], statements: [], unreconciledCount: 0, unknownBalanceAccountCount: 0 }
-      ];
+    : [overviewFallback, [], [], [], cashFallback, emptyInvoiceData];
 
   const cashStatus = !cash.schemaReady
     ? 'Migration required'
@@ -74,8 +84,7 @@ export default async function FinancePage() {
         postedEntryCount={overview.postedEntryCount}
         periods={periods}
         entries={entries}
-        invoices={invoices}
-        clients={clients}
+        invoiceData={invoiceData}
       />
     </div>
   );
