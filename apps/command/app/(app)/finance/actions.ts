@@ -75,7 +75,8 @@ export async function createFinancialAccount(form: FormData) {
     currency: accountCurrency,
     opening_balance_minor: openingBalanceMinor,
     opening_balance_date: openingBalanceDate,
-    balance_source: openingBalanceMinor == null ? 'manual' : 'statement',
+    // This is a manual founder-entered value until a statement/import explicitly proves another source.
+    balance_source: 'manual',
     created_by: ctx.user.id
   }).select('id').single();
   if (error || !data) throw new Error(error?.message || 'Could not create the financial account.');
@@ -90,7 +91,7 @@ export async function createCashTransaction(form: FormData) {
   if (!['inflow', 'outflow'].includes(direction)) throw new Error('Invalid cash direction.');
   const amountMinor = moneyToMinor(text(form, 'amount', true), { positiveOnly: true });
 
-  const { data: account } = await supabase.from('financial_accounts').select('id, currency').eq('id', accountId).maybeSingle();
+  const { data: account } = await supabase.from('financial_accounts').select('id, currency').eq('id', accountId).eq('organization_id', ctx.organizationId).maybeSingle();
   if (!account) throw new Error('Financial account not found or inaccessible.');
 
   const { data, error } = await supabase.from('cash_transactions').insert({
@@ -118,7 +119,7 @@ export async function createReconciliationStatement(form: FormData) {
   const { supabase, ctx } = await financeGate();
   const accountId = text(form, 'financial_account_id', true);
   const endingBalanceMinor = moneyToMinor(text(form, 'ending_balance', true));
-  const { data: account } = await supabase.from('financial_accounts').select('id, currency').eq('id', accountId).maybeSingle();
+  const { data: account } = await supabase.from('financial_accounts').select('id, currency').eq('id', accountId).eq('organization_id', ctx.organizationId).maybeSingle();
   if (!account) throw new Error('Financial account not found or inaccessible.');
 
   const { data, error } = await supabase.from('reconciliation_statements').insert({
@@ -159,6 +160,9 @@ export async function reconcileCashStatement(form: FormData) {
 export async function draftInvoiceSafely(form: FormData) {
   const { supabase, ctx } = await financeGate();
   const clientId = text(form, 'client_id', true);
+  const { data: client } = await supabase.from('client_organizations').select('id').eq('id', clientId).eq('organization_id', ctx.organizationId).maybeSingle();
+  if (!client) throw new Error('Client not found in the active organization.');
+
   const { data, error } = await supabase.from('invoices').insert({
     organization_id: ctx.organizationId,
     client_id: clientId,
@@ -172,8 +176,15 @@ export async function draftInvoiceSafely(form: FormData) {
 export async function issueInvoiceSafely(form: FormData) {
   const { supabase, ctx } = await financeGate();
   const id = text(form, 'invoice_id', true);
-  const { error } = await supabase.from('invoices').update({ status: 'active', issued_at: new Date().toISOString() }).eq('id', id).eq('status', 'draft');
+  const { data, error } = await supabase.from('invoices')
+    .update({ status: 'active', issued_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('organization_id', ctx.organizationId)
+    .eq('status', 'draft')
+    .select('id')
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Invoice not found in draft state for this organization.');
   await audit(supabase, ctx, 'finance.invoice_issued', 'invoices', id, 'Invoice issued internally; no email sent without a verified billing recipient');
   revalidatePath('/finance');
 }
@@ -181,8 +192,15 @@ export async function issueInvoiceSafely(form: FormData) {
 export async function markInvoicePaidSafely(form: FormData) {
   const { supabase, ctx } = await financeGate();
   const id = text(form, 'invoice_id', true);
-  const { error } = await supabase.from('invoices').update({ status: 'posted', balance_minor: 0 }).eq('id', id).eq('status', 'active');
+  const { data, error } = await supabase.from('invoices')
+    .update({ status: 'posted', balance_minor: 0 })
+    .eq('id', id)
+    .eq('organization_id', ctx.organizationId)
+    .eq('status', 'active')
+    .select('id')
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('Invoice not found in active state for this organization.');
   await audit(supabase, ctx, 'finance.invoice_marked_paid', 'invoices', id, 'Invoice marked paid');
   revalidatePath('/finance');
 }
