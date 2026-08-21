@@ -19,7 +19,7 @@ export function PageHeader({
       <div className="min-w-0 max-w-3xl">
         {eyebrow && <p className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4 sm:block">{eyebrow}</p>}
         <h1 className={`${eyebrow ? 'sm:mt-1' : ''} text-[23px] font-semibold leading-[1.15] text-ink md:text-[25px]`}>{title}</h1>
-        {description && <p className="mt-1.5 max-w-3xl text-[13px] leading-snug text-ink-3 md:text-[13.5px]">{description}</p>}
+        {description && <p className="mt-1.5 line-clamp-2 max-w-3xl text-[13px] leading-snug text-ink-3 md:line-clamp-none md:text-[13.5px]">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -108,10 +108,7 @@ export function SlotMeter({ filled, total }: { filled: number; total: number }) 
   return (
     <div className="flex gap-1.5" aria-label={`${filled} of ${total} slots active`}>
       {Array.from({ length: total }).map((_, i) => (
-        <span
-          key={i}
-          className={`h-1.5 w-8 rounded-full ${i < filled ? 'bg-brand' : 'border border-dashed border-line-2 bg-transparent'}`}
-        />
+        <span key={i} className={`h-1.5 w-8 rounded-full ${i < filled ? 'bg-brand' : 'border border-dashed border-line-2 bg-transparent'}`} />
       ))}
     </div>
   );
@@ -122,36 +119,10 @@ export function SlotMeter({ filled, total }: { filled: number; total: number }) 
 type Tone = 'neutral' | 'brand' | 'good' | 'warn' | 'risk';
 
 const STATE_TONE: Record<string, Tone> = {
-  open: 'neutral',
-  in_progress: 'brand',
-  blocked: 'risk',
-  proof_submitted: 'warn',
-  completed: 'good',
-  rejected: 'risk',
-  active: 'good',
-  paused: 'warn',
-  replaced: 'neutral',
-  archived: 'neutral',
-  draft: 'neutral',
-  pending_approval: 'warn',
-  approved: 'good',
-  posted: 'good',
-  locked: 'neutral',
-  quarantined: 'risk',
-  unknown: 'neutral',
-  on_track: 'good',
-  at_risk: 'warn',
-  off_track: 'risk',
-  done: 'good',
-  pending: 'neutral',
-  healthy: 'good',
-  watch: 'warn',
-  idea: 'neutral',
-  drafting: 'neutral',
-  internal_review: 'warn',
-  client_review: 'warn',
-  scheduled: 'brand',
-  published: 'good'
+  open: 'neutral', in_progress: 'brand', blocked: 'risk', proof_submitted: 'warn', completed: 'good', rejected: 'risk',
+  active: 'good', paused: 'warn', replaced: 'neutral', archived: 'neutral', draft: 'neutral', pending_approval: 'warn', approved: 'good',
+  posted: 'good', locked: 'neutral', quarantined: 'risk', unknown: 'neutral', on_track: 'good', at_risk: 'warn', off_track: 'risk', done: 'good',
+  pending: 'neutral', healthy: 'good', watch: 'warn', idea: 'neutral', drafting: 'neutral', internal_review: 'warn', client_review: 'warn', scheduled: 'brand', published: 'good'
 };
 
 const TONE_CLASS: Record<Tone, { dot: string; text: string }> = {
@@ -162,7 +133,6 @@ const TONE_CLASS: Record<Tone, { dot: string; text: string }> = {
   risk: { dot: 'bg-risk', text: 'text-risk' }
 };
 
-/** Same state→tone mapping StatePill uses, for callers that need just the color (e.g. a Gantt marker dot). */
 export function stateToneDotClass(state: string): string {
   return TONE_CLASS[STATE_TONE[state] ?? 'neutral'].dot;
 }
@@ -178,7 +148,6 @@ export function StatePill({ state }: { state: string }) {
   );
 }
 
-/** Inline figure — label above a tabular value, optional tone. */
 export function Figure({ label, value, tone = 'neutral', suffix }: { label: string; value: number | string; tone?: Tone; suffix?: string }) {
   const color = tone === 'risk' ? 'text-risk' : tone === 'warn' ? 'text-warn' : tone === 'good' ? 'text-good' : 'text-ink';
   return (
