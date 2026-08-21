@@ -1,211 +1,247 @@
 'use client';
 
-import { useState } from 'react';
-import { Badge, Icon, Reveal, Segmented } from '@ksp/ui';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Badge, Icon, Reveal, Segmented, cx } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import type { ClientRef, CommentView, MissionView } from '../data';
-import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
+import { EmptyState, Panel, StatePill } from './ui';
 import { TimelineView, type TimelineDependency, type TimelineItem } from './schedule-view';
 import { DependencyForm, MilestoneForm, MilestoneStatusForm, MissionEditForm, MissionHealthForm } from './mission-workspace-forms';
 import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteMilestone, deleteMission } from '../actions';
 
-function MissionCard({
-  mission,
-  allMissions,
-  clients,
-  comments,
-  delay
-}: {
-  mission: MissionView;
-  allMissions: MissionView[];
-  clients: ClientRef[];
-  comments: CommentView[];
-  delay: number;
-}) {
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <Reveal delay={delay}>
-      <Panel className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-display text-[15px] font-semibold text-ink">{mission.name}</h3>
-              {mission.clientName && (
-                <Badge tone="brand">
-                  <Icon name="clients" className="h-3 w-3" />
-                  {mission.clientName}
-                </Badge>
-              )}
-            </div>
-            <p className="mt-0.5 text-[12px] capitalize text-ink-3">
-              {mission.project_type.replace(/_/g, ' ')} · {mission.memberIds.length} member{mission.memberIds.length === 1 ? '' : 's'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <StatePill state={mission.health} />
-            <DeleteButton action={deleteMission} id={mission.id} label="Delete" iconOnly confirmText={`Delete mission "${mission.name}"? This can't be undone.`} />
-          </div>
-        </div>
-
-        <MissionHealthForm id={mission.id} currentHealth={mission.health} />
-
-        <details className="group/edit mt-3">
-          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] font-medium text-ink-3 transition-colors duration-fast marker:hidden hover:text-brand [&::-webkit-details-marker]:hidden">
-            <Icon name="sliders" className="h-3.5 w-3.5" />
-            Edit details
-          </summary>
-          <div className="animate-fade-slide-up mt-3 rounded-lg border border-line bg-surface-2/50 p-3">
-            <MissionEditForm
-              mission={{ id: mission.id, name: mission.name, project_type: mission.project_type, client_id: mission.client_id, next_action: mission.next_action }}
-              clients={clients}
-            />
-          </div>
-        </details>
-
-        <div className="mt-4 border-t border-line pt-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Milestones</p>
-          {mission.milestones.length === 0 ? (
-            <p className="text-[12.5px] text-ink-4">No milestones yet.</p>
-          ) : (
-            <ul className="space-y-1.5">
-              {mission.milestones.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-2 text-[13px]">
-                  <span className="min-w-0 truncate text-ink-2">
-                    {m.title}
-                    {m.phase && <span className="ml-1.5 text-[11px] text-ink-4">· {m.phase}</span>}
-                    {m.due_date && <span className="ml-1.5 tnum text-[11px] text-ink-4">· {formatDate(m.due_date)}</span>}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-1">
-                    <MilestoneStatusForm id={m.id} currentStatus={m.status} />
-                    <DeleteButton action={deleteMilestone} id={m.id} label="Delete milestone" iconOnly />
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-2">
-            <MilestoneForm projectId={mission.id} />
-          </div>
-        </div>
-
-        <div className="mt-4 border-t border-line pt-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Blocked by</p>
-          {mission.dependencies.length === 0 ? (
-            <p className="mb-2 text-[12.5px] text-ink-4">No dependencies.</p>
-          ) : (
-            <ul className="mb-2 space-y-1 text-[13px] text-ink-2">
-              {mission.dependencies.map((d) => (
-                <li key={d.id}>
-                  {allMissions.find((m) => m.id === d.depends_on_project_id)?.name ?? 'Unknown mission'}
-                  {d.note ? ` — ${d.note}` : ''}
-                </li>
-              ))}
-            </ul>
-          )}
-          <DependencyForm projectId={mission.id} missions={allMissions.map((m) => ({ id: m.id, name: m.name }))} />
-        </div>
-
-        <div className="mt-4 border-t border-line pt-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Comments</p>
-          <CommentThread objectTable="projects" objectId={mission.id} comments={comments} />
-        </div>
-      </Panel>
-    </Reveal>
+    <section className="border-t border-line pt-4 first:border-t-0 first:pt-0">
+      <h4 className="mb-2 text-[11.5px] font-semibold text-ink-2">{title}</h4>
+      {children}
+    </section>
   );
 }
 
-function CardsView({ missions, clients, commentsByMission }: { missions: MissionView[]; clients: ClientRef[]; commentsByMission: Map<string, CommentView[]> }) {
-  const active = missions.filter((m) => m.status === 'active');
-  const archived = missions.filter((m) => m.status !== 'active');
+function MissionDetail({ mission, allMissions, clients, comments }: { mission: MissionView; allMissions: MissionView[]; clients: ClientRef[]; comments: CommentView[] }) {
   return (
-    <div className="space-y-8">
-      <div>
-        <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{active.length}</span>}>Active</SectionLabel>
-        <div className="grid gap-4 lg:grid-cols-2">
-          {active.map((m, i) => (
-            <MissionCard key={m.id} mission={m} allMissions={missions} clients={clients} comments={commentsByMission.get(m.id) ?? []} delay={i * 50} />
-          ))}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-[16px] font-semibold leading-tight text-ink">{mission.name}</h3>
+            {mission.clientName && <Badge tone="brand">{mission.clientName}</Badge>}
+          </div>
+          <p className="mt-1 text-[11.5px] capitalize text-ink-4">{mission.project_type.replace(/_/g, ' ')} · {mission.memberIds.length} member{mission.memberIds.length === 1 ? '' : 's'}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatePill state={mission.health} />
+          <DeleteButton action={deleteMission} id={mission.id} label="Delete" iconOnly confirmText={`Delete mission "${mission.name}"? This can't be undone.`} />
         </div>
       </div>
 
+      <div className="rounded-lg bg-surface-2/60 p-3">
+        <p className="text-[10.5px] font-medium text-ink-4">Next action</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{mission.next_action || 'No next action recorded yet.'}</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <MissionHealthForm id={mission.id} currentHealth={mission.health} />
+        <details className="group/edit">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] font-medium text-ink-3 marker:hidden hover:text-brand [&::-webkit-details-marker]:hidden">
+            <Icon name="sliders" className="h-3.5 w-3.5" /> Edit project
+          </summary>
+          <div className="mt-3 rounded-lg border border-line bg-surface-2/50 p-3">
+            <MissionEditForm mission={{ id: mission.id, name: mission.name, project_type: mission.project_type, client_id: mission.client_id, next_action: mission.next_action }} clients={clients} />
+          </div>
+        </details>
+      </div>
+
+      <DetailSection title={`Milestones · ${mission.milestones.length}`}>
+        {mission.milestones.length === 0 ? (
+          <p className="text-[12.5px] text-ink-4">No milestones yet.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {mission.milestones.map((milestone) => (
+              <li key={milestone.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-2/45 px-2.5 py-2 text-[12.5px]">
+                <span className="min-w-0 flex-1 text-ink-2">
+                  {milestone.title}
+                  {milestone.phase && <span className="ml-1.5 text-[10.5px] text-ink-4">· {milestone.phase}</span>}
+                  {milestone.due_date && <span className="tnum ml-1.5 text-[10.5px] text-ink-4">· {formatDate(milestone.due_date)}</span>}
+                </span>
+                <span className="flex shrink-0 items-center gap-1">
+                  <MilestoneStatusForm id={milestone.id} currentStatus={milestone.status} />
+                  <DeleteButton action={deleteMilestone} id={milestone.id} label="Delete milestone" iconOnly />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-2"><MilestoneForm projectId={mission.id} /></div>
+      </DetailSection>
+
+      <DetailSection title={`Dependencies · ${mission.dependencies.length}`}>
+        {mission.dependencies.length === 0 ? (
+          <p className="mb-2 text-[12.5px] text-ink-4">No dependencies.</p>
+        ) : (
+          <ul className="mb-2 space-y-1.5 text-[12.5px] text-ink-2">
+            {mission.dependencies.map((dependency) => (
+              <li key={dependency.id} className="rounded-lg bg-surface-2/45 px-2.5 py-2">
+                {allMissions.find((candidate) => candidate.id === dependency.depends_on_project_id)?.name ?? 'Unknown project'}
+                {dependency.note ? <span className="text-ink-4"> — {dependency.note}</span> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+        <DependencyForm projectId={mission.id} missions={allMissions.map((candidate) => ({ id: candidate.id, name: candidate.name }))} />
+      </DetailSection>
+
+      <DetailSection title={`Comments · ${comments.length}`}>
+        <CommentThread objectTable="projects" objectId={mission.id} comments={comments} />
+      </DetailSection>
+    </div>
+  );
+}
+
+function MobileMissionCard({ mission, allMissions, clients, comments }: { mission: MissionView; allMissions: MissionView[]; clients: ClientRef[]; comments: CommentView[] }) {
+  return (
+    <details className="group rounded-xl border border-line bg-surface shadow-card open:border-line-2">
+      <summary className="cursor-pointer list-none px-3 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <p className="truncate text-[14px] font-semibold text-ink">{mission.name}</p>
+              {mission.clientName && <Badge tone="brand" className="max-w-full truncate">{mission.clientName}</Badge>}
+            </div>
+            <p className="mt-1 line-clamp-1 text-[11.5px] text-ink-3">{mission.next_action || mission.project_type.replace(/_/g, ' ')}</p>
+            <p className="tnum mt-1.5 text-[10.5px] text-ink-4">{mission.milestones.length} milestones · {mission.memberIds.length} members</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <StatePill state={mission.health} />
+            <Icon name="chevron-down" className="h-4 w-4 text-ink-4 transition-transform group-open:rotate-180" />
+          </div>
+        </div>
+      </summary>
+      <div className="border-t border-line px-3 pb-3 pt-3">
+        <MissionDetail mission={mission} allMissions={allMissions} clients={clients} comments={comments} />
+      </div>
+    </details>
+  );
+}
+
+function ProjectDirectory({ missions, clients, commentsByMission }: { missions: MissionView[]; clients: ClientRef[]; commentsByMission: Map<string, CommentView[]> }) {
+  const active = missions.filter((mission) => mission.status === 'active');
+  const archived = missions.filter((mission) => mission.status !== 'active');
+  const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState(active[0]?.id ?? '');
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return active;
+    return active.filter((mission) => [mission.name, mission.clientName ?? '', mission.project_type, mission.next_action ?? ''].some((value) => value.toLowerCase().includes(q)));
+  }, [active, query]);
+
+  const selected = filtered.find((mission) => mission.id === selectedId) ?? filtered[0];
+
+  return (
+    <div className="space-y-5">
+      <label className="relative block max-w-md">
+        <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-ink-4"><Icon name="search" className="h-4 w-4" /></span>
+        <input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search projects" placeholder="Search projects, clients or next action" className="h-9 w-full rounded-lg border border-line bg-surface pl-8 pr-3 text-[12.5px] text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
+      </label>
+
+      {filtered.length === 0 ? (
+        <EmptyState icon="missions" title="No projects match this search." hint="Try a project name, client, type or next action." />
+      ) : (
+        <>
+          <div className="space-y-2 md:hidden">
+            {filtered.map((mission) => (
+              <MobileMissionCard key={mission.id} mission={mission} allMissions={missions} clients={clients} comments={commentsByMission.get(mission.id) ?? []} />
+            ))}
+          </div>
+
+          <div className="hidden gap-3 md:grid md:grid-cols-[minmax(230px,0.75fr)_minmax(0,1.45fr)] xl:grid-cols-[minmax(280px,0.65fr)_minmax(0,1.6fr)]">
+            <Panel className="self-start overflow-hidden">
+              <div className="border-b border-line px-3 py-2.5 text-[11px] font-medium text-ink-4">{filtered.length} active project{filtered.length === 1 ? '' : 's'}</div>
+              <div className="divide-y divide-line">
+                {filtered.map((mission) => {
+                  const selectedRow = mission.id === selected?.id;
+                  return (
+                    <button key={mission.id} type="button" onClick={() => setSelectedId(mission.id)} aria-pressed={selectedRow} className={cx('w-full px-3 py-3 text-left transition-colors', selectedRow ? 'bg-brand-tint' : 'hover:bg-surface-2/65')}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className={cx('truncate text-[13px] font-medium', selectedRow ? 'text-brand' : 'text-ink')}>{mission.name}</p>
+                          <p className="mt-0.5 truncate text-[10.5px] text-ink-4">{mission.clientName || mission.project_type.replace(/_/g, ' ')}</p>
+                        </div>
+                        <StatePill state={mission.health} />
+                      </div>
+                      <p className="mt-1.5 line-clamp-1 text-[11px] text-ink-3">{mission.next_action || 'No next action recorded'}</p>
+                      <p className="tnum mt-1 text-[10px] text-ink-4">{mission.milestones.length} milestones · {mission.memberIds.length} members</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </Panel>
+
+            {selected && (
+              <Panel className="self-start p-4 md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto xl:p-5">
+                <MissionDetail mission={selected} allMissions={missions} clients={clients} comments={commentsByMission.get(selected.id) ?? []} />
+              </Panel>
+            )}
+          </div>
+        </>
+      )}
+
       {archived.length > 0 && (
-        <div>
-          <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{archived.length}</span>}>Archived</SectionLabel>
-          <Panel className="divide-y divide-line">
-            {archived.map((m) => (
-              <div key={m.id} className="flex items-center justify-between px-4 py-3">
-                <span className="truncate text-[13.5px] font-medium text-ink">{m.name}</span>
-                <StatePill state={m.status} />
+        <details className="rounded-xl border border-line bg-surface shadow-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[12.5px] font-medium text-ink-2 marker:hidden [&::-webkit-details-marker]:hidden">
+            <span>Archived projects · {archived.length}</span>
+            <Icon name="chevron-down" className="h-4 w-4 text-ink-4" />
+          </summary>
+          <div className="divide-y divide-line border-t border-line">
+            {archived.map((mission) => (
+              <div key={mission.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="min-w-0 truncate text-[13px] font-medium text-ink">{mission.name}</span>
+                <StatePill state={mission.status} />
               </div>
             ))}
-          </Panel>
-        </div>
+          </div>
+        </details>
       )}
     </div>
   );
 }
 
-/**
- * Missions (the `projects` table) has no start/target date of its own —
- * rows are rolled up from each mission's own dated milestones instead:
- * start = earliest milestone start_date/due_date, end = latest milestone
- * due_date. A mission with no dated milestones is excluded, same as
- * Schedule's existing "no date → excluded" convention. mission_dependencies
- * is a genuine mission-to-mission relationship (unlike Schedule, where the
- * same table would have been attributed to the wrong granularity), so
- * dependency lines are wired here for the first time.
- */
+/** Missions have no own date range; the timeline is derived only from dated milestones. */
 function missionsToTimeline(missions: MissionView[]): { items: TimelineItem[]; dependencies: TimelineDependency[] } {
   const items: TimelineItem[] = [];
-  for (const m of missions) {
-    const dated = m.milestones.filter((ms): ms is typeof ms & { due_date: string } => Boolean(ms.due_date));
+  for (const mission of missions) {
+    const dated = mission.milestones.filter((milestone): milestone is typeof milestone & { due_date: string } => Boolean(milestone.due_date));
     if (dated.length === 0) continue;
-    const starts = dated.map((ms) => ms.start_date ?? ms.due_date).sort();
-    const ends = dated.map((ms) => ms.due_date).sort();
+    const starts = dated.map((milestone) => milestone.start_date ?? milestone.due_date).sort();
+    const ends = dated.map((milestone) => milestone.due_date).sort();
     const start = starts[0];
     const end = ends[ends.length - 1];
-    items.push({
-      id: m.id,
-      title: m.name,
-      subtitle: `${dated.length} milestone${dated.length === 1 ? '' : 's'}`,
-      start: start !== end ? start : undefined,
-      end,
-      state: m.health
-    });
+    items.push({ id: mission.id, title: mission.name, subtitle: `${dated.length} milestone${dated.length === 1 ? '' : 's'}`, start: start !== end ? start : undefined, end, state: mission.health });
   }
-  const dependencies: TimelineDependency[] = missions.flatMap((m) => m.dependencies.map((d) => ({ fromId: d.depends_on_project_id, toId: d.project_id })));
+  const dependencies: TimelineDependency[] = missions.flatMap((mission) => mission.dependencies.map((dependency) => ({ fromId: dependency.depends_on_project_id, toId: dependency.project_id })));
   return { items, dependencies };
 }
 
-export function MissionsView({
-  missions,
-  clients = [],
-  commentsByMission
-}: {
-  missions: MissionView[];
-  clients?: ClientRef[];
-  commentsByMission: Map<string, CommentView[]>;
-}) {
-  const [view, setView] = useState<'cards' | 'timeline'>('cards');
+export function MissionsView({ missions, clients = [], commentsByMission }: { missions: MissionView[]; clients?: ClientRef[]; commentsByMission: Map<string, CommentView[]> }) {
+  const [view, setView] = useState<'projects' | 'timeline'>('projects');
   const { items, dependencies } = missionsToTimeline(missions);
+
+  if (missions.length === 0) {
+    return <EmptyState icon="missions" title="No projects yet." hint="Create the first project when there is a real outcome, owner and next action to track." />;
+  }
 
   return (
     <div>
-      <div className="mb-5">
-        <Segmented
-          items={[
-            { value: 'cards', label: 'Cards' },
-            { value: 'timeline', label: 'Timeline' }
-          ]}
-          value={view}
-          onValueChange={(v) => setView(v as 'cards' | 'timeline')}
-        />
+      <div className="mb-4">
+        <Segmented items={[{ value: 'projects', label: 'Projects' }, { value: 'timeline', label: 'Timeline' }]} value={view} onValueChange={(value) => setView(value as 'projects' | 'timeline')} />
       </div>
-      {view === 'cards' ? (
-        <CardsView missions={missions} clients={clients} commentsByMission={commentsByMission} />
+      {view === 'projects' ? (
+        <ProjectDirectory missions={missions} clients={clients} commentsByMission={commentsByMission} />
       ) : items.length === 0 ? (
-        <EmptyState icon="missions" title="No dated milestones yet." hint="Add milestone due dates to see missions on the timeline." />
+        <EmptyState icon="missions" title="No dated milestones yet." hint="Add milestone due dates to see projects on the timeline." />
       ) : (
         <TimelineView items={items} dependencies={dependencies} />
       )}
