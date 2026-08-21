@@ -26,8 +26,8 @@ jobs:
         run: pnpm format:check
       - name: Lint
         run: pnpm lint
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Command typecheck
+        run: pnpm --filter @ksp/command typecheck
       - name: Unit tests
         run: pnpm test
       - name: Command build
