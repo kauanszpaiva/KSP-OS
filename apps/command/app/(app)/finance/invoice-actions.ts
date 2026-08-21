@@ -152,7 +152,7 @@ export async function issueInvoiceAndEmail(_previous: InvoiceActionResult, form:
       : await db.from('invoice_email_deliveries').insert(deliveryPayload).select('id').single();
     if (deliveryError || !delivery) return { ok: false, error: deliveryError?.message || 'Could not create the invoice delivery record.' };
 
-    const portalBase = process.env.NEXT_PUBLIC_KSP_PORTAL_URL?.trim().replace(/\/$/, '');
+    const portalBase = process.env.NEXT_PUBLIC_PORTAL_BASE_URL?.trim().replace(/\/$/, '');
     const result = await sendInvoiceIssued({
       to: invoice.billing_email,
       clientName: client?.display_name || 'Client',
