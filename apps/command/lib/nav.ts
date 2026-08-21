@@ -46,19 +46,45 @@ export const NAV_GROUPS: NavGroup[] = [
   { key: 'private', label: 'Private', items: [{ label: 'Founder OS', href: '/founder', status: 'live', icon: 'home', founderOnly: true }] }
 ];
 
-/** Founder-only Second Brain. Company records remain in the Company OS. */
-export const FOUNDER_NAV: NavItem[] = [
+/**
+ * Founder-only Second Brain information architecture.
+ *
+ * This mirrors the new KSP OS frontend blueprint: a shallow default navigation
+ * with deeper capability grouped by job. Company records remain in Company OS.
+ */
+export const FOUNDER_NAV_GROUPS: NavGroup[] = [
+  { key: 'brain', label: 'Second Brain', items: [
+    { label: 'Home', href: '/founder/home', status: 'live', icon: 'home' },
+    { label: 'Inbox', href: '/founder/inbox', status: 'live', icon: 'inbox' },
+    { label: 'Ideas', href: '/founder/ideas', status: 'live', icon: 'signals' },
+    { label: 'Projects', href: '/founder/projects', status: 'live', icon: 'missions' },
+    { label: 'Knowledge', href: '/founder/knowledge', status: 'live', icon: 'knowledge' }
+  ]},
+  { key: 'truth', label: 'Truth & context', items: [
+    { label: 'Truth', href: '/founder/truth', status: 'live', icon: 'decisions' },
+    { label: 'Sources', href: '/founder/sources', status: 'live', icon: 'knowledge' },
+    { label: 'Context Packs', href: '/founder/context', status: 'live', icon: 'workspace' },
+    { label: 'Handoffs', href: '/founder/handoffs', status: 'live', icon: 'connections' }
+  ]},
+  { key: 'agents', label: 'Agents', items: [
+    { label: 'AI Inbox', href: '/founder/ai-inbox', status: 'live', icon: 'software' },
+    { label: 'AI Access', href: '/founder/ai-access', status: 'live', icon: 'connections' }
+  ]},
+  { key: 'personal', label: 'Personal', items: [
+    { label: 'My Work', href: '/founder/work', status: 'live', icon: 'workspace' },
+    { label: 'Vault', href: '/founder/vault', status: 'live', icon: 'vault' }
+  ]}
+];
+
+/** Flat compatibility export for tests and any callers that need one list. */
+export const FOUNDER_NAV: NavItem[] = FOUNDER_NAV_GROUPS.flatMap((group) => group.items);
+
+/** The four jobs that deserve permanent mobile navigation. Everything else lives in More. */
+export const FOUNDER_MOBILE_PRIMARY: NavItem[] = [
   { label: 'Home', href: '/founder/home', status: 'live', icon: 'home' },
   { label: 'Inbox', href: '/founder/inbox', status: 'live', icon: 'inbox' },
-  { label: 'Ideas', href: '/founder/ideas', status: 'live', icon: 'signals' },
-  { label: 'Projects', href: '/founder/projects', status: 'live', icon: 'missions' },
   { label: 'Knowledge', href: '/founder/knowledge', status: 'live', icon: 'knowledge' },
-  { label: 'Context', href: '/founder/context', status: 'live', icon: 'workspace' },
-  { label: 'Handoffs', href: '/founder/handoffs', status: 'live', icon: 'connections' },
-  { label: 'AI Access', href: '/founder/ai-access', status: 'live', icon: 'connections' },
-  { label: 'AI Inbox', href: '/founder/ai-inbox', status: 'live', icon: 'software' },
-  { label: 'My Work', href: '/founder/work', status: 'live', icon: 'workspace' },
-  { label: 'Vault', href: '/founder/vault', status: 'live', icon: 'vault' }
+  { label: 'My Work', href: '/founder/work', status: 'live', icon: 'workspace' }
 ];
 
 export const MOBILE_PRIMARY: NavItem[] = [

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isFounder, canViewFounderVault, type AuthContext } from '@ksp/auth';
 import type { InternalRole } from '@ksp/permissions';
-import { NAV_GROUPS, FOUNDER_NAV } from './nav';
+import { NAV_GROUPS, FOUNDER_MOBILE_PRIMARY, FOUNDER_NAV, FOUNDER_NAV_GROUPS } from './nav';
 
 /**
  * Founder OS access-layer regression tests (Layers 1 & 2 — navigation + routing
@@ -58,22 +58,34 @@ describe('Founder OS navigation isolation', () => {
     expect(founder.some((i) => i.href === '/founder')).toBe(true);
   });
 
-  it('keeps every Second Brain nav route inside the /founder namespace', () => {
+  it('keeps the complete Second Brain IA grouped and inside /founder', () => {
     const expected = [
       '/founder/home',
       '/founder/inbox',
       '/founder/ideas',
       '/founder/projects',
       '/founder/knowledge',
+      '/founder/truth',
+      '/founder/sources',
       '/founder/context',
       '/founder/handoffs',
-      '/founder/ai-access',
       '/founder/ai-inbox',
+      '/founder/ai-access',
       '/founder/work',
       '/founder/vault'
     ];
     expect(FOUNDER_NAV.map((item) => item.href)).toEqual(expected);
+    expect(FOUNDER_NAV_GROUPS.map((group) => group.key)).toEqual(['brain', 'truth', 'agents', 'personal']);
     expect(new Set(FOUNDER_NAV.map((item) => item.href)).size).toBe(FOUNDER_NAV.length);
     for (const item of FOUNDER_NAV) expect(item.href.startsWith('/founder/')).toBe(true);
+  });
+
+  it('keeps mobile navigation intentionally small', () => {
+    expect(FOUNDER_MOBILE_PRIMARY.map((item) => item.href)).toEqual([
+      '/founder/home',
+      '/founder/inbox',
+      '/founder/knowledge',
+      '/founder/work'
+    ]);
   });
 });

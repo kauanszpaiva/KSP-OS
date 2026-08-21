@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { isFounder } from '@ksp/auth';
-import { FOUNDER_NAV } from '../../lib/nav';
+import { FOUNDER_MOBILE_PRIMARY, FOUNDER_NAV_GROUPS } from '../../lib/nav';
 import { requireSession } from '../../lib/session';
 import { FounderShell } from './_components/founder-shell';
 
@@ -30,7 +30,7 @@ export default async function FounderLayout({ children }: { children: ReactNode 
   };
 
   return (
-    <FounderShell nav={FOUNDER_NAV} user={user}>
+    <FounderShell groups={FOUNDER_NAV_GROUPS} mobilePrimary={FOUNDER_MOBILE_PRIMARY} user={user}>
       {children}
     </FounderShell>
   );
