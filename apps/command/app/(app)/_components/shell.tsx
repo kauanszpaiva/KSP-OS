@@ -12,7 +12,7 @@ import { NotificationsMenu } from './notifications-menu';
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-brand-strong text-on-brand shadow-card">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand text-on-brand shadow-card">
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
           <path d="M6 3v18M6 12l7-9M6 12l7 9" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M14 8l-3.5 4L14 16" stroke="rgb(var(--accent))" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -129,7 +129,7 @@ export function Shell({
   }, [query, groups]);
 
   return (
-    <div className="flex min-h-screen w-full bg-canvas text-ink">
+    <div className="flex min-h-screen min-h-[100dvh] w-full bg-canvas text-ink">
       <CommandPalette perms={palettePerms} />
 
       <aside className={cx('sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line bg-surface md:flex', collapsed ? 'md:w-[64px]' : 'md:w-[64px] xl:w-[248px]')}>
@@ -180,13 +180,13 @@ export function Shell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="app-topbar sticky top-0 z-20 flex items-center gap-2 border-b border-line bg-surface/88 px-3 backdrop-blur sm:px-4 md:px-5 xl:px-6">
-          <span className="md:hidden"><BrandMark compact /></span>
+        <header className="app-topbar sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-surface/95 px-3 backdrop-blur-xl sm:px-4 md:px-5 xl:px-6">
+          <span className="md:hidden" aria-label="KSP Dominion"><BrandMark compact /></span>
           <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
             <CommandPaletteTrigger />
             <details className="group relative">
-              <summary className="inline-flex h-9 w-9 cursor-pointer select-none items-center justify-center rounded-lg bg-brand p-0 text-[13px] font-medium text-on-brand shadow-card transition-colors duration-fast hover:bg-brand-strong marker:hidden sm:w-auto sm:gap-2 sm:px-3 [&::-webkit-details-marker]:hidden">
-                <Icon name="plus" className="h-4 w-4" /><span className="hidden sm:inline">Create</span>
+              <summary aria-label="Create" className="inline-flex h-11 w-11 cursor-pointer select-none items-center justify-center rounded-xl bg-brand p-0 text-[13px] font-medium text-on-brand shadow-card transition-colors duration-fast hover:bg-brand-strong marker:hidden sm:h-9 sm:w-auto sm:gap-2 sm:rounded-lg sm:px-3 [&::-webkit-details-marker]:hidden">
+                <Icon name="plus" className="h-[18px] w-[18px] sm:h-4 sm:w-4" /><span className="hidden sm:inline">Create</span>
               </summary>
               <div className="absolute right-0 z-30 mt-2 w-56 origin-top-right animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-pop">
                 {(() => {
@@ -208,9 +208,9 @@ export function Shell({
               </div>
             </details>
             <NotificationsMenu notifications={notifications} />
-            <ThemeToggle />
+            <span className="hidden sm:inline-flex"><ThemeToggle /></span>
             <details className="group relative">
-              <summary className="flex min-h-9 min-w-9 cursor-pointer select-none items-center justify-center rounded-full transition-transform duration-fast marker:hidden hover:scale-105 [&::-webkit-details-marker]:hidden"><Avatar name={user.displayName} /></summary>
+              <summary className="flex min-h-11 min-w-11 cursor-pointer select-none items-center justify-center rounded-full transition-transform duration-fast marker:hidden hover:scale-105 sm:min-h-9 sm:min-w-9 [&::-webkit-details-marker]:hidden"><Avatar name={user.displayName} /></summary>
               <div className="absolute right-0 z-30 mt-2 w-60 origin-top-right animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-pop">
                 <div className="border-b border-line px-3 py-2.5">
                   <p className="truncate text-[13px] font-medium text-ink">{user.displayName}</p>
@@ -224,23 +224,27 @@ export function Shell({
           </div>
         </header>
 
-        <main className="app-main mx-auto w-full max-w-[1600px] flex-1 px-4 pt-4 sm:px-5 md:px-6 md:pt-5 xl:px-8 xl:pt-6 2xl:px-10">
-          <div key={pathname} className="animate-fade-in">{children}</div>
+        <main className="app-main mx-auto w-full max-w-[1600px] flex-1 px-4 pt-5 sm:px-5 md:px-6 md:pt-5 xl:px-8 xl:pt-6 2xl:px-10">
+          <div key={pathname} className="min-w-0 animate-fade-in">{children}</div>
         </main>
 
-        <nav aria-label="Primary mobile" className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-20 flex border-t border-line bg-surface/96 backdrop-blur md:hidden">
+        <nav aria-label="Primary mobile" className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-30 flex items-start border-t border-line bg-surface/98 px-2 pt-1.5 backdrop-blur-xl md:hidden">
           {mobilePrimary.map((item) => {
             const active = isActive(item.href);
             return (
-              <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={cx('relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] font-medium transition-colors duration-fast', active ? 'text-brand' : 'text-ink-3 active:text-ink')}>
-                {active && <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-brand" aria-hidden />}
-                <Icon name={item.icon} className="h-5 w-5" />{item.label}
+              <Link key={item.href} href={item.href} aria-current={active ? 'page' : undefined} className={cx('relative flex min-h-[54px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[10.5px] font-medium transition-colors duration-fast', active ? 'text-brand' : 'text-ink-3 active:bg-surface-2 active:text-ink')}>
+                <span className={cx('flex h-7 w-11 items-center justify-center rounded-xl transition-colors duration-fast', active && 'bg-brand-tint')}>
+                  <Icon name={item.icon} className="h-[19px] w-[19px]" />
+                </span>
+                <span className="max-w-full truncate">{item.label}</span>
               </Link>
             );
           })}
-          <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={moreOpen} className={cx('relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] font-medium transition-colors duration-fast', moreActive ? 'text-brand' : 'text-ink-3 active:text-ink')}>
-            {moreActive && <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-brand" aria-hidden />}
-            <Icon name="menu" className="h-5 w-5" />More
+          <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={moreOpen} className={cx('relative flex min-h-[54px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[10.5px] font-medium transition-colors duration-fast', moreActive ? 'text-brand' : 'text-ink-3 active:bg-surface-2 active:text-ink')}>
+            <span className={cx('flex h-7 w-11 items-center justify-center rounded-xl transition-colors duration-fast', moreActive && 'bg-brand-tint')}>
+              <Icon name="menu" className="h-[19px] w-[19px]" />
+            </span>
+            <span>More</span>
           </button>
         </nav>
 
@@ -256,23 +260,43 @@ function MobileMoreSheet({ open, onClose, groups, mobilePrimary, isActive }: { o
   if (!mounted) return null;
 
   return (
-    <div className="fixed inset-0 z-40 md:hidden">
-      <div className={cx('absolute inset-0 bg-overlay/40', closing ? 'animate-fade-out' : 'animate-fade-in')} onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label="More modules" className={cx('mobile-sheet absolute inset-x-0 bottom-0 max-h-[84vh] overflow-y-auto rounded-t-2xl border-t border-line bg-surface px-4 pt-4 shadow-pop', closing ? 'animate-slide-out-down' : 'animate-fade-slide-up')}>
-        <div className="mb-3 flex items-center justify-between">
-          <div><p className="text-[14px] font-semibold text-ink">More</p><p className="mt-0.5 text-[11.5px] text-ink-4">Secondary company modules</p></div>
-          <IconButton icon="x" label="Close" size="sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 md:hidden">
+      <div className={cx('absolute inset-0 bg-overlay/45 backdrop-blur-[2px]', closing ? 'animate-fade-out' : 'animate-fade-in')} onClick={onClose} />
+      <div role="dialog" aria-modal="true" aria-label="More modules" className={cx('mobile-sheet absolute inset-x-0 bottom-0 max-h-[86dvh] overflow-y-auto rounded-t-[28px] border-t border-line bg-surface px-4 pt-2 shadow-pop', closing ? 'animate-slide-out-down' : 'animate-fade-slide-up')}>
+        <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-line-2" aria-hidden />
+        <div className="mb-4 flex items-center justify-between">
+          <div><p className="text-[17px] font-semibold text-ink">More</p><p className="mt-0.5 text-[12px] text-ink-4">All company modules</p></div>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <IconButton icon="x" label="Close" size="sm" onClick={onClose} />
+          </div>
         </div>
         {groups.map((group) => {
           const items = group.items.filter((item) => !primaryHrefs.has(item.href));
           if (items.length === 0) return null;
           return (
-            <div key={group.key} className="mb-4">
-              <p className="pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4">{group.label}</p>
-              <div className="grid grid-cols-2 gap-1">
-                {items.map((item) => <div key={item.href} onClick={() => item.status === 'live' && onClose()}><NavRow item={item} active={isActive(item.href)} collapsed={false} /></div>)}
+            <section key={group.key} className="mb-5">
+              <p className="pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4">{group.label}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {items.map((item) => {
+                  const active = isActive(item.href);
+                  if (item.status === 'planned') {
+                    return (
+                      <div key={item.href} className="flex min-h-12 items-center gap-2.5 rounded-xl border border-line bg-surface-2/50 px-3 py-2.5 text-[12.5px] text-ink-4" aria-disabled="true">
+                        <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
+                        <span className="min-w-0 truncate">{item.label}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <Link key={item.href} href={item.href} onClick={onClose} aria-current={active ? 'page' : undefined} className={cx('flex min-h-12 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-[12.5px] font-medium transition-colors', active ? 'border-brand/25 bg-brand-tint text-brand' : 'border-line bg-surface-2/45 text-ink-2 active:bg-surface-3')}>
+                      <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
+                      <span className="min-w-0 truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
               </div>
-            </div>
+            </section>
           );
         })}
       </div>

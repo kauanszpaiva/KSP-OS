@@ -15,14 +15,22 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 border-b border-line pb-4 md:mb-6 md:flex-row md:items-end md:justify-between md:gap-5 md:pb-4">
+    <header className="mb-6 border-b border-line pb-5 md:mb-6 md:flex md:items-end md:justify-between md:gap-6 md:pb-4">
       <div className="min-w-0 max-w-3xl">
-        {eyebrow && <p className="hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4 sm:block">{eyebrow}</p>}
-        <h1 className={`${eyebrow ? 'sm:mt-1' : ''} text-[23px] font-semibold leading-[1.15] text-ink md:text-[25px]`}>{title}</h1>
-        {description && <p className="mt-1.5 line-clamp-2 max-w-3xl text-[13px] leading-snug text-ink-3 md:line-clamp-none md:text-[13.5px]">{description}</p>}
+        {eyebrow && (
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-ink-4 sm:mb-1">
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="font-display text-[28px] font-semibold leading-[1.08] text-ink md:text-[30px]">{title}</h1>
+        {description && (
+          <p className="mt-2 max-w-2xl text-[13.5px] leading-[1.5] text-ink-3 md:text-[14px]">
+            {description}
+          </p>
+        )}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
-    </div>
+      {action && <div className="mt-3 shrink-0 md:mt-0">{action}</div>}
+    </header>
   );
 }
 
@@ -35,28 +43,28 @@ export function Panel({
   className?: string;
   as?: 'section' | 'div' | 'article' | 'aside';
 }) {
-  return <Tag className={`rounded-xl border border-line bg-surface shadow-card ${className}`}>{children}</Tag>;
+  return <Tag className={`min-w-0 rounded-2xl border border-line bg-surface shadow-card sm:rounded-xl ${className}`}>{children}</Tag>;
 }
 
 export function SectionLabel({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-2.5 flex min-h-5 items-center justify-between gap-3">
-      <h2 className="text-[12.5px] font-semibold leading-tight text-ink-2">{children}</h2>
-      {right}
+    <div className="mb-2.5 flex min-h-6 min-w-0 items-center justify-between gap-3">
+      <h2 className="min-w-0 text-[13px] font-semibold leading-tight text-ink-2 sm:text-[12.5px]">{children}</h2>
+      {right && <div className="min-w-0 shrink-0 text-right">{right}</div>}
     </div>
   );
 }
 
 export function EmptyState({ icon, title, hint }: { icon?: IconName; title: string; hint?: string }) {
   return (
-    <div className="animate-fade-in rounded-xl border border-dashed border-line-2 bg-surface/50 px-4 py-6 text-center sm:px-5 sm:py-8">
+    <div className="animate-fade-in rounded-2xl border border-dashed border-line-2 bg-surface/60 px-4 py-8 text-center sm:rounded-xl sm:px-5 sm:py-8">
       {icon && (
-        <span className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-lg bg-surface-2 text-ink-3 sm:h-11 sm:w-11 sm:rounded-xl">
+        <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-surface-2 text-ink-3">
           <Icon name={icon} className="h-5 w-5" />
         </span>
       )}
-      <p className="text-[13.5px] font-medium text-ink-2 sm:text-sm">{title}</p>
-      {hint && <p className="mx-auto mt-1 max-w-md text-[12.5px] leading-snug text-ink-3 sm:text-[13px]">{hint}</p>}
+      <p className="text-[14px] font-medium text-ink-2">{title}</p>
+      {hint && <p className="mx-auto mt-1.5 max-w-md text-[12.5px] leading-relaxed text-ink-3 sm:text-[13px]">{hint}</p>}
     </div>
   );
 }
@@ -141,7 +149,7 @@ export function StatePill({ state }: { state: string }) {
   const tone = STATE_TONE[state] ?? 'neutral';
   const cls = TONE_CLASS[tone];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[12px] font-medium capitalize ${cls.text}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium capitalize ${cls.text}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${cls.dot}`} aria-hidden />
       {state.replace(/_/g, ' ')}
     </span>
@@ -151,9 +159,9 @@ export function StatePill({ state }: { state: string }) {
 export function Figure({ label, value, tone = 'neutral', suffix }: { label: string; value: number | string; tone?: Tone; suffix?: string }) {
   const color = tone === 'risk' ? 'text-risk' : tone === 'warn' ? 'text-warn' : tone === 'good' ? 'text-good' : 'text-ink';
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-[10.5px] font-medium uppercase tracking-wide text-ink-3 sm:text-[11px]">{label}</p>
-      <p className={`tnum mt-0.5 text-xl font-semibold sm:text-2xl ${color}`}>
+      <p className={`tnum mt-1 text-[22px] font-semibold leading-none sm:text-2xl ${color}`}>
         {value}
         {suffix && <span className="ml-0.5 text-sm font-normal text-ink-3">{suffix}</span>}
       </p>

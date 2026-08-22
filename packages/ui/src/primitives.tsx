@@ -282,24 +282,28 @@ export interface SegmentedItem {
 
 export function Segmented({ items, value, onValueChange }: { items: SegmentedItem[]; value: string; onValueChange: (value: string) => void }) {
   return (
-    <div className="inline-flex items-center gap-0.5 rounded-lg border border-line bg-surface-2 p-0.5">
-      {items.map((item) => {
-        const active = item.value === value;
-        return (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => onValueChange(item.value)}
-            className={cx(
-              'inline-flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[13px] font-medium transition-colors duration-fast',
-              active ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink'
-            )}
-          >
-            {item.icon && <Icon name={item.icon} className="h-4 w-4" />}
-            {item.label}
-          </button>
-        );
-      })}
+    <div className="max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div role="tablist" className="inline-flex min-w-full items-center gap-0.5 rounded-xl border border-line bg-surface-2 p-0.5 sm:min-w-0 sm:rounded-lg">
+        {items.map((item) => {
+          const active = item.value === value;
+          return (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onValueChange(item.value)}
+              className={cx(
+                'inline-flex min-h-10 min-w-max flex-1 items-center justify-center gap-1.5 rounded-[9px] px-3 py-2 text-[13px] font-medium transition-colors duration-fast sm:min-h-0 sm:flex-none sm:rounded-[7px] sm:py-1.5',
+                active ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink'
+              )}
+            >
+              {item.icon && <Icon name={item.icon} className="h-4 w-4" />}
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

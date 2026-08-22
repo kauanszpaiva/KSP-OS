@@ -8,48 +8,68 @@ import { formatDate } from '../../../../lib/format';
 
 export function PeriodsConsole({ periods }: { periods: AccountingPeriod[] }) {
   return (
-    <Panel className="p-6">
-      <h3 className="text-lg font-medium mb-4">Accounting Periods</h3>
+    <Panel className="p-4 sm:p-6">
+      <h3 className="mb-4 text-[17px] font-medium sm:text-lg">Accounting periods</h3>
       {periods.length === 0 ? (
         <p className="text-sm text-ink-3">No periods defined.</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-ink-3 border-b border-line">
-              <th className="pb-2 font-medium">Start Date</th>
-              <th className="pb-2 font-medium">End Date</th>
-              <th className="pb-2 font-medium">Status</th>
-              <th className="pb-2 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {periods.map(p => {
-              const isLocked = p.locked_at !== null;
+        <>
+          <div className="space-y-2.5 sm:hidden">
+            {periods.map((period) => {
+              const isLocked = period.locked_at !== null;
               return (
-                <tr key={p.id} className="border-b border-line/50 last:border-0">
-                  <td className="py-3">{formatDate(p.period_start)}</td>
-                  <td className="py-3">{formatDate(p.period_end)}</td>
-                  <td className="py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider ${isLocked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                <article key={period.id} className="rounded-xl border border-line bg-surface-2/45 p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-4">Period</p>
+                      <p className="mt-1 text-[13px] font-medium text-ink">{formatDate(period.period_start)} — {formatDate(period.period_end)}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider ${isLocked ? 'bg-risk-tint text-risk' : 'bg-good-tint text-good'}`}>
                       {isLocked ? 'Closed' : 'Open'}
                     </span>
-                  </td>
-                  <td className="py-3">
-                    {isLocked ? (
-                      <form action={async () => { await openAccountingPeriod(p.id); }}>
-                        <Button type="submit" variant="ghost" size="sm">Open Period</Button>
-                      </form>
-                    ) : (
-                      <form action={async () => { await lockAccountingPeriod(p.id); }}>
-                        <Button type="submit" variant="ghost" size="sm">Close Period</Button>
-                      </form>
-                    )}
-                  </td>
-                </tr>
+                  </div>
+                  <form action={async () => { if (isLocked) await openAccountingPeriod(period.id); else await lockAccountingPeriod(period.id); }} className="mt-3 border-t border-line pt-3">
+                    <Button type="submit" variant="secondary" size="md" className="w-full">{isLocked ? 'Open period' : 'Close period'}</Button>
+                  </form>
+                </article>
               );
             })}
-          </tbody>
-        </table>
+          </div>
+
+          <div className="mobile-scroll-x hidden sm:block">
+            <table className="min-w-[560px] w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-ink-3">
+                  <th className="pb-2 font-medium">Start date</th>
+                  <th className="pb-2 font-medium">End date</th>
+                  <th className="pb-2 font-medium">Status</th>
+                  <th className="pb-2 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {periods.map((period) => {
+                  const isLocked = period.locked_at !== null;
+                  return (
+                    <tr key={period.id} className="border-b border-line/50 last:border-0">
+                      <td className="py-3">{formatDate(period.period_start)}</td>
+                      <td className="py-3">{formatDate(period.period_end)}</td>
+                      <td className="py-3">
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${isLocked ? 'bg-risk-tint text-risk' : 'bg-good-tint text-good'}`}>
+                          {isLocked ? 'Closed' : 'Open'}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <form action={async () => { if (isLocked) await openAccountingPeriod(period.id); else await lockAccountingPeriod(period.id); }}>
+                          <Button type="submit" variant="ghost" size="sm">{isLocked ? 'Open period' : 'Close period'}</Button>
+                        </form>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </Panel>
   );
