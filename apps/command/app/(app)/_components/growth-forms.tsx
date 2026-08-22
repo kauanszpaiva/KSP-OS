@@ -1,7 +1,6 @@
 'use client';
 
 import { useActionState } from 'react';
-import { useToast } from '@ksp/ui';
 import {
   addClientNote,
   createCampaign,
@@ -184,38 +183,17 @@ export function InviteContactForm({ clientId }: { clientId: string }) {
           <option value="30">30 days</option>
         </select>
         <button type="submit" disabled={pending} className={ghostBtn}>
-          {pending ? 'Creating…' : 'Create invite'}
+          {pending ? 'Sending…' : 'Send invitation'}
         </button>
       </div>
       {!state.ok && state.error && <p className="text-[13px] text-risk">{state.error}</p>}
-      {state.ok && state.invitePath && <CopyableInviteLink link={state.invitePath} />}
+      {state.ok && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+          <p className="text-[12px] font-semibold text-emerald-800">Invitation email sent.</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-700">The recipient received a branded KSP email with a private one-time Portal link. Delivery and revocation are tracked in Portal access control above.</p>
+        </div>
+      )}
     </form>
-  );
-}
-
-/** One-time invite link with a copy button. Shows a full URL when the portal base is configured, else the bare path. */
-function CopyableInviteLink({ link }: { link: string }) {
-  const { toast } = useToast();
-  const absolute = /^https?:\/\//.test(link);
-  return (
-    <div className="rounded-lg border border-line bg-surface-2/60 px-3 py-2">
-      <p className="text-[12px] font-medium text-ink-2">Invite link — send it to the client (shown once):</p>
-      <div className="mt-1 flex items-center gap-2">
-        <code className="min-w-0 flex-1 break-all text-[12px] text-brand">{link}</code>
-        <button
-          type="button"
-          onClick={() => void navigator.clipboard?.writeText(link).then(() => toast('Invite link copied', { tone: 'success' }))}
-          className="shrink-0 rounded-lg border border-line-2 px-2 py-1 text-[11px] font-medium text-ink-2 transition-colors duration-fast hover:bg-surface hover:text-ink"
-        >
-          Copy
-        </button>
-      </div>
-      <p className="mt-1 text-[11px] text-ink-4">
-        {absolute
-          ? 'The raw token is not stored — revoke and re-invite if it’s lost.'
-          : 'Set NEXT_PUBLIC_PORTAL_BASE_URL on the portal to get a full clickable link. The raw token is not stored.'}
-      </p>
-    </div>
   );
 }
 
@@ -350,7 +328,7 @@ export function ContentItemForm({ campaigns }: { campaigns: Array<{ id: string; 
       </div>
       <div>
         <label className={label} htmlFor="ci-date">Publish date</label>
-        <input aria-label="Published Date"  id="ci-date" name="publishDate" type="date" className={field} />
+        <input aria-label="Published Date" id="ci-date" name="publishDate" type="date" className={field} />
       </div>
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
