@@ -111,7 +111,7 @@
       "get": {
         "operationId": "listOutcomes",
         "summary": "Company outcomes visible to the user.",
-        "responses": { "200": { "description": "Company outcomes", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+        "responses": { "200": { "description": "Outcomes", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
     "/commitments": {
