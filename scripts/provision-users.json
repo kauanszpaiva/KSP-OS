@@ -1,7 +1,7 @@
 [
   { "email": "kauan@kspdominion.group", "name": "Kauan Paiva", "role": "founder_ceo" },
   { "email": "vanessa@kspdominion.group", "name": "Vanessa", "role": "founder_ceo" },
-  { "email": "magaly@kspdominion.group", "name": "Magaly", "role": "executive_operations" },
   { "email": "joshua@kspdominion.group", "name": "Joshua", "role": "project_manager" },
-  { "email": "eric@kspdominion.group", "name": "Eric", "role": "developer" }
+  { "email": "eric@kspdominion.group", "name": "Eric", "role": "developer" },
+  { "email": "bruno@kspdominion.group", "name": "Bruno", "role": "developer" }
 ]
