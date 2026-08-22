@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="104" height="104" viewBox="0 0 104 104" role="img" aria-labelledby="title desc">
+  <title id="title">KSP Dominion Group</title>
+  <desc id="desc">KSP monogram avatar</desc>
+  <rect width="104" height="104" rx="52" fill="#17181D"/>
+  <circle cx="52" cy="52" r="48" fill="none" stroke="#6B1FA6" stroke-width="3"/>
+  <path d="M27 31h10v17.6L52.2 31h12.3L47.1 50.4 65.7 73H53.3L40.4 57l-3.4 3.8V73H27V31Z" fill="#FFFFFF"/>
+  <path d="M68.5 31h8.5v42h-8.5V31Z" fill="#9E5BCB"/>
+</svg>
