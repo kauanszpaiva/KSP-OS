@@ -33,7 +33,8 @@ function readVersionedProductionEnv(): Record<string, string> {
   return {
     NEXT_PUBLIC_SUPABASE_URL: url,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
-    NEXT_PUBLIC_PORTAL_BASE_URL: process.env.NEXT_PUBLIC_PORTAL_BASE_URL ?? 'https://ksp-os-portal.vercel.app'
+    NEXT_PUBLIC_PORTAL_BASE_URL: process.env.NEXT_PUBLIC_PORTAL_BASE_URL ?? 'https://ksp-os-portal.vercel.app',
+    NEXT_PUBLIC_COMMAND_BASE_URL: process.env.NEXT_PUBLIC_COMMAND_BASE_URL ?? 'https://appkspdominion.com'
   };
 }
 
