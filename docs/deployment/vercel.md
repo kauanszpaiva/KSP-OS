@@ -4,7 +4,9 @@
 
 - Project name: `ksp-command-os`
 - Root directory: `apps/command`
-- Recommended domain: `app.kspdominion.com`
+- Canonical production domain: `appkspdominion.com`
+- Canonical production URL: `https://appkspdominion.com`
+- Set `NEXT_PUBLIC_COMMAND_BASE_URL=https://appkspdominion.com` in the Production environment so generated Command links use the canonical origin.
 - Environment variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, server-only service credentials in protected Vercel env only when server jobs require them.
 
 ## Client Portal
