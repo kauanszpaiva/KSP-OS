@@ -1,8 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="104" height="104" viewBox="0 0 104 104" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="104" height="104" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
   <title id="title">KSP Dominion Group</title>
-  <desc id="desc">KSP monogram avatar</desc>
-  <rect width="104" height="104" rx="52" fill="#17181D"/>
-  <circle cx="52" cy="52" r="48" fill="none" stroke="#6B1FA6" stroke-width="3"/>
-  <path d="M27 31h10v17.6L52.2 31h12.3L47.1 50.4 65.7 73H53.3L40.4 57l-3.4 3.8V73H27V31Z" fill="#FFFFFF"/>
-  <path d="M68.5 31h8.5v42h-8.5V31Z" fill="#9E5BCB"/>
+  <desc id="desc">Official KSP Dominion Group mark</desc>
+  <circle cx="32" cy="32" r="31" fill="#17181D"/>
+  <circle cx="32" cy="32" r="30" fill="none" stroke="#2A2C33" stroke-width="1"/>
+  <g fill="none" stroke="#F4F5F7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 8v48M8 32h12L34 8M20 32l15 24"/>
+    <path d="M54 12H39c-6 0-9 3-9 8s3 8 9 8h6c6 0 9 3 9 8s-3 8-9 8H30"/>
+    <path d="M42 8h7c5 0 8 4 8 9s-3 9-8 9h-7v30"/>
+  </g>
+  <circle cx="8" cy="32" r="2" fill="#B6FF41"/>
+  <circle cx="54" cy="44" r="2" fill="#B6FF41"/>
 </svg>
