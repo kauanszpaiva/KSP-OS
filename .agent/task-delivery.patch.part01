@@ -1,0 +1,197 @@
+= 'active' && task.blocked) },
+     { value: 'open', label: 'Open', items: tasks.filter((task) => task.status === 'active' && !task.blocked) },
+@@ -116,37 +119,46 @@ function BoardViewForWorkspace({ tasks, commentsByTask }: { tasks: TaskView[]; c
+       fd.set('status', 'active');
+       fd.set('blocked', 'false');
+     }
+-    await updateTaskStatus({ ok: false }, fd);
++    setMoveError(null);
++    const result = await updateTaskStatus({ ok: false }, fd);
++    if (!result.ok) {
++      setMoveError(result.error || 'Could not move the task.');
++      return;
++    }
+     router.refresh();
+   }
+ 
+   return (
+-    <Board
++    <div>
++      {moveError && <p className="mb-3 rounded-lg border border-risk/25 bg-risk-tint px-3 py-2 text-[12px] text-risk" role="alert">{moveError}</p>}
++      <Board
+       columns={columns}
+       onDropItem={moveTask}
+       renderCard={(task) => {
+         const overdue = isOverdue(task.due_date);
+         const comments = commentsByTask.get(task.id) ?? [];
++        const readyDeliveries = (deliveryEvidenceByTask.get(task.id) ?? []).filter((item) => item.status === 'ready').length;
+         return (
+           <div className="space-y-2">
+             <p className="truncate text-[13px] font-medium text-ink">{task.title}</p>
+             <div className="flex items-center gap-1.5">
+               <Avatar name={task.ownerName} size="sm" />
+               <p className="min-w-0 truncate text-[11px] text-ink-3">
+-                {task.ownerName}{task.projectName ? ` · ${task.projectName}` : ''}{comments.length > 0 && ` · ${comments.length} comment${comments.length === 1 ? '' : 's'}`}
++                {task.ownerName}{task.projectName ? ` · ${task.projectName}` : ''}{comments.length > 0 && ` · ${comments.length} comment${comments.length === 1 ? '' : 's'}`}{readyDeliveries > 0 && ` · ${readyDeliveries} ${readyDeliveries === 1 ? 'delivery' : 'deliveries'}`}
+               </p>
+             </div>
+             {task.due_date && <p className={`tnum text-[11px] ${overdue ? 'font-medium text-risk' : 'text-ink-4'}`}>due {formatDate(task.due_date)}</p>}
+             {task.status === 'active' && (
+               <div className="flex items-center gap-1 border-t border-line pt-2">
+                 <TaskStatusForm id={task.id} blocked={task.blocked} />
+-                <CompleteTaskForm id={task.id} />
++                <CompleteTaskForm id={task.id} requiresDelivery={task.requires_delivery} />
+               </div>
+             )}
+           </div>
+         );
+       }}
+-    />
++      />
++    </div>
+   );
+ }
+ 
+@@ -157,7 +169,7 @@ function CalendarViewForWorkspace({ tasks }: { tasks: TaskView[] }) {
+   return <CalendarView items={items} />;
+ }
+ 
+-export function WorkspaceView({ tasks, members, commentsByTask }: { tasks: TaskView[]; members: MemberRef[]; commentsByTask: Map<string, CommentView[]> }) {
++export function WorkspaceView({ tasks, members, commentsByTask, deliveryEvidenceByTask }: { tasks: TaskView[]; members: MemberRef[]; commentsByTask: Map<string, CommentView[]>; deliveryEvidenceByTask: Map<string, TaskDeliveryEvidenceView[]> }) {
+   const [view, setView] = useState<'list' | 'board' | 'calendar'>('list');
+ 
+   if (tasks.length === 0) {
+@@ -169,8 +181,8 @@ export function WorkspaceView({ tasks, members, commentsByTask }: { tasks: TaskV
+       <div className="mb-4">
+         <Segmented items={[{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }, { value: 'calendar', label: 'Calendar' }]} value={view} onValueChange={(value) => setView(value as 'list' | 'board' | 'calendar')} />
+       </div>
+-      {view === 'list' && <ListView tasks={tasks} members={members} commentsByTask={commentsByTask} />}
+-      {view === 'board' && <BoardViewForWorkspace tasks={tasks} commentsByTask={commentsByTask} />}
++      {view === 'list' && <ListView tasks={tasks} members={members} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />}
++      {view === 'board' && <BoardViewForWorkspace tasks={tasks} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />}
+       {view === 'calendar' && <CalendarViewForWorkspace tasks={tasks} />}
+     </div>
+   );
+diff --git a/apps/command/app/(app)/actions.ts b/apps/command/app/(app)/actions.ts
+index 14216c8..4b7a1f0 100644
+--- a/apps/command/app/(app)/actions.ts
++++ b/apps/command/app/(app)/actions.ts
+@@ -1,6 +1,6 @@
+ 'use server';
+ 
+-import { createHash, randomBytes } from 'node:crypto';
++import { createHash, randomBytes, randomUUID } from 'node:crypto';
+ import { revalidatePath } from 'next/cache';
+ import { getAuthContext, canManageOutcomes, isExecutive, type AuthContext } from '@ksp/auth';
+ import type { SupabaseClient } from '@ksp/database';
+@@ -9,6 +9,7 @@ import { resolveMentions, type MentionProfile } from './mentions';
+ import {
+   addClientNoteSchema,
+   addDependencySchema,
++  addTaskExternalDeliverySchema,
+   createCampaignSchema,
+   createClientMeetingSchema,
+   createClientSchema,
+@@ -31,6 +32,9 @@ import {
+   idParamSchema,
+   markNotificationReadSchema,
+   postCommentSchema,
++  prepareTaskFileDeliverySchema,
++  finalizeTaskFileDeliverySchema,
++  failTaskFileDeliverySchema,
+   reassignTaskSchema,
+   recordDecisionSchema,
+   revokeConnectionSchema,
+@@ -52,12 +56,20 @@ import {
+   updateTaskStatusSchema
+ } from '@ksp/validation';
+ import { getServerSupabase } from '../../lib/supabase';
+-import { sendFeedbackReceivedEmail } from '@ksp/notifications';
++import { sendFeedbackReceivedEmail, sendTaskCompletedEmail } from '@ksp/notifications';
+ import { searchAll, type SearchResult } from './data';
++import { TASK_DELIVERY_BUCKET } from './task-delivery-constants';
+ 
+ export interface ActionResult {
+   ok: boolean;
+   error?: string;
++  warning?: string;
++}
++
++export interface TaskFilePrepareResult extends ActionResult {
++  evidenceId?: string;
++  storagePath?: string;
++  bucket?: string;
+ }
+ 
+ async function authed(): Promise<{ supabase: SupabaseClient; ctx: AuthContext } | { error: string }> {
+@@ -129,6 +141,20 @@ function firstIssue(error: { issues?: Array<{ message: string }> }): string {
+   return error.issues?.[0]?.message ?? 'Invalid input.';
+ }
+ 
++
++function sanitizeTaskDeliveryFilename(filename: string): string {
++  const normalized = filename.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-');
++  const trimmed = normalized.replace(/^[-.]+|[-.]+$/g, '').slice(-120);
++  return trimmed || 'delivery-video';
++}
++
++function commandWorkspaceUrl(): string | null {
++  const configured = process.env.NEXT_PUBLIC_COMMAND_BASE_URL?.trim();
++  if (configured) return `${configured.replace(/\/$/, '')}/workspace`;
++  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
++  return vercelHost ? `https://${vercelHost}/workspace` : null;
++}
++
+ /**
+  * Executive-scoped delete shared by every entity's delete action. RLS is the
+  * real backstop (each table has an is_executive DELETE policy); the app gate
+@@ -877,7 +903,8 @@ export async function createTask(_prev: ActionResult, form: FormData): Promise<A
+     projectId: form.get('projectId') || undefined,
+     ownerId: form.get('ownerId') || undefined,
+     startDate: form.get('startDate') ?? undefined,
+-    dueDate: form.get('dueDate') ?? undefined
++    dueDate: form.get('dueDate') ?? undefined,
++    requiresDelivery: form.get('requiresDelivery') === 'on' || form.get('requiresDelivery') === 'true'
+   });
+   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+ 
+@@ -889,13 +916,17 @@ export async function createTask(_prev: ActionResult, form: FormData): Promise<A
+       owner_id: parsed.data.ownerId ?? ctx.user.id,
+       title: parsed.data.title,
+       start_date: parsed.data.startDate || null,
+-      due_date: parsed.data.dueDate || null
++      due_date: parsed.data.dueDate || null,
++      created_by: ctx.user.id,
++      requires_delivery: parsed.data.requiresDelivery ?? false
+     })
+     .select('id')
+     .single();
+   if (error) return { ok: false, error: 'Could not create the task (check your access to the mission).' };
+ 
+   await record(supabase, ctx, 'task.created', 'tasks', data.id, `Task: ${parsed.data.title}`);
++  const ownerId = parsed.data.ownerId ?? ctx.user.id;
++  await notify(supabase, ctx, ownerId, 'task.assigned', 'tasks', data.id, `You were assigned: ${parsed.data.title}`, '/workspace');
+   revalidatePath('/workspace');
+   return { ok: true };
+ }
+@@ -915,11 +946,163 @@ export async function updateTaskStatus(_prev: ActionResult, form: FormData): Pro
+   const patch: Record<string, unknown> = {};
+   if (parsed.data.status) patch.status = parsed.data.status;
+   if (parsed.data.blocked !== undefined) patch.blocked = parsed.data.blocked;
+-  const { error } = await supabase.from('tasks').update(patch).eq('id', parsed.data.id);
+-  if (error) return { ok: false, error: 'Could not update the task (check your access).' };
++  const { error, data } = await supabase
++    .from('tasks')
++    .update(patch)
++    .eq('id', parsed.data.id)
++    .select('id, title, created_by, project_id, status')
++    .maybeSingle();
++  if (error) {
++    if (error.message.includes('task_delivery_required')) {
++      return { ok: false, error: 'Add a ready video or delivery link before marking this task done.' };
++    }
++    return { ok: false, error: 'Could not update the task (check your access).' };
++  }
++
++  if (parsed.data.status === 'archived' && data?.status === 'archived') {
++    await record(supabase, ctx, 'task.completed', 
