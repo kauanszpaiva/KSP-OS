@@ -1,0 +1,234 @@
+e.from(TASK_DELIVERY_BUCKET).createSignedUrl(row.storage_path, 15 * 60);
++      signedUrl = data?.signedUrl ?? null;
++    }
++    return {
++      id: row.id,
++      task_id: row.task_id,
++      kind: row.kind,
++      status: row.status,
++      external_url: row.external_url,
++      original_filename: row.original_filename,
++      mime_type: row.mime_type,
++      size_bytes: row.size_bytes,
++      created_at: row.created_at,
++      submitted_by: row.submitted_by,
++      submittedByName: names.get(row.submitted_by) ?? 'Team member',
++      signedUrl
++    };
++  }));
++
++  for (const item of hydrated) {
++    const items = grouped.get(item.task_id) ?? [];
++    items.push(item);
++    grouped.set(item.task_id, items);
++  }
++  return grouped;
++}
++
+ /* --------------------------------------------------------- Phase C3: Team -- */
+ 
+ export interface TeamLoadView {
+diff --git a/apps/command/app/(app)/workspace/page.tsx b/apps/command/app/(app)/workspace/page.tsx
+index 1a601ec..ba13385 100644
+--- a/apps/command/app/(app)/workspace/page.tsx
++++ b/apps/command/app/(app)/workspace/page.tsx
+@@ -1,6 +1,6 @@
+ import { requireSession } from '../../../lib/session';
+ import { getServerSupabase } from '../../../lib/supabase';
+-import { getCommentsForObjects, getMembers, getTasks, type CommentView, type TaskView } from '../data';
++import { getCommentsForObjects, getMembers, getTaskDeliveryEvidenceForTasks, getTasks, type CommentView, type TaskDeliveryEvidenceView, type TaskView } from '../data';
+ import { PageHeader } from '../_components/ui';
+ import { TaskForm } from '../_components/mission-workspace-forms';
+ import { WorkspaceView } from '../_components/workspace-view';
+@@ -9,9 +9,13 @@ export default async function WorkspacePage() {
+   const ctx = await requireSession();
+   const supabase = await getServerSupabase();
+   const [tasks, members] = supabase ? await Promise.all([getTasks(supabase), getMembers(supabase, ctx.user.id)]) : [[], []];
+-  const commentsByTask = supabase
+-    ? await getCommentsForObjects(supabase, 'tasks', (tasks as TaskView[]).map((t) => t.id))
+-    : new Map<string, CommentView[]>();
++  const taskIds = (tasks as TaskView[]).map((task) => task.id);
++  const [commentsByTask, deliveryEvidenceByTask] = supabase
++    ? await Promise.all([
++        getCommentsForObjects(supabase, 'tasks', taskIds),
++        getTaskDeliveryEvidenceForTasks(supabase, taskIds)
++      ])
++    : [new Map<string, CommentView[]>(), new Map<string, TaskDeliveryEvidenceView[]>()];
+ 
+   return (
+     <div>
+@@ -34,7 +38,7 @@ export default async function WorkspacePage() {
+         </div>
+       </details>
+ 
+-      <WorkspaceView tasks={tasks as TaskView[]} members={members} commentsByTask={commentsByTask} />
++      <WorkspaceView tasks={tasks as TaskView[]} members={members} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />
+     </div>
+   );
+ }
+diff --git a/e2e/critical-journey.spec.ts b/e2e/critical-journey.spec.ts
+index 0fec347..daaca90 100644
+--- a/e2e/critical-journey.spec.ts
++++ b/e2e/critical-journey.spec.ts
+@@ -63,4 +63,4 @@ test('mobile simple-first navigation fits at 375px', async ({ page }) => {
+   await expect(page.getByRole('navigation', { name: 'Primary mobile' }).getByText('Inbox', { exact: true })).toBeVisible();
+   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+   expect(overflow).toBeFalsy();
+-});
+\ No newline at end of file
++});
+diff --git a/packages/database/src/types.ts b/packages/database/src/types.ts
+index f47c39f..6402703 100644
+--- a/packages/database/src/types.ts
++++ b/packages/database/src/types.ts
+@@ -238,6 +238,9 @@ export interface Task {
+   status: RecordStatus;
+   created_at: string;
+   link: string | null;
++  created_by: string | null;
++  requires_delivery: boolean;
++  completed_at: string | null;
+ }
+ 
+ 
+diff --git a/packages/notifications/src/index.ts b/packages/notifications/src/index.ts
+index 5a8c76f..3588464 100644
+--- a/packages/notifications/src/index.ts
++++ b/packages/notifications/src/index.ts
+@@ -1,7 +1,8 @@
+-import { invoiceEmailConfigured, sendInvoiceEmail } from './resend';
++import { invoiceEmailConfigured, operationalEmailConfigured, sendInvoiceEmail, sendTaskCompletedEmail as sendTaskCompletedEmailViaResend } from './resend';
+ 
+ export { buildInvoiceEmail, type InvoiceEmailInput, type InvoiceEmailLine } from './invoice-email';
+-export { invoiceEmailConfigured };
++export { buildTaskCompletedEmail, type TaskCompletedEmailInput } from './task-completed-email';
++export { invoiceEmailConfigured, operationalEmailConfigured };
+ 
+ interface EmailPayload {
+   to: string;
+@@ -35,6 +36,26 @@ export async function sendInvoiceIssuedEmail(to: string, _clientName: string, _i
+   return externalEmailDisabled('legacy-invoice-issued', to);
+ }
+ 
++export async function sendTaskCompletedEmail(params: {
++  to: string;
++  taskTitle: string;
++  completedBy: string;
++  projectName?: string | null;
++  workspaceUrl?: string | null;
++  taskId: string;
++}) {
++  return sendTaskCompletedEmailViaResend(
++    {
++      to: params.to,
++      taskTitle: params.taskTitle,
++      completedBy: params.completedBy,
++      projectName: params.projectName,
++      workspaceUrl: params.workspaceUrl
++    },
++    `task-completed:${params.taskId}`
++  );
++}
++
+ export async function sendInvoiceIssued(params: {
+   to: string;
+   clientName: string;
+diff --git a/packages/notifications/src/resend.ts b/packages/notifications/src/resend.ts
+index 20a768e..a591321 100644
+--- a/packages/notifications/src/resend.ts
++++ b/packages/notifications/src/resend.ts
+@@ -1,5 +1,6 @@
+ import { Resend } from 'resend';
+ import { buildInvoiceEmail, type InvoiceEmailInput } from './invoice-email';
++import { buildTaskCompletedEmail, type TaskCompletedEmailInput } from './task-completed-email';
+ 
+ export interface EmailDeliveryResult {
+   ok: boolean;
+@@ -11,6 +12,10 @@ export function invoiceEmailConfigured(): boolean {
+   return Boolean(process.env.RESEND_API_KEY?.trim());
+ }
+ 
++export function operationalEmailConfigured(): boolean {
++  return Boolean(process.env.RESEND_API_KEY?.trim());
++}
++
+ export async function sendInvoiceEmail(input: InvoiceEmailInput, idempotencyKey: string): Promise<EmailDeliveryResult> {
+   const apiKey = process.env.RESEND_API_KEY?.trim();
+   if (!apiKey) {
+@@ -42,3 +47,39 @@ export async function sendInvoiceEmail(input: InvoiceEmailInput, idempotencyKey:
+     return { ok: false, error: error instanceof Error ? error.message : 'Invoice email delivery failed.' };
+   }
+ }
++
++
++export async function sendTaskCompletedEmail(
++  input: TaskCompletedEmailInput,
++  idempotencyKey: string
++): Promise<EmailDeliveryResult> {
++  const apiKey = process.env.RESEND_API_KEY?.trim();
++  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY is not configured for this environment.' };
++
++  const from =
++    process.env.KSP_NOTIFICATIONS_FROM?.trim()
++    || process.env.KSP_BILLING_FROM?.trim()
++    || 'KSP Dominion OS <notifications@mail.kspdominion.group>';
++  const replyTo = process.env.KSP_NOTIFICATIONS_REPLY_TO?.trim() || process.env.KSP_BILLING_REPLY_TO?.trim();
++  const content = buildTaskCompletedEmail(input);
++  const resend = new Resend(apiKey);
++
++  try {
++    const { data, error } = await resend.emails.send(
++      {
++        from,
++        to: [input.to],
++        subject: content.subject,
++        text: content.text,
++        html: content.html,
++        ...(replyTo ? { replyTo: [replyTo] } : {})
++      },
++      { idempotencyKey }
++    );
++    if (error) return { ok: false, error: error.message || 'Resend rejected the task completion email.' };
++    if (!data?.id) return { ok: false, error: 'Resend did not return a message id.' };
++    return { ok: true, providerMessageId: data.id };
++  } catch (error) {
++    return { ok: false, error: error instanceof Error ? error.message : 'Task completion email delivery failed.' };
++  }
++}
+diff --git a/packages/validation/src/schemas.ts b/packages/validation/src/schemas.ts
+index 28898d5..74d5953 100644
+--- a/packages/validation/src/schemas.ts
++++ b/packages/validation/src/schemas.ts
+@@ -119,7 +119,8 @@ export const createTaskSchema = z
+     projectId: uuid.optional(),
+     ownerId: uuid.optional(),
+     startDate: dateString.optional().or(z.literal('')),
+-    dueDate: dateString.optional().or(z.literal(''))
++    dueDate: dateString.optional().or(z.literal('')),
++    requiresDelivery: z.union([booleanString, z.boolean()]).optional()
+   })
+   .superRefine((v, ctx) => {
+     if (v.startDate && v.dueDate && v.startDate > v.dueDate) {
+@@ -133,6 +134,22 @@ export const updateTaskStatusSchema = z.object({
+   blocked: booleanString.optional()
+ });
+ 
++
++export const prepareTaskFileDeliverySchema = z.object({
++  taskId: uuid,
++  filename: z.string().min(1).max(180),
++  mimeType: z.enum(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mpeg']),
++  sizeBytes: z.coerce.number().int().positive().max(104857600)
++});
++
++export const finalizeTaskFileDeliverySchema = z.object({ evidenceId: uuid });
++export const failTaskFileDeliverySchema = z.object({ evidenceId: uuid });
++
++export const addTaskExternalDeliverySchema = z.object({
++  taskId: uuid,
++  url: z.string().url().max(1000).refine((value) => value.startsWith('https://'), 'https_required')
++});
++
+ /** Phase C3.6 — Task reassignment (a single owner_id, matching the existing tasks schema shape). */
+ export const reassignTaskSchema = z.object({
+   id: uuid
