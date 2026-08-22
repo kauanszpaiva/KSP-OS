@@ -119,7 +119,8 @@ export const createTaskSchema = z
     projectId: uuid.optional(),
     ownerId: uuid.optional(),
     startDate: dateString.optional().or(z.literal('')),
-    dueDate: dateString.optional().or(z.literal(''))
+    dueDate: dateString.optional().or(z.literal('')),
+    requiresDelivery: z.union([booleanString, z.boolean()]).optional()
   })
   .superRefine((v, ctx) => {
     if (v.startDate && v.dueDate && v.startDate > v.dueDate) {
@@ -131,6 +132,22 @@ export const updateTaskStatusSchema = z.object({
   id: uuid,
   status: z.enum(['active', 'archived']).optional(),
   blocked: booleanString.optional()
+});
+
+
+export const prepareTaskFileDeliverySchema = z.object({
+  taskId: uuid,
+  filename: z.string().min(1).max(180),
+  mimeType: z.enum(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mpeg']),
+  sizeBytes: z.coerce.number().int().positive().max(104857600)
+});
+
+export const finalizeTaskFileDeliverySchema = z.object({ evidenceId: uuid });
+export const failTaskFileDeliverySchema = z.object({ evidenceId: uuid });
+
+export const addTaskExternalDeliverySchema = z.object({
+  taskId: uuid,
+  url: z.string().url().max(1000).refine((value) => value.startsWith('https://'), 'https_required')
 });
 
 /** Phase C3.6 — Task reassignment (a single owner_id, matching the existing tasks schema shape). */

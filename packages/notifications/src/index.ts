@@ -1,7 +1,8 @@
-import { invoiceEmailConfigured, sendInvoiceEmail } from './resend';
+import { invoiceEmailConfigured, operationalEmailConfigured, sendInvoiceEmail, sendTaskCompletedEmail as sendTaskCompletedEmailViaResend } from './resend';
 
 export { buildInvoiceEmail, type InvoiceEmailInput, type InvoiceEmailLine } from './invoice-email';
-export { invoiceEmailConfigured };
+export { buildTaskCompletedEmail, type TaskCompletedEmailInput } from './task-completed-email';
+export { invoiceEmailConfigured, operationalEmailConfigured };
 
 interface EmailPayload {
   to: string;
@@ -33,6 +34,26 @@ export async function sendApprovalCompletedEmail(to: string, _itemName: string, 
 // intentionally available only through the structured sendInvoiceIssued path.
 export async function sendInvoiceIssuedEmail(to: string, _clientName: string, _invoiceId: string, _amountMinor: number) {
   return externalEmailDisabled('legacy-invoice-issued', to);
+}
+
+export async function sendTaskCompletedEmail(params: {
+  to: string;
+  taskTitle: string;
+  completedBy: string;
+  projectName?: string | null;
+  workspaceUrl?: string | null;
+  taskId: string;
+}) {
+  return sendTaskCompletedEmailViaResend(
+    {
+      to: params.to,
+      taskTitle: params.taskTitle,
+      completedBy: params.completedBy,
+      projectName: params.projectName,
+      workspaceUrl: params.workspaceUrl
+    },
+    `task-completed:${params.taskId}`
+  );
 }
 
 export async function sendInvoiceIssued(params: {

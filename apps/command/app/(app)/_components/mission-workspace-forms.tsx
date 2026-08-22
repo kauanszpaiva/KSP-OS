@@ -30,6 +30,11 @@ function FormError({ state }: { state: ActionResult }) {
   return <p className="text-[13px] text-risk">{state.error}</p>;
 }
 
+function FormWarning({ state }: { state: ActionResult }) {
+  if (!state.ok || !state.warning) return null;
+  return <p className="text-[12px] text-warn">{state.warning}</p>;
+}
+
 export function MissionForm({ clients = [] }: { clients?: ClientRef[] }) {
   const [state, action, pending] = useActionState(createMission, initial);
   return (
@@ -212,6 +217,13 @@ export function TaskForm({ members, projectId }: { members: MemberRef[]; project
           <input id="t-due" name="dueDate" aria-label="Due Date" type="date" className={field} />
         </div>
       </div>
+      <label className="flex items-start gap-2 rounded-lg border border-line bg-canvas/55 px-3 py-2.5">
+        <input type="checkbox" name="requiresDelivery" className="mt-0.5 h-4 w-4 rounded border-line-2" />
+        <span>
+          <span className="block text-[12.5px] font-medium text-ink-2">Require delivery evidence before completion</span>
+          <span className="mt-0.5 block text-[11px] leading-relaxed text-ink-4">Use for videos, designs, documents, client files or any task that must include a final link/file.</span>
+        </span>
+      </label>
       <FormError state={state} />
       <button type="submit" className={primaryBtn} disabled={pending}>
         {pending ? 'Adding…' : 'Add task'}
@@ -261,15 +273,17 @@ export function TaskReassignForm({ id, ownerId, members }: { id: string; ownerId
   );
 }
 
-export function CompleteTaskForm({ id }: { id: string }) {
-  const [, action, pending] = useActionState(updateTaskStatus, initial);
+export function CompleteTaskForm({ id, requiresDelivery = false }: { id: string; requiresDelivery?: boolean }) {
+  const [state, action, pending] = useActionState(updateTaskStatus, initial);
   return (
-    <form action={action} className="inline">
+    <form action={action} className="inline-flex flex-col items-start gap-1">
       <input aria-label="Input field" type="hidden" name="id" value={id} />
       <input type="hidden" name="status" aria-label="Status" value="archived" />
       <button type="submit" disabled={pending} className="rounded-lg px-2 py-1 text-[12px] font-medium text-ink-3 transition-colors duration-fast hover:bg-good-tint hover:text-good disabled:opacity-50">
-        Mark done
+        {pending ? 'Finishing…' : requiresDelivery ? 'Submit & mark done' : 'Mark done'}
       </button>
+      <FormError state={state} />
+      <FormWarning state={state} />
     </form>
   );
 }

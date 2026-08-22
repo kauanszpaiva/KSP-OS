@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Avatar, Icon, Reveal, Segmented } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
-import type { CommentView, MemberRef, TaskView } from '../data';
+import type { CommentView, MemberRef, TaskDeliveryEvidenceView, TaskView } from '../data';
 import { updateTaskStatus } from '../actions';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
 import { Board, type BoardColumn } from './board-view';
@@ -13,8 +13,9 @@ import { CompleteTaskForm, TaskReassignForm, TaskStatusForm } from './mission-wo
 import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteTask } from '../actions';
+import { TaskDeliveryPanel } from './task-delivery-panel';
 
-function TaskRow({ task, members, comments }: { task: TaskView; members: MemberRef[]; comments: CommentView[] }) {
+function TaskRow({ task, members, comments, evidence }: { task: TaskView; members: MemberRef[]; comments: CommentView[]; evidence: TaskDeliveryEvidenceView[] }) {
   const overdue = isOverdue(task.due_date);
   const active = task.status === 'active';
   return (
@@ -38,7 +39,7 @@ function TaskRow({ task, members, comments }: { task: TaskView; members: MemberR
       <div className="space-y-3 border-t border-line px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
         <div className="flex flex-wrap items-center gap-2">
           {active && <TaskStatusForm id={task.id} blocked={task.blocked} />}
-          {active && <CompleteTaskForm id={task.id} />}
+          {active && <CompleteTaskForm id={task.id} requiresDelivery={task.requires_delivery} />}
           <TaskReassignForm id={task.id} ownerId={task.owner_id} members={members} />
           <DeleteButton action={deleteTask} id={task.id} label="Delete task" confirmText={`Delete task "${task.title}"? This can't be undone.`} />
         </div>
@@ -51,6 +52,7 @@ function TaskRow({ task, members, comments }: { task: TaskView; members: MemberR
             </span>
           </div>
         )}
+        <TaskDeliveryPanel taskId={task.id} evidence={evidence} active={active} required={task.requires_delivery} />
         <div className="border-t border-line pt-3">
           <CommentThread objectTable="tasks" objectId={task.id} comments={comments} />
         </div>
@@ -59,7 +61,7 @@ function TaskRow({ task, members, comments }: { task: TaskView; members: MemberR
   );
 }
 
-function ListView({ tasks, members, commentsByTask }: { tasks: TaskView[]; members: MemberRef[]; commentsByTask: Map<string, CommentView[]> }) {
+function ListView({ tasks, members, commentsByTask, deliveryEvidenceByTask }: { tasks: TaskView[]; members: MemberRef[]; commentsByTask: Map<string, CommentView[]>; deliveryEvidenceByTask: Map<string, TaskDeliveryEvidenceView[]> }) {
   const open = tasks.filter((task) => task.status === 'active' && !task.blocked);
   const blocked = tasks.filter((task) => task.status === 'active' && task.blocked);
   const done = tasks.filter((task) => task.status !== 'active');
@@ -69,7 +71,7 @@ function ListView({ tasks, members, commentsByTask }: { tasks: TaskView[]; membe
       {blocked.length > 0 && (
         <Reveal>
           <SectionLabel right={<span className="tnum text-[12px] text-risk">{blocked.length}</span>}>Blocked</SectionLabel>
-          <Panel>{blocked.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} />)}</Panel>
+          <Panel>{blocked.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} evidence={deliveryEvidenceByTask.get(task.id) ?? []} />)}</Panel>
         </Reveal>
       )}
       <Reveal delay={60}>
@@ -77,7 +79,7 @@ function ListView({ tasks, members, commentsByTask }: { tasks: TaskView[]; membe
         {open.length === 0 ? (
           <p className="rounded-lg border border-line bg-surface px-4 py-4 text-[13px] text-ink-3">Nothing open.</p>
         ) : (
-          <Panel>{open.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} />)}</Panel>
+          <Panel>{open.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} evidence={deliveryEvidenceByTask.get(task.id) ?? []} />)}</Panel>
         )}
       </Reveal>
       {done.length > 0 && (
@@ -88,7 +90,7 @@ function ListView({ tasks, members, commentsByTask }: { tasks: TaskView[]; membe
               <span>Completed work · {done.length}</span>
               <Icon name="chevron-down" className="h-4 w-4 text-ink-4" />
             </summary>
-            <div className="border-t border-line">{done.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} />)}</div>
+            <div className="border-t border-line">{done.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} evidence={deliveryEvidenceByTask.get(task.id) ?? []} />)}</div>
           </details>
         </Reveal>
       )}
@@ -96,8 +98,9 @@ function ListView({ tasks, members, commentsByTask }: { tasks: TaskView[]; membe
   );
 }
 
-function BoardViewForWorkspace({ tasks, commentsByTask }: { tasks: TaskView[]; commentsByTask: Map<string, CommentView[]> }) {
+function BoardViewForWorkspace({ tasks, commentsByTask, deliveryEvidenceByTask }: { tasks: TaskView[]; commentsByTask: Map<string, CommentView[]>; deliveryEvidenceByTask: Map<string, TaskDeliveryEvidenceView[]> }) {
   const router = useRouter();
+  const [moveError, setMoveError] = useState<string | null>(null);
   const columns: BoardColumn<TaskView>[] = [
     { value: 'blocked', label: 'Blocked', items: tasks.filter((task) => task.status === 'active' && task.blocked) },
     { value: 'open', label: 'Open', items: tasks.filter((task) => task.status === 'active' && !task.blocked) },
@@ -116,37 +119,46 @@ function BoardViewForWorkspace({ tasks, commentsByTask }: { tasks: TaskView[]; c
       fd.set('status', 'active');
       fd.set('blocked', 'false');
     }
-    await updateTaskStatus({ ok: false }, fd);
+    setMoveError(null);
+    const result = await updateTaskStatus({ ok: false }, fd);
+    if (!result.ok) {
+      setMoveError(result.error || 'Could not move the task.');
+      return;
+    }
     router.refresh();
   }
 
   return (
-    <Board
+    <div>
+      {moveError && <p className="mb-3 rounded-lg border border-risk/25 bg-risk-tint px-3 py-2 text-[12px] text-risk" role="alert">{moveError}</p>}
+      <Board
       columns={columns}
       onDropItem={moveTask}
       renderCard={(task) => {
         const overdue = isOverdue(task.due_date);
         const comments = commentsByTask.get(task.id) ?? [];
+        const readyDeliveries = (deliveryEvidenceByTask.get(task.id) ?? []).filter((item) => item.status === 'ready').length;
         return (
           <div className="space-y-2">
             <p className="truncate text-[13px] font-medium text-ink">{task.title}</p>
             <div className="flex items-center gap-1.5">
               <Avatar name={task.ownerName} size="sm" />
               <p className="min-w-0 truncate text-[11px] text-ink-3">
-                {task.ownerName}{task.projectName ? ` · ${task.projectName}` : ''}{comments.length > 0 && ` · ${comments.length} comment${comments.length === 1 ? '' : 's'}`}
+                {task.ownerName}{task.projectName ? ` · ${task.projectName}` : ''}{comments.length > 0 && ` · ${comments.length} comment${comments.length === 1 ? '' : 's'}`}{readyDeliveries > 0 && ` · ${readyDeliveries} ${readyDeliveries === 1 ? 'delivery' : 'deliveries'}`}
               </p>
             </div>
             {task.due_date && <p className={`tnum text-[11px] ${overdue ? 'font-medium text-risk' : 'text-ink-4'}`}>due {formatDate(task.due_date)}</p>}
             {task.status === 'active' && (
               <div className="flex items-center gap-1 border-t border-line pt-2">
                 <TaskStatusForm id={task.id} blocked={task.blocked} />
-                <CompleteTaskForm id={task.id} />
+                <CompleteTaskForm id={task.id} requiresDelivery={task.requires_delivery} />
               </div>
             )}
           </div>
         );
       }}
-    />
+      />
+    </div>
   );
 }
 
@@ -157,7 +169,7 @@ function CalendarViewForWorkspace({ tasks }: { tasks: TaskView[] }) {
   return <CalendarView items={items} />;
 }
 
-export function WorkspaceView({ tasks, members, commentsByTask }: { tasks: TaskView[]; members: MemberRef[]; commentsByTask: Map<string, CommentView[]> }) {
+export function WorkspaceView({ tasks, members, commentsByTask, deliveryEvidenceByTask }: { tasks: TaskView[]; members: MemberRef[]; commentsByTask: Map<string, CommentView[]>; deliveryEvidenceByTask: Map<string, TaskDeliveryEvidenceView[]> }) {
   const [view, setView] = useState<'list' | 'board' | 'calendar'>('list');
 
   if (tasks.length === 0) {
@@ -169,8 +181,8 @@ export function WorkspaceView({ tasks, members, commentsByTask }: { tasks: TaskV
       <div className="mb-4">
         <Segmented items={[{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }, { value: 'calendar', label: 'Calendar' }]} value={view} onValueChange={(value) => setView(value as 'list' | 'board' | 'calendar')} />
       </div>
-      {view === 'list' && <ListView tasks={tasks} members={members} commentsByTask={commentsByTask} />}
-      {view === 'board' && <BoardViewForWorkspace tasks={tasks} commentsByTask={commentsByTask} />}
+      {view === 'list' && <ListView tasks={tasks} members={members} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />}
+      {view === 'board' && <BoardViewForWorkspace tasks={tasks} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />}
       {view === 'calendar' && <CalendarViewForWorkspace tasks={tasks} />}
     </div>
   );

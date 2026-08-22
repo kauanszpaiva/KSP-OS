@@ -1,6 +1,6 @@
 'use server';
 
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { getAuthContext, canManageOutcomes, isExecutive, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
@@ -9,6 +9,7 @@ import { resolveMentions, type MentionProfile } from './mentions';
 import {
   addClientNoteSchema,
   addDependencySchema,
+  addTaskExternalDeliverySchema,
   createCampaignSchema,
   createClientMeetingSchema,
   createClientSchema,
@@ -31,6 +32,9 @@ import {
   idParamSchema,
   markNotificationReadSchema,
   postCommentSchema,
+  prepareTaskFileDeliverySchema,
+  finalizeTaskFileDeliverySchema,
+  failTaskFileDeliverySchema,
   reassignTaskSchema,
   recordDecisionSchema,
   revokeConnectionSchema,
@@ -52,12 +56,20 @@ import {
   updateTaskStatusSchema
 } from '@ksp/validation';
 import { getServerSupabase } from '../../lib/supabase';
-import { sendFeedbackReceivedEmail } from '@ksp/notifications';
+import { sendFeedbackReceivedEmail, sendTaskCompletedEmail } from '@ksp/notifications';
 import { searchAll, type SearchResult } from './data';
+import { TASK_DELIVERY_BUCKET } from './task-delivery-constants';
 
 export interface ActionResult {
   ok: boolean;
   error?: string;
+  warning?: string;
+}
+
+export interface TaskFilePrepareResult extends ActionResult {
+  evidenceId?: string;
+  storagePath?: string;
+  bucket?: string;
 }
 
 async function authed(): Promise<{ supabase: SupabaseClient; ctx: AuthContext } | { error: string }> {
@@ -127,6 +139,20 @@ async function notify(
 
 function firstIssue(error: { issues?: Array<{ message: string }> }): string {
   return error.issues?.[0]?.message ?? 'Invalid input.';
+}
+
+
+function sanitizeTaskDeliveryFilename(filename: string): string {
+  const normalized = filename.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-');
+  const trimmed = normalized.replace(/^[-.]+|[-.]+$/g, '').slice(-120);
+  return trimmed || 'delivery-video';
+}
+
+function commandWorkspaceUrl(): string | null {
+  const configured = process.env.NEXT_PUBLIC_COMMAND_BASE_URL?.trim();
+  if (configured) return `${configured.replace(/\/$/, '')}/workspace`;
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  return vercelHost ? `https://${vercelHost}/workspace` : null;
 }
 
 /**
@@ -877,7 +903,8 @@ export async function createTask(_prev: ActionResult, form: FormData): Promise<A
     projectId: form.get('projectId') || undefined,
     ownerId: form.get('ownerId') || undefined,
     startDate: form.get('startDate') ?? undefined,
-    dueDate: form.get('dueDate') ?? undefined
+    dueDate: form.get('dueDate') ?? undefined,
+    requiresDelivery: form.get('requiresDelivery') === 'on' || form.get('requiresDelivery') === 'true'
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
@@ -889,13 +916,17 @@ export async function createTask(_prev: ActionResult, form: FormData): Promise<A
       owner_id: parsed.data.ownerId ?? ctx.user.id,
       title: parsed.data.title,
       start_date: parsed.data.startDate || null,
-      due_date: parsed.data.dueDate || null
+      due_date: parsed.data.dueDate || null,
+      created_by: ctx.user.id,
+      requires_delivery: parsed.data.requiresDelivery ?? false
     })
     .select('id')
     .single();
   if (error) return { ok: false, error: 'Could not create the task (check your access to the mission).' };
 
   await record(supabase, ctx, 'task.created', 'tasks', data.id, `Task: ${parsed.data.title}`);
+  const ownerId = parsed.data.ownerId ?? ctx.user.id;
+  await notify(supabase, ctx, ownerId, 'task.assigned', 'tasks', data.id, `You were assigned: ${parsed.data.title}`, '/workspace');
   revalidatePath('/workspace');
   return { ok: true };
 }
@@ -915,11 +946,163 @@ export async function updateTaskStatus(_prev: ActionResult, form: FormData): Pro
   const patch: Record<string, unknown> = {};
   if (parsed.data.status) patch.status = parsed.data.status;
   if (parsed.data.blocked !== undefined) patch.blocked = parsed.data.blocked;
-  const { error } = await supabase.from('tasks').update(patch).eq('id', parsed.data.id);
-  if (error) return { ok: false, error: 'Could not update the task (check your access).' };
+  const { error, data } = await supabase
+    .from('tasks')
+    .update(patch)
+    .eq('id', parsed.data.id)
+    .select('id, title, created_by, project_id, status')
+    .maybeSingle();
+  if (error) {
+    if (error.message.includes('task_delivery_required')) {
+      return { ok: false, error: 'Add a ready video or delivery link before marking this task done.' };
+    }
+    return { ok: false, error: 'Could not update the task (check your access).' };
+  }
 
-  await record(supabase, ctx, 'task.updated', 'tasks', parsed.data.id, 'Task updated');
+  if (parsed.data.status === 'archived' && data?.status === 'archived') {
+    await record(supabase, ctx, 'task.completed', 'tasks', parsed.data.id, `Completed: ${data.title}`);
+
+    const recipientId = (data.created_by as string | null) ?? null;
+    if (recipientId && recipientId !== ctx.user.id) {
+      await notify(supabase, ctx, recipientId, 'task.completed', 'tasks', parsed.data.id, `${ctx.user.displayName} completed: ${data.title}`, '/workspace');
+
+      const { data: recipient } = await supabase.from('profiles').select('email').eq('id', recipientId).maybeSingle();
+      let projectName: string | null = null;
+      if (data.project_id) {
+        const { data: project } = await supabase.from('projects').select('name').eq('id', data.project_id).maybeSingle();
+        projectName = (project?.name as string | undefined) ?? null;
+      }
+
+      if (recipient?.email) {
+        const delivery = await sendTaskCompletedEmail({
+          to: recipient.email as string,
+          taskTitle: data.title as string,
+          completedBy: ctx.user.displayName,
+          projectName,
+          workspaceUrl: commandWorkspaceUrl(),
+          taskId: parsed.data.id
+        });
+        if (!delivery.ok) {
+          await record(supabase, ctx, 'task.completion_email_failed', 'tasks', parsed.data.id, 'Task completed; notification email delivery failed');
+          revalidatePath('/workspace');
+          return { ok: true, warning: 'Task completed, but the email notification could not be delivered.' };
+        }
+      }
+    }
+  } else {
+    await record(supabase, ctx, 'task.updated', 'tasks', parsed.data.id, 'Task updated');
+  }
   revalidatePath('/workspace');
+  return { ok: true };
+}
+
+export async function prepareTaskFileDelivery(form: FormData): Promise<TaskFilePrepareResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = prepareTaskFileDeliverySchema.safeParse({
+    taskId: form.get('taskId'),
+    filename: form.get('filename'),
+    mimeType: form.get('mimeType'),
+    sizeBytes: form.get('sizeBytes')
+  });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('id, organization_id')
+    .eq('id', parsed.data.taskId)
+    .maybeSingle();
+  if (!task || task.organization_id !== ctx.organizationId) return { ok: false, error: 'Task not found or unavailable.' };
+
+  const evidenceId = randomUUID();
+  const safeFilename = sanitizeTaskDeliveryFilename(parsed.data.filename);
+  const storagePath = `${ctx.organizationId}/${parsed.data.taskId}/${evidenceId}/${safeFilename}`;
+  const { error } = await supabase.from('task_delivery_evidence').insert({
+    id: evidenceId,
+    organization_id: ctx.organizationId,
+    task_id: parsed.data.taskId,
+    submitted_by: ctx.user.id,
+    kind: 'file',
+    status: 'pending',
+    storage_path: storagePath,
+    original_filename: parsed.data.filename,
+    mime_type: parsed.data.mimeType,
+    size_bytes: parsed.data.sizeBytes
+  });
+  if (error) return { ok: false, error: 'Could not prepare the private upload.' };
+
+  return { ok: true, evidenceId, storagePath, bucket: TASK_DELIVERY_BUCKET };
+}
+
+export async function finalizeTaskFileDelivery(form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+  const parsed = finalizeTaskFileDeliverySchema.safeParse({ evidenceId: form.get('evidenceId') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { data: evidence } = await supabase
+    .from('task_delivery_evidence')
+    .select('id, task_id, submitted_by, status, storage_path')
+    .eq('id', parsed.data.evidenceId)
+    .maybeSingle();
+  if (!evidence || evidence.submitted_by !== ctx.user.id || evidence.status !== 'pending' || !evidence.storage_path) {
+    return { ok: false, error: 'Upload session is no longer valid.' };
+  }
+
+  const slash = evidence.storage_path.lastIndexOf('/');
+  const folder = evidence.storage_path.slice(0, slash);
+  const filename = evidence.storage_path.slice(slash + 1);
+  const { data: objects, error: listError } = await supabase.storage.from(TASK_DELIVERY_BUCKET).list(folder, { limit: 20, search: filename });
+  if (listError || !(objects ?? []).some((object) => object.name === filename)) {
+    return { ok: false, error: 'The uploaded file could not be verified. Try the upload again.' };
+  }
+
+  const { error } = await supabase.from('task_delivery_evidence').update({ status: 'ready' }).eq('id', parsed.data.evidenceId);
+  if (error) return { ok: false, error: 'Could not finalize the video delivery.' };
+  await record(supabase, ctx, 'task.delivery_uploaded', 'tasks', evidence.task_id, 'Private video delivery uploaded');
+  revalidatePath('/workspace');
+  return { ok: true };
+}
+
+export async function failTaskFileDelivery(form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase } = gate;
+  const parsed = failTaskFileDeliverySchema.safeParse({ evidenceId: form.get('evidenceId') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const { error } = await supabase.from('task_delivery_evidence').update({ status: 'failed' }).eq('id', parsed.data.evidenceId);
+  return error ? { ok: false, error: 'Could not close the failed upload.' } : { ok: true };
+}
+
+export async function addTaskExternalDelivery(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const gate = await authed();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+  const parsed = addTaskExternalDeliverySchema.safeParse({ taskId: form.get('taskId'), url: form.get('url') });
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const { data: task } = await supabase.from('tasks').select('organization_id').eq('id', parsed.data.taskId).maybeSingle();
+  if (!task || task.organization_id !== ctx.organizationId) return { ok: false, error: 'Task not found or unavailable.' };
+
+  const { error } = await supabase.from('task_delivery_evidence').insert({
+    organization_id: ctx.organizationId,
+    task_id: parsed.data.taskId,
+    submitted_by: ctx.user.id,
+    kind: 'external_url',
+    status: 'ready',
+    external_url: parsed.data.url
+  });
+  if (error) return { ok: false, error: 'Could not attach the delivery link.' };
+
+  // Preserve the legacy single-link field so Software/Control surfaces still
+  // show the most recent delivery URL while Workspace uses the richer evidence list.
+  await supabase.from('tasks').update({ link: parsed.data.url }).eq('id', parsed.data.taskId);
+  await record(supabase, ctx, 'task.delivery_linked', 'tasks', parsed.data.taskId, 'External delivery link attached');
+  revalidatePath('/workspace');
+  revalidatePath('/software');
   return { ok: true };
 }
 

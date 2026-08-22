@@ -1,6 +1,6 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getCommentsForObjects, getMembers, getTasks, type CommentView, type TaskView } from '../data';
+import { getCommentsForObjects, getMembers, getTaskDeliveryEvidenceForTasks, getTasks, type CommentView, type TaskDeliveryEvidenceView, type TaskView } from '../data';
 import { PageHeader } from '../_components/ui';
 import { TaskForm } from '../_components/mission-workspace-forms';
 import { WorkspaceView } from '../_components/workspace-view';
@@ -9,9 +9,13 @@ export default async function WorkspacePage() {
   const ctx = await requireSession();
   const supabase = await getServerSupabase();
   const [tasks, members] = supabase ? await Promise.all([getTasks(supabase), getMembers(supabase, ctx.user.id)]) : [[], []];
-  const commentsByTask = supabase
-    ? await getCommentsForObjects(supabase, 'tasks', (tasks as TaskView[]).map((t) => t.id))
-    : new Map<string, CommentView[]>();
+  const taskIds = (tasks as TaskView[]).map((task) => task.id);
+  const [commentsByTask, deliveryEvidenceByTask] = supabase
+    ? await Promise.all([
+        getCommentsForObjects(supabase, 'tasks', taskIds),
+        getTaskDeliveryEvidenceForTasks(supabase, taskIds)
+      ])
+    : [new Map<string, CommentView[]>(), new Map<string, TaskDeliveryEvidenceView[]>()];
 
   return (
     <div>
@@ -34,7 +38,7 @@ export default async function WorkspacePage() {
         </div>
       </details>
 
-      <WorkspaceView tasks={tasks as TaskView[]} members={members} commentsByTask={commentsByTask} />
+      <WorkspaceView tasks={tasks as TaskView[]} members={members} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />
     </div>
   );
 }
