@@ -48,23 +48,23 @@ export default async function InvoiceDetailPage({
   const amountDue = invoice.amount_minor - amountPaid;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <Link href="/invoices" className="flex items-center gap-2 text-[13px] font-medium text-ink-3 transition-colors hover:text-ink">
         &larr; Back to Invoices
       </Link>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">Invoice {invoice.invoice_number}</h1>
-          <p className="mt-1 text-sm text-ink-3">{(invoice.projects as any)?.name || 'General Billing'}</p>
-          <div className="mt-2 flex items-center gap-2">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-bold tracking-tight text-ink">Invoice {invoice.invoice_number}</h1>
+          <p className="mt-1 truncate text-sm text-ink-3">{(invoice.projects as any)?.name || 'General Billing'}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <StatusBadge status={invoice.status} />
-            <span className="text-[13px] text-ink-3">
+            <span className="break-words text-[13px] text-ink-3">
               Issued: {invoice.issue_date || 'N/A'} {invoice.due_date && `• Due: ${invoice.due_date}`}
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {invoice.url && (
             <Button variant="secondary">
               <a href={invoice.url} target="_blank" rel="noreferrer" className="flex items-center">
@@ -82,21 +82,21 @@ export default async function InvoiceDetailPage({
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 flex flex-col gap-6">
-          <Card className="flex flex-col overflow-hidden">
+      <div className="grid min-w-0 gap-6 md:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-6 md:col-span-2">
+          <Card className="flex min-w-0 flex-col overflow-hidden">
             <div className="border-b border-line bg-surface-2 px-4 py-3">
               <h3 className="text-[13px] font-semibold text-ink">Line Items</h3>
             </div>
-            <div className="flex flex-col divide-y divide-line">
+            <div className="flex min-w-0 flex-col divide-y divide-line">
               {(invoice.invoice_lines as any[])?.length ? (
                 (invoice.invoice_lines as any[]).map((line) => (
-                  <div key={line.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-[14px] font-medium text-ink">{line.description}</p>
+                  <div key={line.id} className="flex min-w-0 flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="break-words text-[14px] font-medium text-ink">{line.description}</p>
                       <p className="text-[12px] text-ink-3">Qty: {line.quantity}</p>
                     </div>
-                    <p className="text-[14px] font-semibold text-ink">{formatCurrency(line.amount_minor, line.currency)}</p>
+                    <p className="shrink-0 text-[14px] font-semibold text-ink">{formatCurrency(line.amount_minor, line.currency)}</p>
                   </div>
                 ))
               ) : (
@@ -106,18 +106,18 @@ export default async function InvoiceDetailPage({
           </Card>
 
           {(invoice.customer_payments as any[]) && (invoice.customer_payments as any[]).length > 0 && (
-            <Card className="flex flex-col overflow-hidden">
+            <Card className="flex min-w-0 flex-col overflow-hidden">
               <div className="border-b border-line bg-surface-2 px-4 py-3">
                 <h3 className="text-[13px] font-semibold text-ink">Payment History</h3>
               </div>
-              <div className="flex flex-col divide-y divide-line">
+              <div className="flex min-w-0 flex-col divide-y divide-line">
                 {(invoice.customer_payments as any[]).map((payment) => (
-                  <div key={payment.id} className="flex items-center justify-between p-4">
-                    <div>
+                  <div key={payment.id} className="flex min-w-0 flex-col items-start gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
                       <p className="text-[13px] font-medium text-ink">{payment.payment_date}</p>
-                      <p className="text-[12px] text-ink-3 capitalize">{payment.status}</p>
+                      <p className="text-[12px] capitalize text-ink-3">{payment.status}</p>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
                       <p className="text-[14px] font-medium text-ink">{formatCurrency(payment.amount_minor, payment.currency)}</p>
                       {payment.receipt_url && (
                         <a href={payment.receipt_url} target="_blank" rel="noreferrer" className="text-[13px] text-brand hover:underline">
@@ -132,27 +132,27 @@ export default async function InvoiceDetailPage({
           )}
         </div>
 
-        <div className="flex flex-col gap-6">
-          <Card className="flex flex-col p-4">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card className="flex min-w-0 flex-col p-4">
             <h3 className="text-[13px] font-semibold text-ink">Summary</h3>
-            <div className="mt-4 flex flex-col gap-3 text-[14px]">
-              <div className="flex justify-between">
+            <div className="mt-4 flex min-w-0 flex-col gap-3 text-[14px]">
+              <div className="flex min-w-0 justify-between gap-3">
                 <span className="text-ink-2">Total Amount</span>
-                <span className="font-medium text-ink">{formatCurrency(invoice.amount_minor, invoice.currency)}</span>
+                <span className="shrink-0 font-medium text-ink">{formatCurrency(invoice.amount_minor, invoice.currency)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex min-w-0 justify-between gap-3">
                 <span className="text-ink-2">Amount Paid</span>
-                <span className="font-medium text-ink">{formatCurrency(amountPaid, invoice.currency)}</span>
+                <span className="shrink-0 font-medium text-ink">{formatCurrency(amountPaid, invoice.currency)}</span>
               </div>
               <div className="my-1 h-px w-full bg-line" />
-              <div className="flex justify-between font-semibold">
+              <div className="flex min-w-0 justify-between gap-3 font-semibold">
                 <span className="text-ink">Amount Due</span>
-                <span className="text-ink">{formatCurrency(amountDue, invoice.currency)}</span>
+                <span className="shrink-0 text-ink">{formatCurrency(amountDue, invoice.currency)}</span>
               </div>
             </div>
 
             {amountDue > 0 && (
-              <div className="mt-6 rounded-lg bg-surface-2 p-3 text-[12px] text-ink-3 text-center">
+              <div className="mt-6 rounded-lg bg-surface-2 p-3 text-center text-[12px] text-ink-3">
                 Payment options are managed externally according to your contract terms.
               </div>
             )}
