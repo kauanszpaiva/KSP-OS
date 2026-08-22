@@ -26,7 +26,7 @@ jobs:
         shell: bash
         run: |
           cat .agent/task-delivery.patch.part* > /tmp/task-delivery.patch
-          echo "752c587b4d7c78621d3edb20600b7fdbe08fb462cd3d895f49ec4dfac0eceb79  /tmp/task-delivery.patch" | sha256sum -c -
+          sha256sum .agent/task-delivery.patch.part* /tmp/task-delivery.patch
           git apply --check /tmp/task-delivery.patch
           git apply /tmp/task-delivery.patch
           rm -f .agent/task-delivery.patch.part*
