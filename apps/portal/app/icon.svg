@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="104" height="104" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">KSP Dominion Group</title>
+  <desc id="desc">Official KSP Dominion Group mark</desc>
+  <circle cx="32" cy="32" r="31" fill="#17181D"/>
+  <circle cx="32" cy="32" r="30" fill="none" stroke="#2A2C33" stroke-width="1"/>
+  <g fill="none" stroke="#F4F5F7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 8v48M8 32h12L34 8M20 32l15 24"/>
+    <path d="M54 12H39c-6 0-9 3-9 8s3 8 9 8h6c6 0 9 3 9 8s-3 8-9 8H30"/>
+    <path d="M42 8h7c5 0 8 4 8 9s-3 9-8 9h-7v30"/>
+  </g>
+  <circle cx="8" cy="32" r="2" fill="#B6FF41"/>
+  <circle cx="54" cy="44" r="2" fill="#B6FF41"/>
+</svg>
