@@ -1,7 +1,8 @@
 import { canManageOutcomes } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getMembers, getOutcomes } from '../data';
+import { getOutcomes } from '../data';
+import { getInternalMembers } from '../internal-roster';
 import { PageHeader, SlotMeter } from '../_components/ui';
 import { OutcomesView } from '../_components/outcomes-view';
 
@@ -9,7 +10,7 @@ export default async function OutcomesPage() {
   const ctx = await requireSession();
   const supabase = await getServerSupabase();
   const outcomes = supabase ? await getOutcomes(supabase) : [];
-  const members = supabase ? await getMembers(supabase, ctx.user.id) : [];
+  const members = supabase ? await getInternalMembers(supabase) : [];
   const canManage = canManageOutcomes(ctx);
 
   const activeCount = outcomes.filter((o) => o.state === 'active').length;

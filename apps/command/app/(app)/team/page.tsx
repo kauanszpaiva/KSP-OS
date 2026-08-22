@@ -1,7 +1,8 @@
 import { isExecutive } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getMembersAdmin, getTasks, getTeamLoad } from '../data';
+import { getMembersAdmin, getTasks } from '../data';
+import { getInternalTeamLoad } from '../internal-roster';
 import { PageHeader } from '../_components/ui';
 import { TeamView } from '../_components/team-view';
 
@@ -10,7 +11,7 @@ export default async function TeamPage() {
   const canManage = isExecutive(ctx);
   const supabase = await getServerSupabase();
   const [load, tasks, members] = supabase
-    ? await Promise.all([getTeamLoad(supabase), getTasks(supabase), canManage ? getMembersAdmin(supabase) : Promise.resolve([])])
+    ? await Promise.all([getInternalTeamLoad(supabase), getTasks(supabase), canManage ? getMembersAdmin(supabase) : Promise.resolve([])])
     : [[], [], []];
 
   return (
