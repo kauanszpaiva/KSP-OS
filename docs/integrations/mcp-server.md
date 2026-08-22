@@ -15,7 +15,7 @@ RLS-scoped domain fetchers, and the same write governance — no duplicated logi
 - **Route:** `apps/command/app/api/[transport]/route.ts`
 - **Transport:** stateless Streamable HTTP (SSE disabled → **no Redis** needed).
 - **Dev:** `http://localhost:3000/api/mcp`
-- **Production:** `https://ksp-os-command.vercel.app/api/mcp`
+- **Production:** `https://appkspdominion.com/api/mcp`
 
 `basePath` is `/api`, so the `[transport]` segment resolves to `mcp` and the one
 connector URL is `/api/mcp`. Static sibling routes (`/api/health`, `/api/v1/*`)
@@ -68,7 +68,7 @@ future slice.
 1. Deploy the command app (or run it locally and expose it).
 2. In Claude: **Settings → Connectors → Add custom connector** (or
    **Customize → Connectors → “+”**).
-3. **URL:** `https://ksp-os-command.vercel.app/api/mcp`
+3. **URL:** `https://appkspdominion.com/api/mcp`
 4. **Auth:** Bearer token — paste the operator's Supabase access token.
 5. Claude lists the tools. Call `whoami` first to confirm the connection is
    authenticated as the right member.
@@ -76,7 +76,7 @@ future slice.
 ## Connect from ChatGPT
 
 1. Enable **Developer Mode** (Settings → Connectors → Advanced).
-2. **Add** a connector by **URL:** `https://ksp-os-command.vercel.app/api/mcp`.
+2. **Add** a connector by **URL:** `https://appkspdominion.com/api/mcp`.
 3. Provide the Bearer token as the auth credential.
 4. The tools become available in the conversation.
 
@@ -114,6 +114,8 @@ npx @modelcontextprotocol/inspector
 
 - `MCP_ENABLE_WRITE_TOOLS` — optional. `true` enables `create_task`; unset keeps
   the server read-only. Server-only; never a `NEXT_PUBLIC_` variable.
+- `NEXT_PUBLIC_COMMAND_BASE_URL` — canonical public Command origin. Production is
+  `https://appkspdominion.com`.
 - Reuses the existing Supabase public env (`NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`). **No** service-role key is used by the
   MCP server.
