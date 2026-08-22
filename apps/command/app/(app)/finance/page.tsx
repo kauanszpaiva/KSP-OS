@@ -4,7 +4,7 @@ import { getServerSupabase } from '../../../lib/supabase';
 import { getFinanceOverview, getSubscriptions, getAccountingPeriods, getJournalEntries } from '../data';
 import { getCashControlData } from './data';
 import { getInvoiceConsoleData, type InvoiceConsoleData } from './invoice-data';
-import { EmptyState, Figure, PageHeader } from '../_components/ui';
+import { EmptyState, PageHeader } from '../_components/ui';
 import { FinanceView } from '../_components/finance-view';
 
 function money(minor: number): string {
@@ -26,13 +26,23 @@ const emptyInvoiceData: InvoiceConsoleData = {
   invoices: []
 };
 
+function SummaryValue({ label, value, tone = 'neutral' }: { label: string; value: string; tone?: 'neutral' | 'good' | 'warn' }) {
+  const toneClass = tone === 'good' ? 'text-good' : tone === 'warn' ? 'text-warn' : 'text-ink';
+  return (
+    <div className="min-w-0 px-3 py-2.5 sm:px-4">
+      <p className="text-[9.5px] font-semibold uppercase tracking-[0.1em] text-ink-4 sm:text-[10.5px]">{label}</p>
+      <p className={`mt-1 break-words text-[13px] font-semibold leading-tight sm:text-[15px] ${toneClass}`}>{value}</p>
+    </div>
+  );
+}
+
 export default async function FinancePage() {
   const ctx = await requireSession();
   const supabase = await getServerSupabase();
 
   if (!canViewFinance(ctx)) {
     return (
-      <div>
+      <div className="min-w-0 overflow-x-clip">
         <PageHeader eyebrow="Control" title="Finance" description="Executive-only." />
         <EmptyState icon="finance" title="Executive access only." hint="Finance records are restricted to the founder and executive operations." />
       </div>
@@ -54,24 +64,26 @@ export default async function FinancePage() {
     : [overviewFallback, [], [], [], cashFallback, emptyInvoiceData];
 
   const cashStatus = !cash.schemaReady
-    ? 'Migration required'
+    ? 'Setup needed'
     : cash.accounts.length === 0
       ? 'Not configured'
       : cash.unknownBalanceAccountCount > 0
-        ? 'Needs reconciliation'
-        : `${cash.unreconciledCount} unreconciled`;
+        ? 'Needs review'
+        : cash.unreconciledCount > 0
+          ? `${cash.unreconciledCount} unreconciled`
+          : 'Reconciled';
 
   return (
-    <div>
+    <div className="min-w-0 overflow-x-clip">
       <PageHeader
         eyebrow="Control"
         title="Finance"
-        description="Cash truth, receivables, recurring spend and controlled accounting operations."
+        description="Receivables, cash truth, recurring spend and controlled accounting operations."
         action={
-          <div className="flex gap-6">
-            <Figure label="Cash status" value={cashStatus} />
-            <Figure label="Tracked subscriptions" value={money(overview.monthlySubscriptionBurnMinor)} />
-            <Figure label="Posted entries" value={overview.postedEntryCount} tone="good" />
+          <div className="grid w-full grid-cols-3 divide-x divide-line overflow-hidden rounded-xl border border-line bg-surface md:w-[430px]">
+            <SummaryValue label="Cash" value={cashStatus} tone={!cash.schemaReady || cash.unknownBalanceAccountCount > 0 ? 'warn' : 'good'} />
+            <SummaryValue label="Monthly spend" value={money(overview.monthlySubscriptionBurnMinor)} />
+            <SummaryValue label="Posted" value={String(overview.postedEntryCount)} tone="good" />
           </div>
         }
       />

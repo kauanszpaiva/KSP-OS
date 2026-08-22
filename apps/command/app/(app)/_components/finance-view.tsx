@@ -7,6 +7,7 @@ import type { AccountingPeriod, JournalEntry } from '../data';
 import type { CashControlData } from '../finance/data';
 import type { InvoiceConsoleData } from '../finance/invoice-data';
 import { isOverdue } from '../../../lib/format';
+import { defaultFinanceView, FINANCE_VIEWS, type FinanceViewKey } from '../../../lib/finance-view-state';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { CalendarView, type CalendarItem } from './calendar-view';
 import { CashControl } from '../finance/_components/cash-control';
@@ -73,13 +74,13 @@ function ChartView({ subscriptions, draftEntryCount, postedEntryCount }: { subsc
     <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
       <Reveal>
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Tracked subscriptions by vendor</p>
-        <div className="rounded-xl border border-line bg-surface p-5">
+        <div className="rounded-xl border border-line bg-surface p-4 sm:p-5">
           {barData.length === 0 ? <p className="text-[13px] text-ink-3">No active subscriptions.</p> : <BarChart data={barData} valueFormatter={money} />}
         </div>
       </Reveal>
       <Reveal delay={60}>
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Journal entries: draft vs. posted</p>
-        <div className="rounded-xl border border-line bg-surface p-5">
+        <div className="rounded-xl border border-line bg-surface p-4 sm:p-5">
           <Donut
             segments={[
               { label: 'Draft', value: draftEntryCount, tone: 'warn' },
@@ -111,34 +112,44 @@ export function FinanceView({
   entries: JournalEntry[];
   invoiceData: InvoiceConsoleData;
 }) {
-  const [view, setView] = useState<'cash' | 'accounts' | 'renewals' | 'chart' | 'journal' | 'periods' | 'subscriptions' | 'invoices'>('cash');
+  const [view, setView] = useState<FinanceViewKey>(() => defaultFinanceView({ cashReady: cash.schemaReady, invoiceReady: invoiceData.schemaReady }));
 
   return (
-    <div>
-      <div className="mb-5">
-        <Segmented
-          items={[
-            { value: 'cash', label: 'Cash' },
-            { value: 'invoices', label: 'Receivables' },
-            { value: 'subscriptions', label: 'Subscriptions' },
-            { value: 'renewals', label: 'Renewals' },
-            { value: 'accounts', label: 'Accounting' },
-            { value: 'journal', label: 'Journal' },
-            { value: 'periods', label: 'Close' },
-            { value: 'chart', label: 'Analysis' }
-          ]}
+    <div className="min-w-0">
+      <div className="mb-4 sm:hidden">
+        <label htmlFor="finance-mobile-view" className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-4">
+          Finance workspace
+        </label>
+        <select
+          id="finance-mobile-view"
           value={view}
-          onValueChange={(v) => setView(v as typeof view)}
+          onChange={(event) => setView(event.target.value as FinanceViewKey)}
+          className="h-11 w-full rounded-xl border border-line-2 bg-surface px-3 text-[14px] font-medium text-ink shadow-card outline-none transition-colors focus:border-brand focus:shadow-focus"
+        >
+          {FINANCE_VIEWS.map((item) => (
+            <option key={item.value} value={item.value}>{item.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-5 hidden max-w-full overflow-x-auto pb-1 sm:block">
+        <Segmented
+          items={[...FINANCE_VIEWS]}
+          value={view}
+          onValueChange={(value) => setView(value as FinanceViewKey)}
         />
       </div>
-      {view === 'cash' && <CashControl data={cash} />}
-      {view === 'accounts' && <ListView chartAccounts={chartAccounts} />}
-      {view === 'renewals' && <RenewalsView subscriptions={subscriptions} />}
-      {view === 'chart' && <ChartView subscriptions={subscriptions} draftEntryCount={draftEntryCount} postedEntryCount={postedEntryCount} />}
-      {view === 'journal' && <JournalWorkbench entries={entries} accounts={chartAccounts} />}
-      {view === 'periods' && <PeriodsConsole periods={periods} />}
-      {view === 'subscriptions' && <SubscriptionsConsole subscriptions={subscriptions} />}
-      {view === 'invoices' && <InvoicesConsole data={invoiceData} />}
+
+      <div className="min-w-0">
+        {view === 'cash' && <CashControl data={cash} />}
+        {view === 'accounts' && <ListView chartAccounts={chartAccounts} />}
+        {view === 'renewals' && <RenewalsView subscriptions={subscriptions} />}
+        {view === 'chart' && <ChartView subscriptions={subscriptions} draftEntryCount={draftEntryCount} postedEntryCount={postedEntryCount} />}
+        {view === 'journal' && <JournalWorkbench entries={entries} accounts={chartAccounts} />}
+        {view === 'periods' && <PeriodsConsole periods={periods} />}
+        {view === 'subscriptions' && <SubscriptionsConsole subscriptions={subscriptions} />}
+        {view === 'invoices' && <InvoicesConsole data={invoiceData} />}
+      </div>
     </div>
   );
 }
