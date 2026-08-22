@@ -17,6 +17,12 @@ interface InvoiceGate {
   ctx: AuthContext;
 }
 
+interface InvoiceEmailResult {
+  ok: boolean;
+  providerMessageId?: string;
+  error?: string;
+}
+
 async function invoiceGate(): Promise<InvoiceGate> {
   const supabase = await getServerSupabase();
   if (!supabase) throw new Error('Finance is not configured.');
@@ -51,6 +57,54 @@ async function audit(supabase: SupabaseClient, ctx: AuthContext, action: string,
     metadata: { summary }
   });
   return !error;
+}
+
+async function deliverInvoiceEmail(params: {
+  supabase: SupabaseClient;
+  invoiceId: string;
+  to: string;
+  clientName: string;
+  invoiceNumber: string;
+  amountMinor: number;
+  currency: string;
+  dueDate: string | null;
+  lines: Array<{ description: string; amountMinor: number }>;
+  invoiceUrl: string | null;
+  idempotencyKey: string;
+}): Promise<InvoiceEmailResult> {
+  if (process.env.RESEND_API_KEY?.trim()) {
+    return sendInvoiceIssued({
+      to: params.to,
+      clientName: params.clientName,
+      invoiceNumber: params.invoiceNumber,
+      amountMinor: params.amountMinor,
+      currency: params.currency,
+      invoiceId: params.invoiceId,
+      dueDate: params.dueDate,
+      lines: params.lines,
+      invoiceUrl: params.invoiceUrl,
+      idempotencyKey: params.idempotencyKey
+    });
+  }
+
+  const { data, error } = await (params.supabase as any).functions.invoke('ksp-invoice-send', {
+    body: {
+      invoice_id: params.invoiceId,
+      idempotency_key: params.idempotencyKey,
+      invoice_url: params.invoiceUrl
+    }
+  });
+
+  if (error) {
+    return { ok: false, error: error.message || 'Secure invoice email relay failed.' };
+  }
+
+  const relay = data as { ok?: boolean; providerMessageId?: string; error?: string } | null;
+  if (!relay?.ok) {
+    return { ok: false, error: relay?.error || 'Secure invoice email relay failed.' };
+  }
+
+  return { ok: true, providerMessageId: relay.providerMessageId };
 }
 
 export async function createInvoiceDraft(_previous: InvoiceActionResult, form: FormData): Promise<InvoiceActionResult> {
@@ -153,19 +207,21 @@ export async function issueInvoiceAndEmail(_previous: InvoiceActionResult, form:
     if (deliveryError || !delivery) return { ok: false, error: deliveryError?.message || 'Could not create the invoice delivery record.' };
 
     const portalBase = process.env.NEXT_PUBLIC_PORTAL_BASE_URL?.trim().replace(/\/$/, '');
-    const result = await sendInvoiceIssued({
+    const invoiceUrl = portalBase ? `${portalBase}/invoices/${invoiceId}` : null;
+    const result = await deliverInvoiceEmail({
+      supabase,
+      invoiceId,
       to: invoice.billing_email,
       clientName: client?.display_name || 'Client',
       invoiceNumber: invoice.invoice_number,
       amountMinor: Number(invoice.amount_minor),
       currency: invoice.currency,
-      invoiceId,
       dueDate: invoice.due_date,
       lines: (lines as Array<{ description: string; amount_minor: number }>).map((line) => ({
         description: line.description,
         amountMinor: Number(line.amount_minor)
       })),
-      invoiceUrl: portalBase ? `${portalBase}/invoices/${invoiceId}` : null,
+      invoiceUrl,
       idempotencyKey
     });
 
