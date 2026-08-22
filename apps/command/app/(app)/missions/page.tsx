@@ -14,11 +14,11 @@ export default async function MissionsPage() {
     : new Map<string, CommentView[]>();
 
   return (
-    <div>
+    <div className="min-w-0">
       <PageHeader eyebrow="Execution" title="Projects" description="Health, milestones, dependencies and the next action for every active project." />
 
-      <details className="mb-4 rounded-xl border border-line bg-surface shadow-card">
-        <summary className="cursor-pointer list-none px-4 py-2.5 text-[12.5px] font-medium text-brand transition-colors marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+      <details className="mb-5 overflow-hidden rounded-2xl border border-line bg-surface shadow-card sm:rounded-xl">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center px-4 py-3 text-[13px] font-medium text-brand transition-colors marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
           + New project
         </summary>
         <div className="animate-fade-slide-up border-t border-line p-4"><MissionForm clients={clients} /></div>
