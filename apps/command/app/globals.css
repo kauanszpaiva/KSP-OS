@@ -73,10 +73,17 @@
 }
 
 html {
+  min-width: 320px;
+  min-height: 100%;
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  overflow-x: clip;
   background: rgb(var(--canvas));
   color: rgb(var(--ink));
   font-family: var(--font-sans);
@@ -85,33 +92,76 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* ---------------------------------------------------------- application shell -- */
 .app-topbar {
-  min-height: calc(3.5rem + env(safe-area-inset-top));
+  min-height: calc(3.75rem + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
 }
 
 .app-main {
-  padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  min-width: 0;
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
 }
 
 .mobile-bottom-nav {
-  padding-bottom: env(safe-area-inset-bottom);
+  min-height: 4rem;
+  padding-bottom: max(env(safe-area-inset-bottom), 0.25rem);
+  box-shadow: 0 -10px 28px -24px rgb(var(--overlay) / 0.35);
 }
 
 .mobile-sheet {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
+/* Reusable mobile rhythm. These are intentionally semantic instead of page- */
+/* specific so the whole Command UI follows one compact handheld contract.   */
+.mobile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.mobile-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
 @media (max-width: 767px) {
   .app-topbar button,
-  .app-topbar summary {
+  .app-topbar summary,
+  .mobile-sheet a,
+  .mobile-sheet button,
+  .mobile-sheet [aria-disabled='true'] {
     min-height: 44px;
     min-width: 44px;
   }
 
-  .mobile-sheet a,
-  .mobile-sheet [aria-disabled='true'] {
-    min-height: 44px;
+  .app-main {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* A single text block should never force the whole page wider than the */
+  /* viewport. Long IDs/URLs remain scrollable only in explicit code areas. */
+  .app-main p,
+  .app-main h1,
+  .app-main h2,
+  .app-main h3,
+  .app-main h4,
+  .app-main li,
+  .app-main span {
+    overflow-wrap: break-word;
+  }
+
+  .mobile-bottom-nav a,
+  .mobile-bottom-nav button {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -132,6 +182,7 @@ body {
 }
 
 .font-display {
+  font-family: var(--font-display), var(--font-sans);
   letter-spacing: -0.014em;
 }
 
