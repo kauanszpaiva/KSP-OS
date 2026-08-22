@@ -106,7 +106,7 @@ export function PortalShell({
 
   return (
     <div className="flex min-h-[100dvh] w-full min-w-0 flex-col overflow-x-hidden bg-canvas text-ink">
-      <header className="sticky top-0 z-30 w-full border-b border-line bg-surface/95 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/88">
+      <header className="sticky top-0 z-30 w-full border-b border-line bg-surface/95 backdrop-blur-xl supports-[backdrop-filter]:bg-surface/90">
         <div className="mx-auto flex h-14 w-full max-w-[1160px] min-w-0 items-center gap-3 px-4 sm:h-16 sm:px-5 lg:gap-4 lg:px-8">
           <Link href="/home" className="min-w-0 shrink" aria-label="KSP Client Portal home">
             <BrandMark />
@@ -150,7 +150,7 @@ export function PortalShell({
         </div>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 w-full border-t border-line bg-surface/97 px-2 pt-1.5 pb-[calc(0.4rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-20px_rgb(var(--overlay)/0.5)] backdrop-blur-xl lg:hidden" aria-label="Primary navigation">
+      <nav className="fixed inset-x-0 bottom-0 z-30 w-full border-t border-line bg-surface/95 px-2 pt-1.5 pb-[calc(0.4rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-20px_rgb(var(--overlay)/0.5)] backdrop-blur-xl lg:hidden" aria-label="Primary navigation">
         <div className="mx-auto flex h-[58px] w-full max-w-lg items-stretch gap-0.5">
           {mobilePrimaryItems.map((item) => (
             <MobileNavItem key={item.href} item={item} active={isItemActive(pathname, item)} />
