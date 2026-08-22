@@ -7,8 +7,14 @@ export interface EmailDeliveryResult {
   error?: string;
 }
 
+function invoiceRelayConfigured(): boolean {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const publicKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  return Boolean(supabaseUrl && publicKey);
+}
+
 export function invoiceEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY?.trim());
+  return Boolean(process.env.RESEND_API_KEY?.trim()) || invoiceRelayConfigured();
 }
 
 export async function sendInvoiceEmail(input: InvoiceEmailInput, idempotencyKey: string): Promise<EmailDeliveryResult> {
