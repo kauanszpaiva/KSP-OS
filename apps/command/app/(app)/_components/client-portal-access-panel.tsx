@@ -39,7 +39,7 @@ export function ClientPortalAccessPanel({ entries }: { entries: ClientPortalAcce
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3.5">
         <div>
           <div className="flex items-center gap-2">
-            <Icon name="key" className="h-4 w-4 text-brand" />
+            <Icon name="clients" className="h-4 w-4 text-brand" />
             <h2 className="text-[13px] font-semibold text-ink">Portal access by client</h2>
           </div>
           <p className="mt-1 text-[11.5px] text-ink-4">Active email identities that can sign in to each client workspace.</p>
