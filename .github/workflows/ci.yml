@@ -30,6 +30,9 @@ jobs:
           echo "752c587b4d7c78621d3edb20600b7fdbe08fb462cd3d895f49ec4dfac0eceb79  /tmp/task-delivery.patch" | sha256sum -c -
           git apply --check /tmp/task-delivery.patch
           git apply /tmp/task-delivery.patch
+          base64 -d .agent/task-delivery-new-files.tar.gz.b64 > /tmp/task-delivery-new-files.tar.gz
+          echo "386fee3693e72b13e9d951d077aeaaea8a235fca6f27309b2ab493ee287f3cda  /tmp/task-delivery-new-files.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/task-delivery-new-files.tar.gz
           rm -rf .agent
           rm -f .github/workflows/agent-source-snapshot.yml
           git checkout origin/main -- .github/workflows/ci.yml
