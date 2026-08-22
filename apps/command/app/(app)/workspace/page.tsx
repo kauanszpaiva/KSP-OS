@@ -1,14 +1,15 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getCommentsForObjects, getMembers, getTaskDeliveryEvidenceForTasks, getTasks, type CommentView, type TaskDeliveryEvidenceView, type TaskView } from '../data';
+import { getCommentsForObjects, getTaskDeliveryEvidenceForTasks, getTasks, type CommentView, type TaskDeliveryEvidenceView, type TaskView } from '../data';
+import { getInternalMembers } from '../internal-roster';
 import { PageHeader } from '../_components/ui';
 import { TaskForm } from '../_components/mission-workspace-forms';
 import { WorkspaceView } from '../_components/workspace-view';
 
 export default async function WorkspacePage() {
-  const ctx = await requireSession();
+  await requireSession();
   const supabase = await getServerSupabase();
-  const [tasks, members] = supabase ? await Promise.all([getTasks(supabase), getMembers(supabase, ctx.user.id)]) : [[], []];
+  const [tasks, members] = supabase ? await Promise.all([getTasks(supabase), getInternalMembers(supabase)]) : [[], []];
   const taskIds = (tasks as TaskView[]).map((task) => task.id);
   const [commentsByTask, deliveryEvidenceByTask] = supabase
     ? await Promise.all([
