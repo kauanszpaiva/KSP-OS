@@ -1,7 +1,8 @@
 import { canPerform } from '@ksp/permissions';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getCommitments, getMembers, getOutcomes, getTasks, type CommitmentView, type TaskView } from '../data';
+import { getCommitments, getOutcomes, getTasks, type CommitmentView, type TaskView } from '../data';
+import { getInternalMembers } from '../internal-roster';
 import { CommitmentEditForm, TaskEditForm } from '../_components/backlog-edit-forms';
 import { EmptyState, PageHeader, Panel, SectionLabel } from '../_components/ui';
 
@@ -30,7 +31,7 @@ export default async function BacklogEditorPage() {
     ? await Promise.all([
         getTasks(supabase),
         getCommitments(supabase),
-        getMembers(supabase, ctx.user.id),
+        getInternalMembers(supabase),
         getOutcomes(supabase)
       ])
     : [[], [], [], []];
