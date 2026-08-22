@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "description": "RLS-scoped access to KSP Command OS for AI connectors (ChatGPT Actions / Claude MCP). Every request runs as the authenticated user; it never returns or changes more than that user could in the app. Writes are limited to low-risk internal actions (create task, add comment, create mission); sensitive/material actions (finance, access grants, deploys, publishing to clients) are intentionally not exposed."
   },
-  "servers": [{ "url": "https://REPLACE-WITH-YOUR-COMMAND-HOST/api/v1", "description": "Command app v1 API (replace host)" }],
+  "servers": [{ "url": "https://appkspdominion.com/api/v1", "description": "KSP Command OS v1 API" }],
   "security": [{ "bearerAuth": [] }],
   "paths": {
     "/me": {
@@ -111,7 +111,7 @@
       "get": {
         "operationId": "listOutcomes",
         "summary": "Company outcomes visible to the user.",
-        "responses": { "200": { "description": "Outcomes", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+        "responses": { "200": { "description": "Company outcomes", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DataList" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
     "/commitments": {
