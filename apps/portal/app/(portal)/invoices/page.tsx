@@ -49,7 +49,7 @@ export default async function InvoicesPage({
 
   if (error || !invoices) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">Invoices</h1>
           <p className="mt-1 text-sm text-ink-3">Manage your billing and payments.</p>
@@ -68,33 +68,33 @@ export default async function InvoicesPage({
     .reduce((sum: number, i: any) => sum + i.amount_minor, 0);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+    <div className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-ink">Invoices</h1>
           <p className="mt-1 text-sm text-ink-3">Manage your billing and payments.</p>
         </div>
         {unpaidCount > 0 && (
-          <div className="flex items-center gap-4 rounded-xl border border-caution-strong/20 bg-caution-base/10 px-4 py-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-caution-strong">Total Due</p>
-              <p className="text-[18px] font-bold text-ink">{formatCurrency(totalUnpaidMinor, invoices[0]?.currency || 'USD')}</p>
+          <div className="flex w-full flex-wrap items-center gap-4 rounded-xl border border-warn/30 bg-warn-tint px-4 py-3 sm:w-auto sm:flex-nowrap">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-warn">Total Due</p>
+              <p className="break-words text-[18px] font-bold text-ink">{formatCurrency(totalUnpaidMinor, invoices[0]?.currency || 'USD')}</p>
             </div>
-            <div className="h-8 w-px bg-caution-strong/20" />
+            <div className="hidden h-8 w-px bg-warn/30 sm:block" />
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-caution-strong">Unpaid Invoices</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-warn">Unpaid Invoices</p>
               <p className="text-[18px] font-bold text-ink">{unpaidCount}</p>
             </div>
           </div>
         )}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Link
           href="/invoices?status=all"
           className={cx(
             'rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors',
-            statusFilter === 'all' ? 'bg-ink text-canvas' : 'bg-surface hover:bg-surface-2 text-ink-2'
+            statusFilter === 'all' ? 'bg-ink text-canvas' : 'bg-surface text-ink-2 hover:bg-surface-2'
           )}
         >
           All
@@ -103,7 +103,7 @@ export default async function InvoicesPage({
           href="/invoices?status=unpaid"
           className={cx(
             'rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors',
-            statusFilter === 'unpaid' ? 'bg-ink text-canvas' : 'bg-surface hover:bg-surface-2 text-ink-2'
+            statusFilter === 'unpaid' ? 'bg-ink text-canvas' : 'bg-surface text-ink-2 hover:bg-surface-2'
           )}
         >
           Unpaid
@@ -112,7 +112,7 @@ export default async function InvoicesPage({
           href="/invoices?status=paid"
           className={cx(
             'rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors',
-            statusFilter === 'paid' ? 'bg-ink text-canvas' : 'bg-surface hover:bg-surface-2 text-ink-2'
+            statusFilter === 'paid' ? 'bg-ink text-canvas' : 'bg-surface text-ink-2 hover:bg-surface-2'
           )}
         >
           Paid
@@ -127,27 +127,27 @@ export default async function InvoicesPage({
           </p>
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           {invoices.map((invoice: any) => (
-            <Link key={invoice.id} href={`/invoices/${invoice.id}`}>
-              <Card className="group flex flex-col gap-4 p-4 transition-colors hover:border-brand/30 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[13px] font-medium text-brand">{invoice.invoice_number}</span>
+            <Link key={invoice.id} href={`/invoices/${invoice.id}`} className="min-w-0">
+              <Card className="group flex min-w-0 flex-col gap-4 p-4 transition-colors hover:border-brand/30 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="break-all font-mono text-[13px] font-medium text-brand">{invoice.invoice_number}</span>
                     <StatusBadge status={invoice.status} />
                   </div>
                   {invoice.projects && (
-                    <p className="text-[13px] text-ink-2">{invoice.projects.name}</p>
+                    <p className="mt-1 truncate text-[13px] text-ink-2">{invoice.projects.name}</p>
                   )}
-                  <p className="text-[12px] text-ink-3">
+                  <p className="mt-1 break-words text-[12px] text-ink-3">
                     Issued: {invoice.issue_date || 'N/A'} {invoice.due_date && `• Due: ${invoice.due_date}`}
                   </p>
                 </div>
-                <div className="flex items-end justify-between sm:flex-col sm:items-end">
+                <div className="flex shrink-0 items-end justify-between gap-4 sm:flex-col sm:items-end">
                   <span className="text-[16px] font-semibold text-ink">
                     {formatCurrency(invoice.amount_minor, invoice.currency)}
                   </span>
-                  <span className="text-[13px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100">
+                  <span className="text-[13px] font-medium text-brand opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                     View details &rarr;
                   </span>
                 </div>
