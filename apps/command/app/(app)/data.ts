@@ -27,6 +27,8 @@ import type {
   Task
 } from '@ksp/database';
 
+import { TASK_DELIVERY_BUCKET } from './task-delivery-constants';
+
 export interface MemberRef {
   id: string;
   displayName: string;
@@ -241,6 +243,81 @@ export async function getTasks(supabase: SupabaseClient): Promise<TaskView[]> {
     ownerName: (t.owner_id && nameById.get(t.owner_id)) || 'Unassigned',
     projectName: (t.project_id && projectNameById.get(t.project_id)) || null
   }));
+}
+
+
+export interface TaskDeliveryEvidenceView {
+  id: string;
+  task_id: string;
+  kind: 'file' | 'external_url';
+  status: 'pending' | 'ready' | 'failed';
+  external_url: string | null;
+  original_filename: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+  submitted_by: string;
+  submittedByName: string;
+  signedUrl: string | null;
+}
+
+export async function getTaskDeliveryEvidenceForTasks(
+  supabase: SupabaseClient,
+  taskIds: string[]
+): Promise<Map<string, TaskDeliveryEvidenceView[]>> {
+  const grouped = new Map<string, TaskDeliveryEvidenceView[]>();
+  if (taskIds.length === 0) return grouped;
+
+  const [{ data: rows }, { data: profiles }] = await Promise.all([
+    supabase
+      .from('task_delivery_evidence')
+      .select('id, task_id, submitted_by, kind, status, storage_path, external_url, original_filename, mime_type, size_bytes, created_at')
+      .in('task_id', taskIds)
+      .order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, display_name')
+  ]);
+
+  const names = new Map(((profiles ?? []) as Array<{ id: string; display_name: string }>).map((profile) => [profile.id, profile.display_name]));
+  const hydrated = await Promise.all(((rows ?? []) as Array<{
+    id: string;
+    task_id: string;
+    submitted_by: string;
+    kind: 'file' | 'external_url';
+    status: 'pending' | 'ready' | 'failed';
+    storage_path: string | null;
+    external_url: string | null;
+    original_filename: string | null;
+    mime_type: string | null;
+    size_bytes: number | null;
+    created_at: string;
+  }>).map(async (row): Promise<TaskDeliveryEvidenceView> => {
+    let signedUrl: string | null = null;
+    if (row.kind === 'file' && row.status === 'ready' && row.storage_path) {
+      const { data } = await supabase.storage.from(TASK_DELIVERY_BUCKET).createSignedUrl(row.storage_path, 15 * 60);
+      signedUrl = data?.signedUrl ?? null;
+    }
+    return {
+      id: row.id,
+      task_id: row.task_id,
+      kind: row.kind,
+      status: row.status,
+      external_url: row.external_url,
+      original_filename: row.original_filename,
+      mime_type: row.mime_type,
+      size_bytes: row.size_bytes,
+      created_at: row.created_at,
+      submitted_by: row.submitted_by,
+      submittedByName: names.get(row.submitted_by) ?? 'Team member',
+      signedUrl
+    };
+  }));
+
+  for (const item of hydrated) {
+    const items = grouped.get(item.task_id) ?? [];
+    items.push(item);
+    grouped.set(item.task_id, items);
+  }
+  return grouped;
 }
 
 /* --------------------------------------------------------- Phase C3: Team -- */

@@ -238,6 +238,9 @@ export interface Task {
   status: RecordStatus;
   created_at: string;
   link: string | null;
+  created_by: string | null;
+  requires_delivery: boolean;
+  completed_at: string | null;
 }
 
 
