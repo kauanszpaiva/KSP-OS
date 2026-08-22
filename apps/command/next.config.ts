@@ -25,6 +25,7 @@ function readVersionedProductionEnv(): Record<string, string> {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
     readWorkflowEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+  const portalBaseUrl = process.env.NEXT_PUBLIC_PORTAL_BASE_URL?.trim() || 'https://kspdominionportal.com';
 
   if (!url || !publishableKey) {
     throw new Error('production_supabase_public_env_missing');
@@ -33,7 +34,7 @@ function readVersionedProductionEnv(): Record<string, string> {
   return {
     NEXT_PUBLIC_SUPABASE_URL: url,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
-    NEXT_PUBLIC_PORTAL_BASE_URL: process.env.NEXT_PUBLIC_PORTAL_BASE_URL ?? 'https://ksp-os-portal.vercel.app',
+    NEXT_PUBLIC_PORTAL_BASE_URL: portalBaseUrl,
     NEXT_PUBLIC_COMMAND_BASE_URL: process.env.NEXT_PUBLIC_COMMAND_BASE_URL ?? 'https://appkspdominion.com'
   };
 }
