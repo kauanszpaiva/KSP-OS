@@ -1,5 +1,6 @@
 import './globals.css';
 import type { ReactNode } from 'react';
+import type { Viewport } from 'next';
 import { Inter, Bricolage_Grotesque } from 'next/font/google';
 import { ThemeProvider, themeInitScript } from '@ksp/ui';
 
@@ -27,6 +28,20 @@ const display = Bricolage_Grotesque({
 export const metadata = {
   title: 'KSP Dominion Command OS',
   description: 'Governed operating system for KSP Dominion Group.'
+};
+
+/**
+ * Explicit mobile viewport contract. `viewportFit: cover` lets the shell use
+ * iOS safe-area insets correctly without disabling user zoom.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f5f5f9' },
+    { media: '(prefers-color-scheme: dark)', color: '#0d0e12' }
+  ]
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
