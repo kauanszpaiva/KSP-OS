@@ -2,7 +2,8 @@ import { isExecutive } from '@ksp/auth';
 import { canPerform } from '@ksp/permissions';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { getCommitments, getCommentsForObjects, getMembers, getOutcomes, type CommentView, type CommitmentView } from '../data';
+import { getCommitments, getCommentsForObjects, getOutcomes, type CommentView, type CommitmentView } from '../data';
+import { getInternalMembers } from '../internal-roster';
 import { PageHeader } from '../_components/ui';
 import { CommitmentForm } from '../_components/forms';
 import { CommitmentsView } from '../_components/commitments-view';
@@ -11,7 +12,7 @@ export default async function CommitmentsPage() {
   const ctx = await requireSession();
   const supabase = await getServerSupabase();
   const commitments = supabase ? await getCommitments(supabase) : [];
-  const members = supabase ? await getMembers(supabase, ctx.user.id) : [];
+  const members = supabase ? await getInternalMembers(supabase) : [];
   const outcomes = supabase ? (await getOutcomes(supabase)).filter((o) => o.state === 'active') : [];
   const commentsByCommitment = supabase
     ? await getCommentsForObjects(supabase, 'commitments', commitments.map((c) => c.id))
