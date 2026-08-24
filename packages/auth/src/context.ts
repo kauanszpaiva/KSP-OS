@@ -117,24 +117,30 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
       explicitGrants.push(row.action);
       continue;
     }
+    if (row.resource_type === 'project' && row.resource_id) {
+      scopedGrants.push({ action: row.action, projectId: row.resource_id });
+      continue;
+    }
     scopedGrants.push({
       action: row.action,
       resourceType: row.resource_type ?? undefined,
-      resourceId: row.resource_id ?? undefined,
-      projectId: row.resource_type === 'project' && row.resource_id ? row.resource_id : undefined
+      resourceId: row.resource_id ?? undefined
     });
   }
 
   for (const row of (projectGrantResult.data ?? []) as Array<{ project_id: string; action: PermissionAction }>) {
-    scopedGrants.push({ action: row.action, projectId: row.project_id, resourceType: 'project', resourceId: row.project_id });
+    scopedGrants.push({ action: row.action, projectId: row.project_id });
   }
 
   for (const row of (temporaryGrantResult.data ?? []) as Array<{ action: PermissionAction; resource_type: string; resource_id: string }>) {
+    if (row.resource_type === 'project') {
+      scopedGrants.push({ action: row.action, projectId: row.resource_id });
+      continue;
+    }
     scopedGrants.push({
       action: row.action,
       resourceType: row.resource_type,
-      resourceId: row.resource_id,
-      projectId: row.resource_type === 'project' ? row.resource_id : undefined
+      resourceId: row.resource_id
     });
   }
 
