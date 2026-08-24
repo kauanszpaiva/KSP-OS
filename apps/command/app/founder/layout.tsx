@@ -26,7 +26,8 @@ export default async function FounderLayout({ children }: { children: ReactNode 
   const user = {
     displayName: ctx.user.displayName,
     email: ctx.user.email,
-    role: ROLE_LABELS[primaryRole] ?? primaryRole
+    role: ROLE_LABELS[primaryRole] ?? primaryRole,
+    avatarUrl: ctx.user.avatarUrl
   };
 
   return (

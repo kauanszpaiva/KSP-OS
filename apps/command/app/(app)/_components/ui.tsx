@@ -24,9 +24,13 @@ export function PageHeader({
         )}
         <h1 className="font-display text-[28px] font-semibold leading-[1.08] text-ink md:text-[30px]">{title}</h1>
         {description && (
-          <p className="mt-2 max-w-2xl text-[13.5px] leading-[1.5] text-ink-3 md:text-[14px]">
-            {description}
-          </p>
+          <details className="group mt-2 max-w-2xl text-ink-3">
+            <summary className="inline-flex cursor-pointer select-none items-center gap-1.5 text-[12px] font-medium marker:hidden transition-colors duration-fast hover:text-ink [&::-webkit-details-marker]:hidden">
+              About this page
+              <Icon name="chevron-down" className="h-3.5 w-3.5 transition-transform duration-fast group-open:rotate-180" />
+            </summary>
+            <p className="mt-2 text-[13.5px] leading-[1.5] md:text-[14px]">{description}</p>
+          </details>
         )}
       </div>
       {action && <div className="mt-3 shrink-0 md:mt-0">{action}</div>}

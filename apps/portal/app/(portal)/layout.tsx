@@ -12,7 +12,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <PortalShell items={NAV_ITEMS} user={{ displayName: ctx.user.displayName, email: ctx.user.email }}>
+        <PortalShell items={NAV_ITEMS} user={{ displayName: ctx.user.displayName, email: ctx.user.email, avatarUrl: ctx.user.avatarUrl }}>
           {children}
         </PortalShell>
       </ConfirmProvider>

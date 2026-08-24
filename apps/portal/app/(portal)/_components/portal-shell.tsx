@@ -96,7 +96,7 @@ export function PortalShell({
   children
 }: {
   items: NavItem[];
-  user: { displayName: string; email: string };
+  user: { displayName: string; email: string; avatarUrl: string | null };
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -123,13 +123,17 @@ export function PortalShell({
             <ThemeToggle />
             <details className="group relative">
               <summary className="flex cursor-pointer select-none items-center rounded-full transition-transform duration-fast marker:hidden active:scale-95 hover:scale-105 [&::-webkit-details-marker]:hidden">
-                <Avatar name={user.displayName} />
+                <Avatar name={user.displayName} imageUrl={user.avatarUrl} />
               </summary>
               <div className="absolute right-0 z-40 mt-2 w-60 max-w-[calc(100vw-2rem)] origin-top-right animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-pop">
                 <div className="border-b border-line px-3 py-2.5">
                   <p className="truncate text-[13px] font-medium text-ink">{user.displayName}</p>
                   <p className="truncate text-[11.5px] text-ink-3">{user.email}</p>
                 </div>
+                <Link href="/settings/profile" className="mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] text-ink-2 transition-colors duration-fast hover:bg-surface-2 hover:text-ink">
+                  <Icon name="user" className="h-[18px] w-[18px]" />
+                  Profile
+                </Link>
                 <form action="/auth/signout" method="post" className="pt-1">
                   <button
                     type="submit"

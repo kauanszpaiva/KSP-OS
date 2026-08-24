@@ -216,10 +216,11 @@ function initialsFor(name: string): string {
   );
 }
 
-const AVATAR_DIM: Record<'sm' | 'md' | 'lg', string> = {
+const AVATAR_DIM: Record<'sm' | 'md' | 'lg' | 'xl', string> = {
   sm: 'h-7 w-7 text-[10px]',
   md: 'h-8 w-8 text-[11px]',
-  lg: 'h-10 w-10 text-[13px]'
+  lg: 'h-10 w-10 text-[13px]',
+  xl: 'h-16 w-16 text-[18px]'
 };
 
 /**
@@ -227,13 +228,23 @@ const AVATAR_DIM: Record<'sm' | 'md' | 'lg', string> = {
  * a top-left white sheen (`bg-gradient-to-br from-white/25`) plus a surface
  * ring give it depth and separate it cleanly when stacked.
  */
-export function Avatar({ name, size = 'md', title }: { name: string; size?: 'sm' | 'md' | 'lg'; title?: string }) {
+export function Avatar({
+  name,
+  imageUrl,
+  size = 'md',
+  title
+}: {
+  name: string;
+  imageUrl?: string | null;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  title?: string;
+}) {
   const hue = hueFor(name);
   const onHue = hue === 'bg-accent' ? 'text-on-accent' : 'text-on-brand';
   return (
     <span
       className={cx(
-        'inline-flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-white/25 to-transparent font-semibold shadow-sm ring-2 ring-surface',
+        'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-white/25 to-transparent font-semibold shadow-sm ring-2 ring-surface',
         AVATAR_DIM[size],
         hue,
         onHue
@@ -241,6 +252,13 @@ export function Avatar({ name, size = 'md', title }: { name: string; size?: 'sm'
       title={title ?? name}
     >
       {initialsFor(name)}
+      {imageUrl && (
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full bg-cover bg-center"
+          style={{ backgroundImage: `url("${imageUrl.replace(/["\\\n\r]/g, '')}")` }}
+        />
+      )}
     </span>
   );
 }

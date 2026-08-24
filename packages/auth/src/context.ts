@@ -1,10 +1,12 @@
 import type { SupabaseClient } from '@ksp/database';
 import type { InternalRole, MembershipContext, PermissionAction, ScopedPermissionGrant } from '@ksp/permissions';
+import { createProfileAvatarUrl } from './profile';
 
 export interface SessionUser {
   id: string;
   email: string;
   displayName: string;
+  avatarUrl: string | null;
 }
 
 export interface AuthContext {
@@ -21,13 +23,14 @@ export async function getSessionUser(supabase: SupabaseClient): Promise<SessionU
   if (error || !data.user) return null;
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name, email')
+    .select('display_name, email, avatar_path')
     .eq('id', data.user.id)
     .maybeSingle();
   return {
     id: data.user.id,
     email: profile?.email ?? data.user.email ?? '',
-    displayName: profile?.display_name ?? data.user.email ?? 'Member'
+    displayName: profile?.display_name ?? data.user.email ?? 'Member',
+    avatarUrl: await createProfileAvatarUrl(supabase, profile?.avatar_path)
   };
 }
 
