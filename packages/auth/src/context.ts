@@ -58,14 +58,24 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
   const user = await getSessionUser(supabase);
   if (!user) return null;
 
+  const nowDate = new Date();
+  const now = nowDate.toISOString();
   const { data: memberships } = await supabase
     .from('organization_memberships')
-    .select('organization_id, internal_role, effective_until, suspended_at')
+    .select('organization_id, internal_role, effective_from, effective_until, suspended_at')
     .eq('profile_id', user.id);
 
   const active = (memberships ?? []).filter(
-    (m: { internal_role: string | null; suspended_at: string | null; effective_until: string | null }) =>
-      m.internal_role && !m.suspended_at && (!m.effective_until || new Date(m.effective_until) > new Date())
+    (m: {
+      internal_role: string | null;
+      suspended_at: string | null;
+      effective_from: string | null;
+      effective_until: string | null;
+    }) =>
+      m.internal_role &&
+      !m.suspended_at &&
+      (!m.effective_from || new Date(m.effective_from) <= nowDate) &&
+      (!m.effective_until || new Date(m.effective_until) > nowDate)
   );
   if (active.length === 0) return null;
 
@@ -73,7 +83,6 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
   const internalRoles = [
     ...new Set(active.filter((m: any) => m.organization_id === organizationId).map((m: any) => m.internal_role as InternalRole))
   ];
-  const now = new Date().toISOString();
 
   const [projectMembershipResult, internalGrantResult, projectGrantResult, temporaryGrantResult, mfa] = await Promise.all([
     supabase
@@ -113,7 +122,11 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
   const explicitGrants: PermissionAction[] = [];
   const scopedGrants: ScopedPermissionGrant[] = [];
 
-  for (const row of (internalGrantResult.data ?? []) as Array<{ action: PermissionAction; resource_type: string | null; resource_id: string | null }>) {
+  for (const row of (internalGrantResult.data ?? []) as Array<{
+    action: PermissionAction;
+    resource_type: string | null;
+    resource_id: string | null;
+  }>) {
     if (!row.resource_type && !row.resource_id) {
       explicitGrants.push(row.action);
       continue;
@@ -133,7 +146,11 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     scopedGrants.push({ action: row.action, projectId: row.project_id });
   }
 
-  for (const row of (temporaryGrantResult.data ?? []) as Array<{ action: PermissionAction; resource_type: string; resource_id: string }>) {
+  for (const row of (temporaryGrantResult.data ?? []) as Array<{
+    action: PermissionAction;
+    resource_type: string;
+    resource_id: string;
+  }>) {
     if (row.resource_type === 'project') {
       scopedGrants.push({ action: row.action, projectId: row.resource_id });
       continue;
