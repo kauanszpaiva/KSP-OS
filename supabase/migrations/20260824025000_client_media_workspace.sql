@@ -143,15 +143,15 @@ with check (
     join public.deliverables d on d.id = v.deliverable_id
     join public.work_packages wp on wp.id = d.work_package_id
     join public.projects p on p.id = wp.project_id
-    where v.storage_path = name
+    where v.storage_path = storage.objects.name
       and v.storage_bucket = 'client-media'
       and v.upload_state = 'pending'
       and v.organization_id in (select public.current_org_ids())
       and p.organization_id = v.organization_id
-      and split_part(name, '/', 1) = v.organization_id::text
-      and split_part(name, '/', 2) = p.id::text
-      and split_part(name, '/', 3) = d.id::text
-      and split_part(name, '/', 4) = v.id::text
+      and split_part(storage.objects.name, '/', 1) = v.organization_id::text
+      and split_part(storage.objects.name, '/', 2) = p.id::text
+      and split_part(storage.objects.name, '/', 3) = d.id::text
+      and split_part(storage.objects.name, '/', 4) = v.id::text
   )
 );
 
@@ -169,7 +169,7 @@ using (
     join public.deliverables d on d.id = v.deliverable_id
     join public.work_packages wp on wp.id = d.work_package_id
     join public.projects p on p.id = wp.project_id
-    where v.storage_path = name
+    where v.storage_path = storage.objects.name
       and v.storage_bucket = 'client-media'
       and v.organization_id in (select public.current_org_ids())
       and p.organization_id = v.organization_id
@@ -191,7 +191,7 @@ using (
     join public.deliverables d on d.id = v.deliverable_id
     join public.work_packages wp on wp.id = d.work_package_id
     join public.projects p on p.id = wp.project_id
-    where v.storage_path = name
+    where v.storage_path = storage.objects.name
       and v.storage_bucket = 'client-media'
       and v.upload_state = 'ready'
       and v.client_visible = true
