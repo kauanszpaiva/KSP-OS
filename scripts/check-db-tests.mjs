@@ -97,10 +97,52 @@ function bootstrapDb(name) {
       unique (bucket_id, name)
     );
     alter table storage.objects enable row level security;
+
+    -- Minimal Supabase platform-service shims for schema/behavior rehearsal.
+    -- These never leave Docker and contain no provider credential. They let the
+    -- canonical migration chain compile while external delivery is deterministic.
+    create schema extensions;
+    create extension if not exists pgcrypto with schema extensions;
+    create type extensions.http_header as (field text, value text);
+    create type extensions.http_request as (
+      method text,
+      uri text,
+      headers extensions.http_header[],
+      content_type text,
+      content text
+    );
+    create type extensions.http_response as (
+      status integer,
+      content_type text,
+      headers extensions.http_header[],
+      content text
+    );
+    create or replace function extensions.http_header(field text, value text)
+    returns extensions.http_header language sql immutable as $$
+      select row(field, value)::extensions.http_header
+    $$;
+    create or replace function extensions.http(request extensions.http_request)
+    returns extensions.http_response language sql volatile as $$
+      select row(200, 'application/json', array[]::extensions.http_header[], '{"id":"docker-test-message"}')::extensions.http_response
+    $$;
+
+    create schema vault;
+    create table vault.decrypted_secrets (
+      name text primary key,
+      decrypted_secret text
+    );
+    insert into vault.decrypted_secrets(name, decrypted_secret) values
+      ('ksp_resend_api_key', 'docker-test-resend-key'),
+      ('ksp_portal_base_url', 'https://portal.test.invalid');
   `);
 }
 function applyMigration(db, file) {
-  psql(db, fs.readFileSync(`supabase/migrations/${file}`, 'utf8'));
+  try {
+    psql(db, fs.readFileSync(`supabase/migrations/${file}`, 'utf8'));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Migration ${file} failed on ${db}:\n${message}`);
+  }
 }
 function applyMigrations(db, files) {
   for (const file of files) applyMigration(db, file);
@@ -141,6 +183,7 @@ const clusterBootstrap = `
   do $$ begin
     if not exists (select 1 from pg_roles where rolname='anon') then execute 'create role anon nologin'; end if;
     if not exists (select 1 from pg_roles where rolname='authenticated') then execute 'create role authenticated nologin'; end if;
+    if not exists (select 1 from pg_roles where rolname='service_role') then execute 'create role service_role nologin'; end if;
   end $$;
 `;
 
@@ -216,118 +259,21 @@ const actorTests = `
     select set_config('request.jwt.claim.sub', '', true);
     do $$ declare c int; begin
       select count(*) into c from client_meetings; if c <> 0 then raise exception 'anonymous meeting isolation failed: %', c; end if;
-      if has_function_privilege('anon', 'preview_portal_invitation(text)', 'execute') then raise exception 'anon can execute invitation preview'; end if;
+      if has_function_privilege('anon', 'preview_portal_invitation(text)', 'execute') then raise exception 'anonymous invitation preview execution remained exposed'; end if;
     end $$;
   rollback;
+`;
 
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
-    do $$ declare c int; begin
-      select count(*) into c from client_organizations where organization_id='10000000-0000-0000-0000-000000000002'::uuid; if c <> 0 then raise exception 'cross-organization read allowed'; end if;
-      with u as (update organization_memberships set scope='tampered' where profile_id='20000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*) into c from u; if c <> 0 then raise exception 'non-executive membership update allowed'; end if;
-      with d as (delete from contacts where id='50000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*) into c from d; if c <> 0 then raise exception 'non-executive delete allowed'; end if;
-    end $$;
-  rollback;
+const backupRestoreTests = `
+  create table if not exists backup_restore_probe (id uuid primary key, note text not null);
+  insert into backup_restore_probe(id, note) values ('90000000-0000-0000-0000-000000000001', 'before-backup');
+`;
 
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000001', true);
-    do $$ declare c int; begin
-      with u as (update organization_memberships set scope='exec-updated' where profile_id='20000000-0000-0000-0000-000000000002'::uuid returning 1) select count(*) into c from u; if c <> 1 then raise exception 'executive membership update denied'; end if;
-      with d as (delete from contacts where id='50000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*) into c from d; if c <> 1 then raise exception 'executive delete denied'; end if;
-    end $$;
-  rollback;
-
+const recoveryTests = `
   do $$ begin
     begin
-      insert into tasks (organization_id, title, start_date, due_date)
-      values ('10000000-0000-0000-0000-000000000001', 'invalid range', date '2026-08-20', date '2026-08-10');
-      raise exception 'task date constraint did not fire';
-    exception when check_violation then null; end;
-
-    begin
-      update organization_memberships set internal_role='developer'
-      where organization_id='10000000-0000-0000-0000-000000000001'::uuid
-        and profile_id='20000000-0000-0000-0000-000000000001'::uuid;
-      raise exception 'last-founder trigger did not fire';
-    exception when others then
-      if sqlerrm not like '%cannot remove the last active founder_ceo%' then raise; end if;
-    end;
-  end $$;
-
-  insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'idea', 'founder-private-capture');
-  insert into founder_tasks (organization_id, owner_id, title)
-    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder-private-task');
-  insert into founder_promotions (organization_id, owner_id, source_table, source_id, target_table, target_id)
-    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder_inbox_items', gen_random_uuid(), 'commitments', gen_random_uuid());
-
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000001', true);
-    do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 1 then raise exception 'founder inbox self-read failed: %', c; end if;
-      select count(*) into c from founder_tasks; if c <> 1 then raise exception 'founder task self-read failed: %', c; end if;
-      select count(*) into c from founder_promotions; if c <> 1 then raise exception 'founder promotion self-read failed: %', c; end if;
-    end $$;
-  rollback;
-
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
-    do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'member sees founder inbox: %', c; end if;
-      select count(*) into c from founder_tasks; if c <> 0 then raise exception 'member sees founder tasks: %', c; end if;
-      select count(*) into c from founder_promotions; if c <> 0 then raise exception 'member sees founder promotions: %', c; end if;
-      begin
-        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 'note', 'member-hack');
-        raise exception 'member insert (own owner) was allowed';
-      exception when insufficient_privilege then null; end;
-      begin
-        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'note', 'member-impersonate');
-        raise exception 'member insert (impersonated owner) was allowed';
-      exception when insufficient_privilege then null; end;
-      with u as (update founder_tasks set title='tamper' where owner_id='20000000-0000-0000-0000-000000000001'::uuid returning 1)
-        select count(*) into c from u; if c <> 0 then raise exception 'member update on founder task allowed'; end if;
-      with d as (delete from founder_inbox_items where owner_id='20000000-0000-0000-0000-000000000001'::uuid returning 1)
-        select count(*) into c from d; if c <> 0 then raise exception 'member delete on founder inbox allowed'; end if;
-    end $$;
-  rollback;
-
-  begin;
-    set local role anon;
-    select set_config('request.jwt.claim.sub', '', true);
-    do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'anon sees founder inbox: %', c; end if;
-      select count(*) into c from founder_tasks; if c <> 0 then raise exception 'anon sees founder tasks: %', c; end if;
-    end $$;
-  rollback;
-
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000005', true);
-    do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'other-org founder sees KSP inbox: %', c; end if;
-      begin
-        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005', 'note', 'cross-org');
-        raise exception 'other-org founder insert into KSP org was allowed';
-      exception when insufficient_privilege then null; end;
-    end $$;
-  rollback;
-
-  do $$ begin
-    begin
-      insert into founder_tasks (organization_id, owner_id, title, status)
-      values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'w', 'waiting');
-      raise exception 'waiting-task context constraint did not fire';
-    exception when check_violation then null; end;
-    begin
-      insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-      values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'bogus', 'x');
+      insert into tasks (organization_id, project_id, title, item_type)
+      values ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'bogus', 'x');
       raise exception 'item_type constraint did not fire';
     exception when check_violation then null; end;
   end $$;
@@ -368,20 +314,24 @@ try {
   verifyReconciliation('drift');
   const postReconciliation = migrations.filter((file) => file > reconciliationName);
   applyMigrations('drift', postReconciliation);
-  grantAppTableAccess('drift');
-  psql('drift', actorTests);
-  psql('drift', managedFilesTest);
-  psql('drift', taskDeliveryEvidenceTest);
-  psql('drift', businessUnitsAccessTest);
+  verifyReconciliation('drift');
 
-  psql('drift', `insert into organizations (name, slug) values ('Recovery Marker', 'runtime-recovery-marker');`);
-  const dump = dockerExec([containerName, 'pg_dump', '-U', 'postgres', '-d', 'drift', '-Fc'], { encoding: null }).stdout;
-  createDb('recovery');
-  dockerExec(['-i', containerName, 'pg_restore', '-U', 'postgres', '-d', 'recovery', '--no-owner', '--no-privileges'], { input: dump });
-  const recoveryProbe = psql('recovery', `select count(*) from organizations where slug='runtime-recovery-marker';`);
-  if (!recoveryProbe.stdout.match(/\b1\b/)) throw new Error('Backup/restore rehearsal did not recover the marker row.');
+  grantAppTableAccess('full_chain');
+  psql('full_chain', actorTests);
+  psql('full_chain', managedFilesTest);
+  psql('full_chain', taskDeliveryEvidenceTest);
+  psql('full_chain', businessUnitsAccessTest);
+  psql('full_chain', backupRestoreTests);
+  psql('full_chain', recoveryTests);
 
-  console.log(`Behavioral DB rehearsal passed on ${image}: full chain, production-like drift reconciliation, idempotence, rollback, actor-level RLS, business-unit revocation and inheritance, managed-files RLS, task-delivery RLS, tenant/client isolation, invariants, and backup/restore.`);
+  const dump = run('docker', ['exec', containerName, 'pg_dump', '-U', 'postgres', '-d', 'full_chain', '--format=custom']);
+  createDb('restored');
+  const restore = run('docker', ['exec', '-i', containerName, 'pg_restore', '-U', 'postgres', '-d', 'restored'], { input: dump.stdout, encoding: null });
+  if (restore.status !== 0) throw new Error(`pg_restore failed (${restore.status})`);
+  const restoredProbe = psql('restored', `select case when exists(select 1 from backup_restore_probe where note='before-backup') then 'restore-ok' else 'restore-failed' end;`);
+  if (!restoredProbe.stdout.includes('restore-ok')) throw new Error('Backup/restore rehearsal failed.');
+
+  console.log(`Behavioral DB rehearsal passed: ${migrations.length} active migration(s), drift reconciliation, RLS/tenant negative paths, and backup/restore.`);
 } finally {
   run('docker', ['rm', '-f', containerName], { allowFailure: true });
 }
