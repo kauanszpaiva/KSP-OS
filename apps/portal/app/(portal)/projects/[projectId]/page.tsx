@@ -6,23 +6,18 @@ import { requirePortalSession } from '../../../../lib/session';
 import { formatDate, formatMoney } from '../../../../lib/format';
 import { clientSafeText, sanitizeClientComments, toClientSafeMilestone } from '../../../../lib/client-safe-project';
 import { getChangeOrderDecisions, getChangeOrderVersions, getMilestonesForProjects, getPublishedProjects, getUpdatesForProject, getDeliverableVersions, getApprovalRequestsForVersions, getCommentsForObject } from '../../data';
+import { getClientProjectMedia } from '../../client-media-data';
 import { DeliverableReview } from '../../_components/deliverable-review';
+import { ClientMediaSection } from '../../_components/client-media-section';
 import { ClientProjectPlan } from './_components/client-project-plan';
 import { postComment, recordDeliverableDecision } from '../../../actions';
 import { ProgressiveList } from '../../_components/progressive-list';
 
 /**
- * No RLS/policy check is needed here beyond the queries themselves — a
- * project this client has no published_to_client publication for simply
- * returns zero rows from every query below (client_publications,
- * mission_milestones, client_updates all gate on the same
- * is_portal_member(client_organization_id) + state check), so an
- * unauthorized project id renders the not-found state, never a leak.
- *
- * Free-text content is additionally normalized through clientSafeText before
- * rendering so internal implementation vocabulary cannot leak into the Portal
- * even if an internal milestone/update was accidentally attached to a
- * client-published project.
+ * A project this client has no published_to_client publication for returns no
+ * project data and resolves to not-found. Every downstream query is also gated
+ * by client-scoped RLS; managed media adds a second explicit version-level
+ * publication gate before Storage can mint a signed URL.
  */
 export default async function PortalProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
@@ -34,11 +29,16 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
   if (projectPublications.length === 0) notFound();
 
   const latest = projectPublications[0];
-  const milestones = supabase ? await getMilestonesForProjects(supabase, [projectId]) : [];
+  const [milestones, updates, media] = supabase
+    ? await Promise.all([
+        getMilestonesForProjects(supabase, [projectId]),
+        getUpdatesForProject(supabase, projectId),
+        getClientProjectMedia(supabase, projectId)
+      ])
+    : [[], [], { schedule: [], videos: [] }];
   const safeMilestones = milestones.map(toClientSafeMilestone);
   const doneMilestones = safeMilestones.filter((milestone) => milestone.status === 'done').length;
   const progressPct = safeMilestones.length > 0 ? Math.round((doneMilestones / safeMilestones.length) * 100) : 0;
-  const updates = supabase ? await getUpdatesForProject(supabase, projectId) : [];
   const [allChangeOrderVersions, decisions, allDeliverableVersions] = supabase ? await Promise.all([getChangeOrderVersions(supabase), getChangeOrderDecisions(supabase), getDeliverableVersions(supabase)]) : [[], [], []];
   const deliverableVersions = allDeliverableVersions.filter((v) => v.projectId === projectId);
   const approvalRequests = supabase ? await getApprovalRequestsForVersions(supabase, deliverableVersions.map((v) => v.id)) : [];
@@ -66,9 +66,9 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
   return (
     <div>
       <Reveal className="border-l-2 border-brand pl-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">Project</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">Client workspace</p>
         <h1 className="mt-1 font-display text-[24px] font-semibold text-ink">{clientSafeText(latest.title, 'Client project')}</h1>
-        <p className="mt-2 max-w-2xl text-[14px] text-ink-2">{clientSafeText(latest.summary, 'Project progress, upcoming phases and key milestones.')}</p>
+        <p className="mt-2 max-w-2xl text-[14px] text-ink-2">{clientSafeText(latest.summary, 'Project strategy, progress, upcoming phases and key milestones.')}</p>
         <p className="mt-2 text-[12px] text-ink-4">Last updated {formatDate(latest.published_at)}</p>
       </Reveal>
 
@@ -78,19 +78,19 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
 
       <Reveal delay={70} className="mt-8 grid gap-8 lg:grid-cols-[0.75fr_1.25fr]">
         <div>
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Progress</p>
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Roadmap progress</p>
           <div className="rounded-xl border border-line bg-surface p-4">
             <div className="mb-2 flex items-center justify-between gap-3 text-[12px]">
               <span className="font-medium text-ink-2">{safeMilestones.length === 0 ? 'Client plan pending' : `${doneMilestones} of ${safeMilestones.length} milestones completed`}</span>
               {safeMilestones.length > 0 && <span className="tnum font-semibold text-ink">{progressPct}%</span>}
             </div>
             <ProgressBar value={progressPct} />
-            <p className="mt-3 text-[11.5px] leading-relaxed text-ink-4">This view intentionally contains only client-facing phases, dates and outcomes.</p>
+            <p className="mt-3 text-[11.5px] leading-relaxed text-ink-4">Only client-facing phases, dates and outcomes are shown here.</p>
           </div>
         </div>
 
         <div>
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Updates</p>
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Strategy & updates</p>
           {activity.length === 0 ? (
             <EmptyState icon="inbox" title="No updates published yet." />
           ) : (
@@ -117,8 +117,10 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
         </div>
       </Reveal>
 
-      <Reveal delay={100} className="mt-8">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Deliverables</p>
+      <ClientMediaSection schedule={media.schedule} videos={media.videos} />
+
+      <Reveal delay={110} className="mt-8">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Feedback & approvals</p>
         {deliverableVersions.length === 0 ? (
           <Card className="mb-8 p-5">
             <p className="text-[13px] text-ink-3">No deliverables published for this project yet.</p>
