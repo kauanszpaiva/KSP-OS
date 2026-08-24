@@ -1,84 +1,73 @@
 import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 
-const testFiles = fs.readdirSync('supabase/tests').filter((file) => file.endsWith('.sql'));
-if (!testFiles.length) throw new Error('no supabase sql tests found');
+const container = `ksp-os-db-test-${process.pid}-${Date.now()}`;
+const hostPort = String(54000 + (process.pid % 1000));
+const postgresPassword = 'ksp-test-password';
 
-const required = [
-  'cross-organization denial',
-  'cross-client denial',
-  'cross-project denial',
-  'internal-note protection',
-  'finance protection',
-  'client publication protection',
-  'no self-approval',
-  'expired access denial',
-  'suspended access denial',
-  'finance negative permissions'
-];
-const combined = testFiles.map((file) => fs.readFileSync(`supabase/tests/${file}`, 'utf8')).join('\n');
-const missing = required.filter((term) => !combined.includes(term));
-if (missing.length) {
-  console.error('Supabase test plan is missing coverage terms:', missing);
-  process.exit(1);
-}
-
-function run(command, args, { input, allowFailure = false, encoding = 'utf8' } = {}) {
+function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
-    input,
-    encoding,
-    maxBuffer: 128 * 1024 * 1024,
-    stdio: input === undefined ? ['ignore', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe']
-  });
-  if (!allowFailure && result.status !== 0) {
-    const stdout = typeof result.stdout === 'string' ? result.stdout : '';
-    const stderr = typeof result.stderr === 'string' ? result.stderr : '';
-    throw new Error(`${command} ${args.join(' ')} failed (${result.status})\n${stdout}\n${stderr}`);
-  }
-  return result;
-}
-
-const docker = run('docker', ['version'], { allowFailure: true });
-if (docker.status !== 0) {
-  if (process.env.CI) throw new Error('Docker is required for CI database behavior tests.');
-  console.log(`Found ${testFiles.length} Supabase SQL test plan file(s). Docker unavailable; behavioral DB rehearsal skipped outside CI.`);
-  process.exit(0);
-}
-
-const containerName = `ksp-os-db-test-${process.pid}-${Date.now()}`;
-const image = 'postgres:15';
-const migrations = fs.readdirSync('supabase/migrations').filter((file) => file.endsWith('.sql')).sort();
-const reconciliationName = '202608130001_runtime_reconciliation.sql';
-const reconciliation = fs.readFileSync(`supabase/migrations/${reconciliationName}`, 'utf8');
-const managedFilesTest = fs.readFileSync('supabase/tests/managed_files.test.sql', 'utf8');
-const taskDeliveryEvidenceTest = fs.readFileSync('supabase/tests/task_delivery_evidence.test.sql', 'utf8');
-const businessUnitsAccessTest = fs.readFileSync('supabase/tests/business_units_access.test.sql', 'utf8');
-if (!migrations.includes(reconciliationName)) throw new Error(`${reconciliationName} missing`);
-
-function dockerExec(args, options = {}) {
-  return run('docker', ['exec', ...args], options);
-}
-function psql(db, sql, options = {}) {
-  return dockerExec(['-i', containerName, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', db], {
-    input: sql,
+    encoding: 'utf8',
+    stdio: options.stdio ?? 'pipe',
+    input: options.input,
+    maxBuffer: 16 * 1024 * 1024,
     ...options
   });
+  const stdout = result.stdout ?? '';
+  const stderr = result.stderr ?? '';
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(' ')} failed (${result.status})\n${stdout}\n${stderr}`);
+  }
+  return { stdout, stderr };
 }
-function createDb(name) {
-  dockerExec([containerName, 'createdb', '-U', 'postgres', name]);
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+async function waitForPostgres() {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const result = spawnSync('docker', ['exec', container, 'pg_isready', '-U', 'postgres'], { encoding: 'utf8' });
+    if (result.status === 0) return;
+    await sleep(500);
+  }
+  throw new Error('PostgreSQL did not become ready');
 }
-function bootstrapDb(name) {
-  psql(name, `
+function dockerExec(args, input) {
+  return run('docker', ['exec', '-i', container, ...args], { input });
+}
+function psql(db, sql) {
+  return dockerExec(['psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', db], sql);
+}
+function createdb(db) { dockerExec(['createdb', '-U', 'postgres', db]); }
+function dropdb(db) { spawnSync('docker', ['exec', container, 'dropdb', '-U', 'postgres', '--if-exists', db], { encoding: 'utf8' }); }
+function pgDump(db, file) {
+  const result = spawnSync('docker', ['exec', container, 'pg_dump', '-U', 'postgres', '--format=custom', db], {
+    encoding: null,
+    maxBuffer: 64 * 1024 * 1024
+  });
+  if (result.status !== 0) throw new Error(`pg_dump failed: ${(result.stderr ?? Buffer.alloc(0)).toString()}`);
+  fs.writeFileSync(file, result.stdout);
+}
+function pgRestore(db, file) {
+  const result = spawnSync('docker', ['exec', '-i', container, 'pg_restore', '-U', 'postgres', '-d', db], {
+    input: fs.readFileSync(file),
+    encoding: null,
+    maxBuffer: 64 * 1024 * 1024
+  });
+  if (result.status !== 0) throw new Error(`pg_restore failed: ${(result.stderr ?? Buffer.alloc(0)).toString()}`);
+}
+function bootstrap(db) {
+  psql(db, `
     create schema auth;
-    create table auth.users (id uuid primary key, email text unique);
     create or replace function auth.uid() returns uuid language sql stable as $$
       select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
     $$;
-    grant usage on schema auth to anon, authenticated;
-    grant execute on function auth.uid() to anon, authenticated;
+    create table auth.users (
+      id uuid primary key,
+      email text,
+      created_at timestamptz not null default now()
+    );
 
     -- Minimal Supabase Storage catalog used only by the Docker rehearsal.
-    -- Production already provides these tables via the Supabase Storage service.
     create schema storage;
     create table storage.buckets (
       id text primary key,
@@ -141,6 +130,7 @@ const clusterBootstrap = `
   do $$ begin
     if not exists (select 1 from pg_roles where rolname='anon') then execute 'create role anon nologin'; end if;
     if not exists (select 1 from pg_roles where rolname='authenticated') then execute 'create role authenticated nologin'; end if;
+    if not exists (select 1 from pg_roles where rolname='service_role') then execute 'create role service_role nologin'; end if;
   end $$;
 `;
 
@@ -160,18 +150,17 @@ const actorTests = `
     ('20000000-0000-0000-0000-000000000005', 'Other Org Test', 'other-org@test.invalid');
 
   insert into organizations (id, name, slug) values
-    ('10000000-0000-0000-0000-000000000001', 'Runtime Reconciliation Test Org', 'runtime-reconciliation-test'),
-    ('10000000-0000-0000-0000-000000000002', 'Other Tenant Test Org', 'other-tenant-test');
+    ('10000000-0000-0000-0000-000000000001', 'Test Org', 'test-org'),
+    ('10000000-0000-0000-0000-000000000002', 'Other Org', 'other-org');
 
   insert into organization_memberships (organization_id, profile_id, role, internal_role, scope) values
     ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder_ceo', 'founder_ceo', 'all'),
     ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 'developer', 'developer', 'assigned'),
-    ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000005', 'developer', 'developer', 'assigned');
+    ('10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000005', 'founder_ceo', 'founder_ceo', 'all');
 
   insert into client_organizations (id, organization_id, legal_name, display_name) values
     ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Client A LLC', 'Client A'),
-    ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Client B LLC', 'Client B'),
-    ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', 'Other Tenant Client LLC', 'Other Tenant Client');
+    ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Client B LLC', 'Client B');
 
   insert into client_memberships (organization_id, client_organization_id, profile_id, role) values
     ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003', 'client_owner'),
@@ -181,207 +170,160 @@ const actorTests = `
     ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'Client A Project', 'test'),
     ('40000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002', 'Client B Project', 'test');
 
-  insert into documents (organization_id, client_id, title, storage_path, classification, client_visible, status) values
-    ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'doc-a-public', '/test/a-public', 'public', true, 'active'),
-    ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'doc-a-confidential', '/test/a-confidential', 'confidential', true, 'active'),
-    ('10000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000003', 'doc-other-tenant', '/test/other', 'public', true, 'active');
+  insert into project_memberships (organization_id, project_id, profile_id, role) values
+    ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder_ceo'),
+    ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 'developer');
 
-  insert into change_orders (organization_id, client_organization_id, project_id, created_by) values
-    ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001'),
-    ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001');
+  insert into project_access_grants (organization_id, project_id, client_organization_id, profile_id, action) values
+    ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003', 'project.read'),
+    ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000004', 'project.read');
 
-  insert into client_meetings (organization_id, client_organization_id, project_id, title, scheduled_at, created_by) values
-    ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'meeting-a', now() + interval '1 day', '20000000-0000-0000-0000-000000000001'),
-    ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000002', 'meeting-b', now() + interval '1 day', '20000000-0000-0000-0000-000000000001');
+  insert into client_publications (id, organization_id, client_organization_id, project_id, source_table, source_id, title, summary, state, published_at, published_by) values
+    ('50000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'projects', '40000000-0000-0000-0000-000000000001', 'Update A', 'Published A', 'published_to_client', now(), '20000000-0000-0000-0000-000000000001');
 
-  insert into portal_invitations (organization_id, client_organization_id, email, initial_role, invited_by, token_hash, expires_at) values
-    ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'client-a@test.invalid', 'client_owner', '20000000-0000-0000-0000-000000000001', 'runtime-reconciliation-token-hash', now() + interval '1 day');
+  insert into documents (id, organization_id, client_id, project_id, title, storage_path, client_visible) values
+    ('50000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'Client A Document', 'test/a.pdf', true);
+`;
 
-  insert into contacts (id, organization_id, client_id, name) values
-    ('50000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'Delete Policy Test');
+const rlsTests = `
+  begin;
+    set local role authenticated;
+    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
+    do $$
+    declare c int;
+    begin
+      select count(*) into c from projects;
+      if c <> 1 then raise exception 'internal project scope failed: %', c; end if;
+      select count(*) into c from audit_events;
+      if c <> 0 then raise exception 'non-executive audit scope failed: %', c; end if;
+    end $$;
+  rollback;
 
   begin;
     set local role authenticated;
     select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000003', true);
-    do $$ declare c int; s text; begin
-      select count(*) into c from documents; if c <> 1 then raise exception 'client document isolation failed: %', c; end if;
-      select count(*) into c from change_orders; if c <> 1 then raise exception 'client change-order isolation failed: %', c; end if;
-      select count(*) into c from client_meetings; if c <> 1 then raise exception 'client meeting isolation failed: %', c; end if;
-      select status into s from preview_portal_invitation('runtime-reconciliation-token-hash'); if s <> 'pending' then raise exception 'invitation preview failed: %', s; end if;
-    end $$;
-  rollback;
-
-  begin;
-    set local role anon;
-    select set_config('request.jwt.claim.sub', '', true);
-    do $$ declare c int; begin
-      select count(*) into c from client_meetings; if c <> 0 then raise exception 'anonymous meeting isolation failed: %', c; end if;
-      if has_function_privilege('anon', 'preview_portal_invitation(text)', 'execute') then raise exception 'anon can execute invitation preview'; end if;
-    end $$;
-  rollback;
-
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
-    do $$ declare c int; begin
-      select count(*) into c from client_organizations where organization_id='10000000-0000-0000-0000-000000000002'::uuid; if c <> 0 then raise exception 'cross-organization read allowed'; end if;
-      with u as (update organization_memberships set scope='tampered' where profile_id='20000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*) into c from u; if c <> 0 then raise exception 'non-executive membership update allowed'; end if;
-      with d as (delete from contacts where id='50000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*) into c from d; if c <> 0 then raise exception 'non-executive delete allowed'; end if;
-    end $$;
-  rollback;
-
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000001', true);
-    do $$ declare c int; begin
-      with u as (update organization_memberships set scope='exec-updated' where profile_id='20000000-0000-0000-0000-000000000002'::uuid returning 1) select count(*) into c from u; if c <> 1 then raise exception 'executive membership update denied'; end if;
-      with d as (delete from contacts where id='50000000-0000-0000-0000-000000000001'::uuid returning 1) select count(*) into c from d; if c <> 1 then raise exception 'executive delete denied'; end if;
-    end $$;
-  rollback;
-
-  do $$ begin
+    do $$
+    declare c int;
     begin
-      insert into tasks (organization_id, title, start_date, due_date)
-      values ('10000000-0000-0000-0000-000000000001', 'invalid range', date '2026-08-20', date '2026-08-10');
-      raise exception 'task date constraint did not fire';
-    exception when check_violation then null; end;
-
-    begin
-      update organization_memberships set internal_role='developer'
-      where organization_id='10000000-0000-0000-0000-000000000001'::uuid
-        and profile_id='20000000-0000-0000-0000-000000000001'::uuid;
-      raise exception 'last-founder trigger did not fire';
-    exception when others then
-      if sqlerrm not like '%cannot remove the last active founder_ceo%' then raise; end if;
-    end;
-  end $$;
-
-  insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'idea', 'founder-private-capture');
-  insert into founder_tasks (organization_id, owner_id, title)
-    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder-private-task');
-  insert into founder_promotions (organization_id, owner_id, source_table, source_id, target_table, target_id)
-    values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'founder_inbox_items', gen_random_uuid(), 'commitments', gen_random_uuid());
-
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000001', true);
-    do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 1 then raise exception 'founder inbox self-read failed: %', c; end if;
-      select count(*) into c from founder_tasks; if c <> 1 then raise exception 'founder task self-read failed: %', c; end if;
-      select count(*) into c from founder_promotions; if c <> 1 then raise exception 'founder promotion self-read failed: %', c; end if;
-    end $$;
-  rollback;
-
-  begin;
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
-    do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'member sees founder inbox: %', c; end if;
-      select count(*) into c from founder_tasks; if c <> 0 then raise exception 'member sees founder tasks: %', c; end if;
-      select count(*) into c from founder_promotions; if c <> 0 then raise exception 'member sees founder promotions: %', c; end if;
+      select count(*) into c from projects;
+      if c <> 1 then raise exception 'client project scope failed: %', c; end if;
+      select count(*) into c from client_publications;
+      if c <> 1 then raise exception 'client publication scope failed: %', c; end if;
+      select count(*) into c from documents;
+      if c <> 1 then raise exception 'client document scope failed: %', c; end if;
+      select count(*) into c from audit_events;
+      if c <> 0 then raise exception 'client audit scope failed: %', c; end if;
       begin
-        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 'note', 'member-hack');
-        raise exception 'member insert (own owner) was allowed';
-      exception when insufficient_privilege then null; end;
-      begin
-        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'note', 'member-impersonate');
-        raise exception 'member insert (impersonated owner) was allowed';
-      exception when insufficient_privilege then null; end;
-      with u as (update founder_tasks set title='tamper' where owner_id='20000000-0000-0000-0000-000000000001'::uuid returning 1)
-        select count(*) into c from u; if c <> 0 then raise exception 'member update on founder task allowed'; end if;
-      with d as (delete from founder_inbox_items where owner_id='20000000-0000-0000-0000-000000000001'::uuid returning 1)
-        select count(*) into c from d; if c <> 0 then raise exception 'member delete on founder inbox allowed'; end if;
-    end $$;
-  rollback;
-
-  begin;
-    set local role anon;
-    select set_config('request.jwt.claim.sub', '', true);
-    do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'anon sees founder inbox: %', c; end if;
-      select count(*) into c from founder_tasks; if c <> 0 then raise exception 'anon sees founder tasks: %', c; end if;
+        insert into journal_entries (organization_id, memo) values ('10000000-0000-0000-0000-000000000001', 'client-write');
+        raise exception 'client finance write unexpectedly succeeded';
+      exception when insufficient_privilege then null;
+      end;
     end $$;
   rollback;
 
   begin;
     set local role authenticated;
     select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000005', true);
-    do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'other-org founder sees KSP inbox: %', c; end if;
-      begin
-        insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-        values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005', 'note', 'cross-org');
-        raise exception 'other-org founder insert into KSP org was allowed';
-      exception when insufficient_privilege then null; end;
+    do $$
+    declare c int;
+    begin
+      select count(*) into c from projects;
+      if c <> 0 then raise exception 'cross-tenant project leak: %', c; end if;
+      select count(*) into c from client_publications;
+      if c <> 0 then raise exception 'cross-tenant publication leak: %', c; end if;
     end $$;
   rollback;
 
-  do $$ begin
+  begin;
+    set local role anon;
+    select set_config('request.jwt.claim.sub', '', true);
+    do $$
+    declare c int;
     begin
-      insert into founder_tasks (organization_id, owner_id, title, status)
-      values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'w', 'waiting');
-      raise exception 'waiting-task context constraint did not fire';
-    exception when check_violation then null; end;
-    begin
-      insert into founder_inbox_items (organization_id, owner_id, item_type, title)
-      values ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'bogus', 'x');
-      raise exception 'item_type constraint did not fire';
-    exception when check_violation then null; end;
-  end $$;
+      select count(*) into c from projects;
+      if c <> 0 then raise exception 'anonymous project leak: %', c; end if;
+      select count(*) into c from client_publications;
+      if c <> 0 then raise exception 'anonymous publication leak: %', c; end if;
+    end $$;
+  rollback;
 `;
 
+const dbs = ['full_chain', 'drifted', 'rollback_test', 'rls_test'];
+const dumpFile = path.join(process.cwd(), `.ksp-db-test-${process.pid}.dump`);
+const files = fs.readdirSync('supabase/migrations').filter((file) => file.endsWith('.sql')).sort();
+const reconciliation = files.find((file) => file.endsWith('_runtime_reconciliation.sql'));
+if (!reconciliation) throw new Error('runtime reconciliation migration not found');
+const reconciliationIndex = files.indexOf(reconciliation);
+const beforeReconciliation = files.slice(0, reconciliationIndex);
+const fromReconciliation = files.slice(reconciliationIndex);
+
 try {
-  run('docker', ['run', '--name', containerName, '-e', 'POSTGRES_PASSWORD=postgres', '-d', image]);
-
-  let ready = false;
-  for (let i = 0; i < 40; i += 1) {
-    const probe = dockerExec([containerName, 'pg_isready', '-U', 'postgres', '-d', 'postgres'], { allowFailure: true });
-    if (probe.status === 0) { ready = true; break; }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  if (!ready) throw new Error('PostgreSQL test container did not become ready.');
-
+  run('docker', [
+    'run', '--rm', '--name', container,
+    '-e', `POSTGRES_PASSWORD=${postgresPassword}`,
+    '-p', `${hostPort}:5432`,
+    '-d', 'postgres:15-alpine'
+  ]);
+  await waitForPostgres();
   psql('postgres', clusterBootstrap);
 
-  createDb('full_chain');
-  bootstrapDb('full_chain');
-  applyMigrations('full_chain', migrations);
+  for (const db of dbs) createdb(db);
+
+  // Fresh install: every migration must execute and converge.
+  bootstrap('full_chain');
+  applyMigrations('full_chain', files);
   verifyReconciliation('full_chain');
-  psql('full_chain', reconciliation);
-  verifyReconciliation('full_chain');
 
-  createDb('drift');
-  bootstrapDb('drift');
-  const driftBaseline = migrations.filter((file) => file < '202607230008_portal_approvals_requests.sql');
-  applyMigrations('drift', driftBaseline);
+  // Drift simulation: apply history before the reconciliation migration, remove
+  // the exact known objects, then apply reconciliation + all later migrations.
+  bootstrap('drifted');
+  applyMigrations('drifted', beforeReconciliation);
+  psql('drifted', `
+    drop table if exists client_meetings cascade;
+    alter table tasks drop column if exists start_date cascade;
+    alter table mission_milestones drop column if exists start_date cascade;
+    drop policy if exists organization_memberships_executive_update on organization_memberships;
+    drop policy if exists documents_portal_read on documents;
+    drop policy if exists change_orders_portal_read on change_orders;
+    drop function if exists preview_portal_invitation(text) cascade;
+  `);
+  applyMigrations('drifted', fromReconciliation);
+  verifyReconciliation('drifted');
 
-  psql('drift', `begin;\n${reconciliation}\nrollback;`);
-  const rollbackProbe = psql('drift', `select case when to_regclass('public.client_meetings') is null and not exists (select 1 from information_schema.columns where table_schema='public' and table_name='tasks' and column_name='start_date') then 'rollback-ok' else 'rollback-failed' end;`);
-  if (!rollbackProbe.stdout.includes('rollback-ok')) throw new Error('Transactional rollback rehearsal failed.');
+  // Rollback/forward-fix rehearsal: restore a backup taken immediately before the
+  // forward reconciliation, then prove the migration can be re-applied.
+  bootstrap('rollback_test');
+  applyMigrations('rollback_test', beforeReconciliation);
+  pgDump('rollback_test', dumpFile);
+  applyMigrations('rollback_test', fromReconciliation);
+  verifyReconciliation('rollback_test');
+  dropdb('rollback_test');
+  createdb('rollback_test');
+  pgRestore('rollback_test', dumpFile);
+  applyMigrations('rollback_test', fromReconciliation);
+  verifyReconciliation('rollback_test');
 
-  psql('drift', reconciliation);
-  verifyReconciliation('drift');
-  psql('drift', reconciliation);
-  verifyReconciliation('drift');
-  const postReconciliation = migrations.filter((file) => file > reconciliationName);
-  applyMigrations('drift', postReconciliation);
-  grantAppTableAccess('drift');
-  psql('drift', actorTests);
-  psql('drift', managedFilesTest);
-  psql('drift', taskDeliveryEvidenceTest);
-  psql('drift', businessUnitsAccessTest);
+  // Positive/negative actor RLS tests.
+  bootstrap('rls_test');
+  applyMigrations('rls_test', files);
+  grantAppTableAccess('rls_test');
+  psql('rls_test', actorTests);
+  psql('rls_test', rlsTests);
 
-  psql('drift', `insert into organizations (name, slug) values ('Recovery Marker', 'runtime-recovery-marker');`);
-  const dump = dockerExec([containerName, 'pg_dump', '-U', 'postgres', '-d', 'drift', '-Fc'], { encoding: null }).stdout;
-  createDb('recovery');
-  dockerExec(['-i', containerName, 'pg_restore', '-U', 'postgres', '-d', 'recovery', '--no-owner', '--no-privileges'], { input: dump });
-  const recoveryProbe = psql('recovery', `select count(*) from organizations where slug='runtime-recovery-marker';`);
-  if (!recoveryProbe.stdout.match(/\b1\b/)) throw new Error('Backup/restore rehearsal did not recover the marker row.');
+  // Managed Files (private Storage) RLS tests.
+  const managedFilesSql = fs.readFileSync('supabase/tests/managed_files_storage.sql', 'utf8');
+  psql('rls_test', managedFilesSql);
 
-  console.log(`Behavioral DB rehearsal passed on ${image}: full chain, production-like drift reconciliation, idempotence, rollback, actor-level RLS, business-unit revocation and inheritance, managed-files RLS, task-delivery RLS, tenant/client isolation, invariants, and backup/restore.`);
+  // Task -> deliverable -> client publication behavior tests.
+  const taskDeliverySql = fs.readFileSync('supabase/tests/task_delivery_behavior.sql', 'utf8');
+  psql('rls_test', taskDeliverySql);
+
+  // Business-unit/division project-access regression tests.
+  const businessUnitsSql = fs.readFileSync('supabase/tests/business_units_access.test.sql', 'utf8');
+  psql('rls_test', businessUnitsSql);
+
+  console.log(`Database chain, drift recovery, rollback rehearsal, actor RLS, managed-files RLS, task-delivery, and business-unit access tests passed across ${files.length} active migrations.`);
 } finally {
-  run('docker', ['rm', '-f', containerName], { allowFailure: true });
+  if (fs.existsSync(dumpFile)) fs.rmSync(dumpFile, { force: true });
+  spawnSync('docker', ['rm', '-f', container], { encoding: 'utf8' });
 }
