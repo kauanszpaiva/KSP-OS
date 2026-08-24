@@ -8,8 +8,8 @@
 --
 -- This migration is additive. Existing projects remain unclassified until an
 -- executive assigns them to a business unit. Once a project is classified,
--- existing project members are automatically inherited into that unit so the
--- classification cannot silently lock out people who already had legitimate access.
+-- existing non-executive project members are automatically inherited into that
+-- unit so classification cannot silently lock out legitimate current access.
 
 create schema if not exists business_unit_private;
 revoke all on schema business_unit_private from public;
@@ -19,7 +19,6 @@ grant usage on schema business_unit_private to authenticated;
 create table if not exists public.business_units (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  parent_business_unit_id uuid references public.business_units(id) on delete set null,
   key text not null,
   name text not null,
   focus text,
@@ -64,6 +63,9 @@ create index if not exists business_units_org_status_idx
   on public.business_units (organization_id, status, sort_order, name);
 create index if not exists business_unit_memberships_profile_idx
   on public.business_unit_memberships (profile_id, business_unit_id)
+  where suspended_at is null;
+create index if not exists business_unit_memberships_unit_idx
+  on public.business_unit_memberships (business_unit_id, profile_id)
   where suspended_at is null;
 create index if not exists projects_business_unit_idx
   on public.projects (business_unit_id, status)
@@ -136,6 +138,39 @@ revoke all on function business_unit_private.can_access_business_unit(uuid) from
 revoke all on function business_unit_private.can_access_business_unit(uuid) from anon;
 grant execute on function business_unit_private.can_access_business_unit(uuid) to authenticated;
 
+-- Centralize the new boundary in can_access_project because project-owned tables
+-- throughout KSP OS already depend on this helper. That means revoking a person's
+-- division membership blocks not only the Projects page but downstream project
+-- data reached by direct URL/API as well. Unclassified legacy projects retain the
+-- previous membership-only behavior during the backfill window.
+create or replace function public.can_access_project(pid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.project_memberships pm
+    join public.projects p
+      on p.id = pm.project_id
+     and p.organization_id = pm.organization_id
+    where pm.project_id = pid
+      and pm.profile_id = auth.uid()
+      and (pm.effective_until is null or pm.effective_until > now())
+      and (
+        p.business_unit_id is null
+        or business_unit_private.can_access_business_unit(p.business_unit_id)
+      )
+  );
+$$;
+
+revoke all on function public.can_access_project(uuid) from public;
+revoke all on function public.can_access_project(uuid) from anon;
+grant execute on function public.can_access_project(uuid) to authenticated;
+grant execute on function public.can_access_project(uuid) to service_role;
+
 -- Unit catalog: executives see all; everyone else sees only units they belong to.
 drop policy if exists business_units_read on public.business_units;
 create policy business_units_read on public.business_units
@@ -185,16 +220,15 @@ for delete to authenticated
 using (public.is_executive(organization_id));
 
 -- Classified internal projects require both the existing project entitlement and
--- access to the assigned business unit. Legacy/unclassified projects preserve the
--- exact prior behavior. Portal policy is intentionally unchanged: client access is
--- still governed by client/project publication rules, not internal unit membership.
+-- access to the assigned business unit through the central helper above. Portal
+-- policy is intentionally unchanged: client access is still governed by client /
+-- project publication rules, not internal division membership.
 drop policy if exists projects_member_read on public.projects;
 create policy projects_member_read on public.projects
 for select to authenticated
 using (
   organization_id in (select public.current_org_ids())
   and (public.is_executive(organization_id) or public.can_access_project(id))
-  and (business_unit_id is null or business_unit_private.can_access_business_unit(business_unit_id))
 );
 
 drop policy if exists projects_insert on public.projects;
@@ -202,7 +236,11 @@ create policy projects_insert on public.projects
 for insert to authenticated
 with check (
   organization_id in (select public.current_org_ids())
-  and (business_unit_id is null or business_unit_private.can_access_business_unit(business_unit_id))
+  and (
+    business_unit_id is null
+    or public.is_executive(organization_id)
+    or business_unit_private.can_access_business_unit(business_unit_id)
+  )
 );
 
 drop policy if exists projects_update on public.projects;
@@ -211,18 +249,21 @@ for update to authenticated
 using (
   organization_id in (select public.current_org_ids())
   and (public.is_executive(organization_id) or public.can_access_project(id))
-  and (business_unit_id is null or business_unit_private.can_access_business_unit(business_unit_id))
 )
 with check (
   organization_id in (select public.current_org_ids())
-  and (business_unit_id is null or business_unit_private.can_access_business_unit(business_unit_id))
+  and (
+    business_unit_id is null
+    or public.is_executive(organization_id)
+    or business_unit_private.can_access_business_unit(business_unit_id)
+  )
 );
 
 -- Compatibility bridge: when an existing project is classified, inherit its
--- current members into that unit. When a new project member is assigned later,
--- inherit the unit membership too. We deliberately do not auto-revoke unit access
--- when one project link is removed because the person may still need that unit via
--- another project; revocation remains an explicit audited access-control action.
+-- current non-executive members into that unit. When a new project member is
+-- assigned later, inherit the unit membership too. We deliberately do not
+-- auto-revoke unit access when one project link is removed because the person may
+-- still need that unit via another project; revocation is an explicit audited action.
 create or replace function business_unit_private.sync_project_membership()
 returns trigger
 language plpgsql
@@ -242,6 +283,15 @@ begin
       select new.organization_id, new.business_unit_id, pm.profile_id, 'member', auth.uid()
       from public.project_memberships pm
       where pm.project_id = new.id
+        and not exists (
+          select 1
+          from public.organization_memberships om
+          where om.organization_id = new.organization_id
+            and om.profile_id = pm.profile_id
+            and om.internal_role in ('founder_ceo', 'executive_operations')
+            and om.suspended_at is null
+            and (om.effective_until is null or om.effective_until > now())
+        )
       on conflict (business_unit_id, profile_id) do update
         set suspended_at = null,
             effective_until = null;
@@ -261,6 +311,15 @@ begin
     from public.projects p
     where p.id = new.project_id
       and p.business_unit_id is not null
+      and not exists (
+        select 1
+        from public.organization_memberships om
+        where om.organization_id = p.organization_id
+          and om.profile_id = new.profile_id
+          and om.internal_role in ('founder_ceo', 'executive_operations')
+          and om.suspended_at is null
+          and (om.effective_until is null or om.effective_until > now())
+      )
     on conflict (business_unit_id, profile_id) do update
       set suspended_at = null,
           effective_until = null;
@@ -275,8 +334,8 @@ revoke all on function business_unit_private.sync_project_membership() from publ
 revoke all on function business_unit_private.sync_project_membership() from anon;
 revoke all on function business_unit_private.sync_project_membership() from authenticated;
 
--- Projects trigger only needs UPDATE because the current create flow stays
--- unclassified until an executive chooses the unit.
+-- Existing projects are classified by UPDATE. New classified projects gain unit
+-- membership for their creator through the project_memberships INSERT trigger.
 drop trigger if exists ksp_projects_business_unit_membership_sync on public.projects;
 create trigger ksp_projects_business_unit_membership_sync
 after update of business_unit_id on public.projects
