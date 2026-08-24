@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-08-24T17:48:00Z",
+  "targetProjectRef": "tqwnsxjrlomosfblleqy",
+  "productionDdlBlocked": true,
+  "classificationRule": "Do not repair history by renaming or marking migrations applied. Classify by version, name, SQL semantics, and content hash before any production DDL.",
+  "liveOnlyAcceptedDrift": [
+    {"version":"20260807165502","name":"portfolio_os_foundation","statementsMd5":"e815b00ecfe3757e778359d4c0256c7c"},
+    {"version":"20260807170203","name":"portfolio_os_function_hardening","statementsMd5":"9fddfe9b93c7a8fb0900235f7faa0894"},
+    {"version":"20260807170215","name":"portfolio_os_function_execute_scope","statementsMd5":"e2cce25ac8270873316e0473a260aac4"},
+    {"version":"20260807170421","name":"portfolio_os_user_profiles","statementsMd5":"846dc2dec8e757a9c8d92036542984dd"}
+  ],
+  "sourceOnlyReleaseGated": [
+    {"version":"20260824023000","name":"business_units_access_foundation","classification":"not_applied_live"},
+    {"version":"20260824033000","name":"partner_operations_foundation","classification":"not_applied_live"},
+    {"version":"20260824125000","name":"business_units_brand_alignment","classification":"not_applied_live"}
+  ],
+  "versionRemapCandidatesRequiringSemanticComparison": [
+    {"repoVersion":"202607230001","liveVersion":"20260803203802","name":"signals_decisions","liveStatementsMd5":"850435454c050b63f7cfba52630057c3"},
+    {"repoVersion":"202607230002","liveVersion":"20260803203935","name":"missions","liveStatementsMd5":"ec384817a9b3c38f60630f59e8568fc4"},
+    {"repoVersion":"202607230003","liveVersion":"20260803204027","name":"growth","liveStatementsMd5":"0fc3b831e079bc2e45cb4e26d625b182"},
+    {"repoVersion":"202607230004","liveVersion":"20260803204116","name":"control","liveStatementsMd5":"c5a81832faa44fc8f2316cb1ba0ae681"},
+    {"repoVersion":"202607230005","liveVersion":"20260803204417","name":"cross_cutting","liveStatementsMd5":"f86d4a99b03d2d8a297ef9651718e668"},
+    {"repoVersion":"202607230006","liveVersion":"20260803204430","name":"portal_foundation","liveStatementsMd5":"0d66b4cf28915b98859900b5a126f2f0"},
+    {"repoVersion":"202607230007","liveVersion":"20260803204937","name":"portal_home_projects","liveStatementsMd5":"6957687392d1993eb4359cecb34f0917"}
+  ],
+  "liveDuplicateNameObservation": [
+    {"version":"20260824125150","name":"client_media_workspace","statementsMd5":"16fe81bf9e2db7f7fd84eb6a3c5c7175"},
+    {"version":"20260824125223","name":"client_media_workspace","statementsMd5":"05820e0673db1322626790bbe3a39632"}
+  ],
+  "nextRequiredGates": [
+    "Compute repository-side normalized SQL hashes for remap candidates and compare semantics.",
+    "Replay canonical repository migrations into an isolated Supabase development branch.",
+    "Run positive and negative RLS persona tests against that branch.",
+    "Only then classify exact/equivalent/partial/not-applied and unblock Business Unit/Partner rollout."
+  ]
+}
