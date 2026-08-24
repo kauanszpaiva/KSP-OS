@@ -77,18 +77,21 @@ export function GrantDivisionAccessForm({
 }) {
   const [state, action, pending] = useActionState(setBusinessUnitMembership, initial);
   return (
-    <form action={action} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_auto] sm:items-center">
+    <form action={action} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-center">
       <input type="hidden" name="profileId" value={profileId} />
       <select name="businessUnitId" aria-label="Division" className={field} required defaultValue="">
         <option value="" disabled>Choose division</option>
         {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
       </select>
       <select name="accessLevel" aria-label="Division access level" className={field} defaultValue="member">
-        <option value="admin">Admin</option>
-        <option value="member">Member</option>
-        <option value="viewer">Viewer</option>
+        <option value="admin">Admin · can create projects</option>
+        <option value="member">Member · operating scope</option>
+        <option value="viewer">Viewer · scope label only</option>
       </select>
       <button type="submit" className={secondary} disabled={pending}>{pending ? 'Saving…' : 'Grant / update'}</button>
+      <p className="text-[10px] text-ink-4 sm:col-span-3">
+        Viewer is not a universal read-only role yet; project and action policies still decide mutation rights.
+      </p>
       <div className="sm:col-span-3"><Result state={state} /></div>
     </form>
   );
