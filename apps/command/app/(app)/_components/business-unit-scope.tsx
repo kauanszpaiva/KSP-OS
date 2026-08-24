@@ -28,8 +28,8 @@ export function BusinessUnitScope({
     <div className="mb-4 flex min-w-0 flex-col gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 shadow-card sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4">KSP OS scope</p>
-        <p className="truncate text-[13px] font-semibold text-ink">{active?.name ?? 'All KSP'}</p>
-        <p className="truncate text-[11px] text-ink-3">{active?.focus ?? 'Global command view across every KSP division.'}</p>
+        <p className="truncate text-[13px] font-semibold text-ink">{active?.name ?? 'KSP Inc. · All KSP'}</p>
+        <p className="truncate text-[11px] text-ink-3">{active?.focus ?? 'Parent command view across every KSP vertical.'}</p>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         {canUseGlobalScope ? (
@@ -48,7 +48,7 @@ export function BusinessUnitScope({
             }}
             className="h-10 min-w-[13rem] rounded-lg border border-line-2 bg-surface px-3 text-[12px] font-medium text-ink focus:border-brand focus:outline-none"
           >
-            {canUseGlobalScope && <option value={ALL_BUSINESS_UNITS}>All KSP</option>}
+            {canUseGlobalScope && <option value={ALL_BUSINESS_UNITS}>KSP Inc. · All KSP</option>}
             {units.map((unit) => (
               <option key={unit.id} value={unit.id}>{unit.name}</option>
             ))}
