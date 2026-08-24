@@ -1,8 +1,12 @@
 -- Invoices
+-- `clients` was renamed to `client_organizations` in
+-- 202607150002_identity_portal_finance_security.sql. Keep this later finance
+-- migration aligned with the canonical post-rename relation so a clean full
+-- migration replay does not depend on historical production residue.
 create table invoices (
     id uuid primary key default gen_random_uuid(),
     organization_id uuid not null references organizations(id),
-    client_id uuid not null references clients(id),
+    client_id uuid not null references client_organizations(id),
     status record_status not null default 'draft',
     amount_minor bigint not null default 0 check (amount_minor >= 0),
     balance_minor bigint not null default 0 check (balance_minor >= 0),

@@ -2,25 +2,37 @@ import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getCampaigns, getContentItems } from '../data';
 import { getClientMediaWorkspaceData } from '../client-media-data';
+import { getSocialDistributionWorkspaceData } from '../social-distribution-data';
 import { PageHeader } from '../_components/ui';
 import { CampaignForm, ContentItemForm } from '../_components/growth-forms';
 import { ContentView } from '../_components/content-view';
 import { ClientMediaWorkspace } from '../_components/client-media-workspace';
 import { ClientPostingPlanForm } from '../_components/client-posting-plan-form';
+import { SocialDistributionWorkspace } from '../_components/social-distribution-workspace';
 
 export default async function ContentPage() {
   await requireSession();
   const supabase = await getServerSupabase();
-  const [items, campaigns, media] = supabase
-    ? await Promise.all([getContentItems(supabase), getCampaigns(supabase), getClientMediaWorkspaceData(supabase)])
-    : [[], [], { projects: [], contentItems: [], versions: [] }];
+  const [items, campaigns, media, social] = supabase
+    ? await Promise.all([
+        getContentItems(supabase),
+        getCampaigns(supabase),
+        getClientMediaWorkspaceData(supabase),
+        getSocialDistributionWorkspaceData(supabase)
+      ])
+    : [
+        [],
+        [],
+        { projects: [], contentItems: [], versions: [] },
+        { clients: [], profiles: [], contentItems: [], distributions: [] }
+      ];
 
   return (
     <div>
       <PageHeader
         eyebrow="Growth · KSP Agency"
         title="Content & Client Media"
-        description="Plan the posting calendar, publish the client schedule, upload real video versions, review privately, and release only client-ready work."
+        description="Plan content once, route it to the right social profiles, separate publication responsibility, upload real video versions, and keep client delivery distinct from proof of social publication."
       />
 
       <div className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-2 lg:gap-4">
@@ -43,6 +55,13 @@ export default async function ContentPage() {
       </div>
 
       <ClientPostingPlanForm projects={media.projects} />
+      <SocialDistributionWorkspace
+        clients={social.clients}
+        profiles={social.profiles}
+        contentItems={social.contentItems}
+        distributions={social.distributions}
+        projects={media.projects}
+      />
       <ClientMediaWorkspace projects={media.projects} contentItems={media.contentItems} versions={media.versions} />
       <ContentView items={items} />
     </div>
