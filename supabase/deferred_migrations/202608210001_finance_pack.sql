@@ -1,3 +1,12 @@
+-- DEFERRED LEGACY FINANCE PACK.
+--
+-- This file is preserved for lineage evidence only. It is intentionally not part
+-- of the active replay chain because it targets the pre-identity `clients`
+-- relation and creates a legacy `invoices`/`invoice_lines` shape that conflicts
+-- with the later canonical `202608211915_invoice_delivery.sql` migration.
+-- Do not promote this file to active migrations without a new reviewed finance
+-- migration design.
+
 -- Invoices
 create table invoices (
     id uuid primary key default gen_random_uuid(),

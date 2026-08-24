@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "activeMigrationCount": 46,
+  "deferredMigrationCount": 2,
+  "activeSchemaSha256": "550c5bfcad034790ebd789796accf0a534ae16a7e11ab234410df3b94e5d4492",
+  "observedFromCiRun": 399,
+  "observedAt": "2026-08-24T19:28:07Z",
+  "note": "Reviewed repository schema fingerprint after PR #122. Any active migration content/addition/removal must intentionally update this manifest in the same reviewed change."
+}
