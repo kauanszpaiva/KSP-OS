@@ -181,6 +181,20 @@ const actorTests = `
     ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'Client A Project', 'test'),
     ('40000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002', 'Client B Project', 'test');
 
+  -- Portal project visibility is explicit after 20260822122600. Production
+  -- client-owner invitation acceptance creates these project.read grants; this
+  -- harness inserts memberships directly, so mirror that post-acceptance state.
+  insert into project_access_grants (
+    organization_id,
+    project_id,
+    client_organization_id,
+    profile_id,
+    action,
+    created_by
+  ) values
+    ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003', 'project.read', '20000000-0000-0000-0000-000000000001'),
+    ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000004', 'project.read', '20000000-0000-0000-0000-000000000001');
+
   insert into documents (organization_id, client_id, title, storage_path, classification, client_visible, status) values
     ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'doc-a-public', '/test/a-public', 'public', true, 'active'),
     ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'doc-a-confidential', '/test/a-confidential', 'confidential', true, 'active'),
