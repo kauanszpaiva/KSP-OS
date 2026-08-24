@@ -363,10 +363,9 @@ try {
   psql('full_chain', backupRestoreTests);
   psql('full_chain', recoveryTests);
 
-  const dump = run('docker', ['exec', containerName, 'pg_dump', '-U', 'postgres', '-d', 'full_chain', '--format=custom']);
+  const dump = run('docker', ['exec', containerName, 'pg_dump', '-U', 'postgres', '-d', 'full_chain', '--format=custom'], { encoding: null });
   createDb('restored');
-  const restore = run('docker', ['exec', '-i', containerName, 'pg_restore', '-U', 'postgres', '-d', 'restored'], { input: dump.stdout, encoding: null });
-  if (restore.status !== 0) throw new Error(`pg_restore failed (${restore.status})`);
+  run('docker', ['exec', '-i', containerName, 'pg_restore', '-U', 'postgres', '-d', 'restored'], { input: dump.stdout });
   const restoredProbe = psql('restored', `select case when exists(select 1 from backup_restore_probe where note='before-backup') then 'restore-ok' else 'restore-failed' end;`);
   if (!restoredProbe.stdout.includes('restore-ok')) throw new Error('Backup/restore rehearsal failed.');
 
