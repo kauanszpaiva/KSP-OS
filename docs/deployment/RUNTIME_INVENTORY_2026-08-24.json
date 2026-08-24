@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-08-24",
+  "purpose": "Read-only evidence baseline for P0 source/database/runtime reconciliation. This file is not authorization to apply production DDL.",
+  "repository": {
+    "fullName": "kauanszpaiva/KSP-OS",
+    "defaultBranch": "main",
+    "observedMainSha": "b052976fb94a0a4d55fca5bdade62bda5fd71dc2",
+    "productionDdlBlocked": true,
+    "lineageManifest": "docs/deployment/APPROVED_DATABASE_LINEAGE.json"
+  },
+  "supabase": {
+    "projectRef": "tqwnsxjrlomosfblleqy",
+    "projectName": "appkspos",
+    "statusObserved": "ACTIVE_HEALTHY",
+    "businessUnitFoundationObservedInMigrationHistory": false,
+    "partnerFoundationObservedInMigrationHistory": false,
+    "businessUnitTablesObserved": false,
+    "partnerTablesObserved": false,
+    "runtimeEdgeFunctions": [
+      {
+        "slug": "ksp-auth-send-email",
+        "verifyJwt": false,
+        "sourceControlled": true
+      },
+      {
+        "slug": "ksp-invoice-send",
+        "verifyJwt": true,
+        "sourceControlled": true
+      },
+      {
+        "slug": "ksp-provision-bruno-once",
+        "verifyJwt": true,
+        "sourceControlled": false,
+        "observedBehavior": "Current deployed source returns HTTP 404 for every request; candidate for decommission after ownership/deployment review."
+      },
+      {
+        "slug": "ksp-portal-synthetic-setup",
+        "verifyJwt": false,
+        "sourceControlled": false,
+        "observedBehavior": "One-purpose BEZ TEAM activation flow. Its pinned portal invitation was observed as already accepted; candidate for decommission after ownership/deployment review."
+      }
+    ],
+    "securityAdvisor": {
+      "requiresTriage": true,
+      "categoriesObserved": [
+        "function_search_path_mutable",
+        "anon_security_definer_function_executable",
+        "authenticated_security_definer_function_executable",
+        "auth_leaked_password_protection"
+      ]
+    }
+  },
+  "vercel": {
+    "connectedTeamId": "team_8ywOglpfLhAvtIzGNRmAAPhg",
+    "connectedTeamName": "KSP Dominion Group",
+    "projectsVisibleInConnectedTeam": 0,
+    "interpretation": "Deployment topology remains unverified. Zero visible projects in this connected team is not evidence that Command, Portal or Network are undeployed elsewhere."
+  },
+  "releaseRules": [
+    "Do not mark migrations applied or rename history to manufacture parity.",
+    "Do not apply Business Unit or Partner production migrations before semantic lineage classification and staging replay.",
+    "Do not revoke SECURITY DEFINER execution until each function is classified as public RPC, authenticated business RPC or internal helper and its callers/tests are known.",
+    "Do not treat a successful frontend deployment as proof that database schema and runtime functions match the same release."
+  ]
+}
