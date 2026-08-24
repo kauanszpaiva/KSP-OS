@@ -64,9 +64,6 @@ create index if not exists business_units_org_status_idx
 create index if not exists business_unit_memberships_profile_idx
   on public.business_unit_memberships (profile_id, business_unit_id)
   where suspended_at is null;
-create index if not exists business_unit_memberships_unit_idx
-  on public.business_unit_memberships (business_unit_id, profile_id)
-  where suspended_at is null;
 create index if not exists projects_business_unit_idx
   on public.projects (business_unit_id, status)
   where business_unit_id is not null;
@@ -218,6 +215,32 @@ drop policy if exists business_unit_memberships_delete on public.business_unit_m
 create policy business_unit_memberships_delete on public.business_unit_memberships
 for delete to authenticated
 using (public.is_executive(organization_id));
+
+-- Portal-only users need to hydrate their own fine-grained client grants. The
+-- existing internal-read policy remains untouched; this additional policy exposes
+-- only active grants whose client organization also has an active membership for
+-- the same signed-in profile. It does not expose another client's grants and does
+-- not grant access by itself: publication/classification checks still run in the
+-- application permission engine and resource RLS.
+drop policy if exists client_permission_grants_self_portal_read on public.client_permission_grants;
+create policy client_permission_grants_self_portal_read on public.client_permission_grants
+for select to authenticated
+using (
+  profile_id = auth.uid()
+  and revoked_at is null
+  and effective_from <= now()
+  and (effective_until is null or effective_until > now())
+  and exists (
+    select 1
+    from public.client_memberships cm
+    where cm.organization_id = client_permission_grants.organization_id
+      and cm.client_organization_id = client_permission_grants.client_organization_id
+      and cm.profile_id = auth.uid()
+      and cm.suspended_at is null
+      and cm.effective_from <= now()
+      and (cm.effective_until is null or cm.effective_until > now())
+  )
+);
 
 -- Classified internal projects require both the existing project entitlement and
 -- access to the assigned business unit through the central helper above. Portal
