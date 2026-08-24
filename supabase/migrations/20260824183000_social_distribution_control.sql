@@ -10,7 +10,7 @@
 --   2. one content item may target multiple social profiles;
 --   3. profile defaults may be overridden per distribution;
 --   4. published state requires explicit publication evidence;
---   5. all profile/distribution relations remain organization-scoped.
+--   5. profile/content/media relations must remain in the same org and scope.
 
 create table if not exists public.social_profiles (
   id uuid primary key default gen_random_uuid(),
@@ -20,6 +20,7 @@ create table if not exists public.social_profiles (
   display_name text not null,
   platform text not null default 'instagram',
   handle text,
+  editorial_role text,
   account_owner text,
   default_control_mode text not null default 'unknown',
   default_publisher text,
@@ -35,7 +36,12 @@ create table if not exists public.social_profiles (
 );
 
 create unique index if not exists social_profiles_identity_idx
-  on public.social_profiles (organization_id, lower(display_name), lower(platform));
+  on public.social_profiles (
+    organization_id,
+    lower(display_name),
+    lower(platform),
+    coalesce(project_id, '00000000-0000-0000-0000-000000000000'::uuid)
+  );
 create index if not exists social_profiles_client_idx
   on public.social_profiles (organization_id, client_id, is_active);
 create index if not exists social_profiles_project_idx
@@ -73,6 +79,7 @@ create table if not exists public.social_distributions (
     'awaiting_external',
     'scheduled',
     'published',
+    'withdrawn',
     'skipped'
   )),
   constraint social_distributions_evidence_kind_check check (evidence_kind in ('none', 'owner_confirmation', 'publication_url', 'platform_api', 'manual')),
@@ -80,8 +87,11 @@ create table if not exists public.social_distributions (
     status <> 'published'
     or (
       published_at is not null
-      and evidence_kind <> 'none'
-      and (evidence_kind <> 'publication_url' or publication_url is not null)
+      and (
+        (evidence_kind = 'publication_url' and publication_url is not null)
+        or
+        (evidence_kind in ('owner_confirmation', 'platform_api', 'manual') and evidence_note is not null)
+      )
     )
   )
 );
@@ -96,11 +106,13 @@ create index if not exists social_distributions_version_idx
   on public.social_distributions (deliverable_version_id)
   where deliverable_version_id is not null;
 
--- Prevent a same-org row from referencing a client/project in another tenant.
+-- Keep client/project scope coherent even for direct API callers.
 create or replace function public.validate_social_profile_scope()
 returns trigger
 language plpgsql
 as $$
+declare
+  project_client_id uuid;
 begin
   if new.client_id is not null and not exists (
     select 1 from public.client_organizations c
@@ -109,11 +121,20 @@ begin
     raise exception 'social profile client must belong to the same organization';
   end if;
 
-  if new.project_id is not null and not exists (
-    select 1 from public.projects p
-    where p.id = new.project_id and p.organization_id = new.organization_id
-  ) then
-    raise exception 'social profile project must belong to the same organization';
+  if new.project_id is not null then
+    select p.client_id
+      into project_client_id
+      from public.projects p
+      where p.id = new.project_id
+        and p.organization_id = new.organization_id;
+
+    if not found then
+      raise exception 'social profile project must belong to the same organization';
+    end if;
+
+    if new.client_id is not null and project_client_id is distinct from new.client_id then
+      raise exception 'social profile client must match the project client';
+    end if;
   end if;
 
   return new;
@@ -126,32 +147,63 @@ before insert or update of organization_id, client_id, project_id
 on public.social_profiles
 for each row execute function public.validate_social_profile_scope();
 
--- The distribution relation itself is also tenant-bound. This matters even
--- when a direct API caller bypasses the Command UI.
+-- The distribution relation is tenant- and content-bound. A same-org video is
+-- still rejected when it belongs to a different content item.
 create or replace function public.validate_social_distribution_scope()
 returns trigger
 language plpgsql
 as $$
+declare
+  content_project_id uuid;
+  content_client_id uuid;
+  profile_project_id uuid;
+  profile_client_id uuid;
+  version_content_item_id uuid;
 begin
-  if not exists (
-    select 1 from public.content_items c
-    where c.id = new.content_item_id and c.organization_id = new.organization_id
-  ) then
+  select c.project_id, c.client_id
+    into content_project_id, content_client_id
+    from public.content_items c
+    where c.id = new.content_item_id
+      and c.organization_id = new.organization_id;
+
+  if not found then
     raise exception 'social distribution content item must belong to the same organization';
   end if;
 
-  if not exists (
-    select 1 from public.social_profiles p
-    where p.id = new.social_profile_id and p.organization_id = new.organization_id
-  ) then
+  select p.project_id, p.client_id
+    into profile_project_id, profile_client_id
+    from public.social_profiles p
+    where p.id = new.social_profile_id
+      and p.organization_id = new.organization_id;
+
+  if not found then
     raise exception 'social distribution profile must belong to the same organization';
   end if;
 
-  if new.deliverable_version_id is not null and not exists (
-    select 1 from public.deliverable_versions v
-    where v.id = new.deliverable_version_id and v.organization_id = new.organization_id
-  ) then
-    raise exception 'social distribution deliverable version must belong to the same organization';
+  if profile_project_id is not null and profile_project_id is distinct from content_project_id then
+    raise exception 'social distribution profile is scoped to a different project';
+  end if;
+
+  if profile_client_id is not null and profile_client_id is distinct from content_client_id then
+    raise exception 'social distribution profile is scoped to a different client';
+  end if;
+
+  if new.deliverable_version_id is not null then
+    select d.content_item_id
+      into version_content_item_id
+      from public.deliverable_versions v
+      join public.deliverables d on d.id = v.deliverable_id
+      where v.id = new.deliverable_version_id
+        and v.organization_id = new.organization_id
+        and d.organization_id = new.organization_id;
+
+    if not found then
+      raise exception 'social distribution deliverable version must belong to the same organization';
+    end if;
+
+    if version_content_item_id is distinct from new.content_item_id then
+      raise exception 'social distribution deliverable version must belong to the same content item';
+    end if;
   end if;
 
   return new;
