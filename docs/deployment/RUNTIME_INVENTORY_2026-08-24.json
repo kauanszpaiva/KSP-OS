@@ -1,22 +1,48 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "observedAt": "2026-08-24",
   "purpose": "Read-only evidence baseline for P0 source/database/runtime reconciliation. This file is not authorization to apply production DDL.",
   "repository": {
     "fullName": "kauanszpaiva/KSP-OS",
     "defaultBranch": "main",
-    "observedMainSha": "b052976fb94a0a4d55fca5bdade62bda5fd71dc2",
+    "observedMainSha": "588b360637e7e1d5103bf17ba072772edb882928",
     "productionDdlBlocked": true,
-    "lineageManifest": "docs/deployment/APPROVED_DATABASE_LINEAGE.json"
+    "lineageManifest": "docs/deployment/APPROVED_DATABASE_LINEAGE.json",
+    "liveMigrationRemapEvidence": "docs/deployment/LIVE_MIGRATION_REMAPS_2026-08-24.json"
   },
   "supabase": {
-    "projectRef": "tqwnsxjrlomosfblleqy",
-    "projectName": "appkspos",
-    "statusObserved": "ACTIVE_HEALTHY",
-    "businessUnitFoundationObservedInMigrationHistory": false,
-    "partnerFoundationObservedInMigrationHistory": false,
-    "businessUnitTablesObserved": false,
-    "partnerTablesObserved": false,
+    "production": {
+      "projectRef": "tqwnsxjrlomosfblleqy",
+      "projectName": "appkspos",
+      "statusObserved": "ACTIVE_HEALTHY",
+      "businessUnitFoundationObservedInMigrationHistory": false,
+      "partnerFoundationObservedInMigrationHistory": false,
+      "businessUnitTablesObserved": false,
+      "partnerTablesObserved": false,
+      "productionDdlBlocked": true
+    },
+    "staging": {
+      "projectRef": "yszxtinabzamsayfkymq",
+      "developmentBranchPresent": true,
+      "canonicalReplayStatus": "partial",
+      "businessUnitsApplied": true,
+      "partnerOperationsApplied": true,
+      "businessUnitBrandAlignmentApplied": true,
+      "securityFunctionHardeningApplied": true,
+      "behavioralValidation": [
+        "business-unit member isolation",
+        "cross-business-unit project denial",
+        "founder and executive_operations global business-unit visibility",
+        "future membership and grant denial",
+        "business-unit revocation and child-row denial",
+        "cross-organization classification denial",
+        "partner isolation",
+        "cross-partner assignment response denial",
+        "cross-vertical assignment denial",
+        "partner offboarding denial",
+        "approval-decision trigger after direct RPC revocation"
+      ]
+    },
     "runtimeEdgeFunctions": [
       {
         "slug": "ksp-auth-send-email",
@@ -31,36 +57,63 @@
       {
         "slug": "ksp-provision-bruno-once",
         "verifyJwt": true,
-        "sourceControlled": false,
-        "observedBehavior": "Current deployed source returns HTTP 404 for every request; candidate for decommission after ownership/deployment review."
+        "sourceControlled": true,
+        "observedBehavior": "One-time provisioner is inert and returns HTTP 404. Source is now tracked in the repository."
       },
       {
         "slug": "ksp-portal-synthetic-setup",
-        "verifyJwt": false,
-        "sourceControlled": false,
-        "observedBehavior": "One-purpose BEZ TEAM activation flow. Its pinned portal invitation was observed as already accepted; candidate for decommission after ownership/deployment review."
+        "verifyJwt": true,
+        "sourceControlled": true,
+        "deployedVersionObserved": 3,
+        "observedBehavior": "Consumed BEZ TEAM activation runtime is retired and returns HTTP 410 activation_retired. Production runtime was redeployed from repository-equivalent inert source with JWT verification enabled."
       }
     ],
     "securityAdvisor": {
-      "requiresTriage": true,
-      "categoriesObserved": [
-        "function_search_path_mutable",
-        "anon_security_definer_function_executable",
+      "productionRequiresTriage": true,
+      "stagingTargetedHardeningValidated": true,
+      "remainingProductionCategories": [
         "authenticated_security_definer_function_executable",
         "auth_leaked_password_protection"
-      ]
+      ],
+      "note": "Do not infer that staging hardening has been promoted to production; production database DDL remains blocked."
     }
   },
   "vercel": {
     "connectedTeamId": "team_8ywOglpfLhAvtIzGNRmAAPhg",
     "connectedTeamName": "KSP Dominion Group",
-    "projectsVisibleInConnectedTeam": 0,
-    "interpretation": "Deployment topology remains unverified. Zero visible projects in this connected team is not evidence that Command, Portal or Network are undeployed elsewhere."
+    "previewProjectsObservedThroughGitHubIntegration": [
+      {
+        "surface": "Command",
+        "project": "ksp-os-command",
+        "projectId": "prj_Ajm8CXfHQEdsC6LtMN6gayR9mi7r",
+        "rootDirectory": "apps/command"
+      },
+      {
+        "surface": "Portal",
+        "project": "ksp-os-portal",
+        "projectId": "prj_nn06qnwA5kFwq0y2UBF74xcdK2TP",
+        "rootDirectory": "apps/portal"
+      },
+      {
+        "surface": "Network",
+        "project": "kspnetwork",
+        "projectId": "prj_fJtKOFCzofQPvkop1QDGr8qiZyXq",
+        "rootDirectory": "apps/network"
+      }
+    ],
+    "previewSupabaseBindingVerified": false,
+    "interpretation": "GitHub integration proves active Vercel Preview deployments for all three surfaces. Available Vercel API access still does not expose the Preview environment-variable binding, so previews must not be assumed isolated from production until NEXT_PUBLIC_SUPABASE_URL is verified."
+  },
+  "governance": {
+    "mainProtected": false,
+    "branchProtectionIssue": 119,
+    "note": "Available GitHub connector access does not expose a branch-protection/ruleset mutation action."
   },
   "releaseRules": [
     "Do not mark migrations applied or rename history to manufacture parity.",
-    "Do not apply Business Unit or Partner production migrations before semantic lineage classification and staging replay.",
-    "Do not revoke SECURITY DEFINER execution until each function is classified as public RPC, authenticated business RPC or internal helper and its callers/tests are known.",
+    "Seven July-to-August migration version remaps are classified normalized_sql_equivalent in LIVE_MIGRATION_REMAPS_2026-08-24.json.",
+    "Do not apply Business Unit, Partner Operations, or staging security-hardening DDL to production until remaining live-only lineage is classified and environment binding is verified.",
+    "Do not revoke SECURITY DEFINER execution until each remaining function is classified as public RPC, authenticated business RPC, or internal helper and its callers/tests are known.",
     "Do not treat a successful frontend deployment as proof that database schema and runtime functions match the same release."
   ]
 }
