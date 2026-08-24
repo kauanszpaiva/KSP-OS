@@ -53,6 +53,30 @@ async function logMediaEvent(supabase: any, ctx: any, verb: string, versionId: s
   ]);
 }
 
+async function getOrCreateClientMediaPackage(supabase: any, ctx: any, projectId: string) {
+  let { data: workPackage } = await supabase
+    .from('work_packages')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('organization_id', ctx.organizationId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!workPackage) {
+    const created = await supabase
+      .from('work_packages')
+      .insert({ organization_id: ctx.organizationId, project_id: projectId, name: 'Client Media', status: 'active', created_by: ctx.user.id })
+      .select('id')
+      .single();
+    if (created.error || !created.data) return null;
+    workPackage = created.data;
+  }
+
+  return workPackage;
+}
+
 export async function prepareClientMediaUpload(form: FormData): Promise<ClientMediaActionResult> {
   const auth = await session();
   if (!auth) return { ok: false, error: 'Sign in to upload media.' };
@@ -89,25 +113,8 @@ export async function prepareClientMediaUpload(form: FormData): Promise<ClientMe
     }
   }
 
-  let { data: workPackage } = await supabase
-    .from('work_packages')
-    .select('id')
-    .eq('project_id', projectId)
-    .eq('organization_id', ctx.organizationId)
-    .eq('status', 'active')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (!workPackage) {
-    const created = await supabase
-      .from('work_packages')
-      .insert({ organization_id: ctx.organizationId, project_id: projectId, name: 'Client Media', status: 'active', created_by: ctx.user.id })
-      .select('id')
-      .single();
-    if (created.error || !created.data) return { ok: false, error: 'Could not create the project media workspace.' };
-    workPackage = created.data;
-  }
+  const workPackage = await getOrCreateClientMediaPackage(supabase, ctx, projectId);
+  if (!workPackage) return { ok: false, error: 'Could not create the project media workspace.' };
 
   let deliverableQuery = supabase
     .from('deliverables')
@@ -211,6 +218,129 @@ export async function failClientMediaUpload(form: FormData): Promise<ClientMedia
   if (!versionId) return { ok: false };
   await supabase.from('deliverable_versions').update({ upload_state: 'failed' }).eq('id', versionId).eq('organization_id', ctx.organizationId).eq('upload_state', 'pending');
   return { ok: true, versionId };
+}
+
+export async function linkClientMediaToProject(_prev: ClientMediaActionResult, form: FormData): Promise<ClientMediaActionResult> {
+  const auth = await session();
+  if (!auth) return { ok: false, error: 'Sign in to link media.' };
+  const { supabase, ctx } = auth;
+  const sourceVersionId = String(form.get('sourceVersionId') ?? '').trim();
+  const targetProjectId = String(form.get('targetProjectId') ?? '').trim();
+  if (!sourceVersionId || !targetProjectId) return { ok: false, error: 'Choose a target client project.' };
+
+  const { data: sourceVersion } = await supabase
+    .from('deliverable_versions')
+    .select('id, deliverable_id, storage_bucket, storage_path, file_name, mime_type, file_size_bytes, upload_state')
+    .eq('id', sourceVersionId)
+    .eq('organization_id', ctx.organizationId)
+    .maybeSingle();
+  if (!sourceVersion || sourceVersion.upload_state !== 'ready' || sourceVersion.storage_bucket !== CLIENT_MEDIA_BUCKET || !sourceVersion.storage_path) {
+    return { ok: false, error: 'Only a verified managed video can be linked.' };
+  }
+
+  const { data: sourceDeliverable } = await supabase
+    .from('deliverables')
+    .select('id, name, description, work_package_id')
+    .eq('id', sourceVersion.deliverable_id)
+    .eq('organization_id', ctx.organizationId)
+    .maybeSingle();
+  if (!sourceDeliverable) return { ok: false, error: 'Source deliverable is unavailable.' };
+
+  const { data: sourcePackage } = await supabase
+    .from('work_packages')
+    .select('project_id')
+    .eq('id', sourceDeliverable.work_package_id)
+    .eq('organization_id', ctx.organizationId)
+    .maybeSingle();
+  if (!sourcePackage) return { ok: false, error: 'Source project is unavailable.' };
+  if (sourcePackage.project_id === targetProjectId) return { ok: false, error: 'This video is already attached to that project.' };
+
+  const { data: targetProject } = await supabase
+    .from('projects')
+    .select('id, client_id')
+    .eq('id', targetProjectId)
+    .eq('organization_id', ctx.organizationId)
+    .maybeSingle();
+  if (!targetProject?.client_id) return { ok: false, error: 'Choose a client project you can access.' };
+
+  const targetPackage = await getOrCreateClientMediaPackage(supabase, ctx, targetProjectId);
+  if (!targetPackage) return { ok: false, error: 'Could not create the target media workspace.' };
+
+  let { data: targetDeliverable } = await supabase
+    .from('deliverables')
+    .select('id, name')
+    .eq('organization_id', ctx.organizationId)
+    .eq('work_package_id', targetPackage.id)
+    .eq('name', sourceDeliverable.name)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!targetDeliverable) {
+    const created = await supabase
+      .from('deliverables')
+      .insert({
+        organization_id: ctx.organizationId,
+        work_package_id: targetPackage.id,
+        name: sourceDeliverable.name,
+        description: sourceDeliverable.description || 'KSP Agency shared media delivery',
+        status: 'draft',
+        client_visible: false,
+        content_item_id: null
+      })
+      .select('id, name')
+      .single();
+    if (created.error || !created.data) return { ok: false, error: 'Could not create the linked deliverable.' };
+    targetDeliverable = created.data;
+  }
+
+  const { data: existing } = await supabase
+    .from('deliverable_versions')
+    .select('id')
+    .eq('deliverable_id', targetDeliverable.id)
+    .eq('storage_path', sourceVersion.storage_path)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return { ok: true, versionId: existing.id, deliverableId: targetDeliverable.id };
+
+  const { data: latest } = await supabase
+    .from('deliverable_versions')
+    .select('version_number')
+    .eq('deliverable_id', targetDeliverable.id)
+    .order('version_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const linkedVersionId = randomUUID();
+  const linkedVersionNumber = (latest?.version_number ?? 0) + 1;
+  const { error: insertError } = await supabase.from('deliverable_versions').insert({
+    id: linkedVersionId,
+    organization_id: ctx.organizationId,
+    deliverable_id: targetDeliverable.id,
+    version_number: linkedVersionNumber,
+    status: 'pending_review',
+    file_reference: null,
+    storage_bucket: sourceVersion.storage_bucket,
+    storage_path: sourceVersion.storage_path,
+    file_name: sourceVersion.file_name,
+    mime_type: sourceVersion.mime_type,
+    file_size_bytes: sourceVersion.file_size_bytes,
+    upload_state: 'ready',
+    client_visible: false,
+    published_at: null
+  });
+  if (insertError) return { ok: false, error: 'Could not link this video to the target project.' };
+
+  await logMediaEvent(
+    supabase,
+    ctx,
+    'client_media.linked_to_project',
+    linkedVersionId,
+    `Linked one stored client-media asset from version ${sourceVersionId} to project ${targetProjectId} without re-uploading bytes`
+  );
+  revalidatePath('/content');
+  revalidatePath('/projects');
+  return { ok: true, versionId: linkedVersionId, deliverableId: targetDeliverable.id };
 }
 
 export async function setClientMediaPublished(_prev: ClientMediaActionResult, form: FormData): Promise<ClientMediaActionResult> {
