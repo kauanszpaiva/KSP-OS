@@ -1,6 +1,6 @@
 'use client';
 
-import { Children, type ReactNode, useState } from 'react';
+import React, { Children, type ReactNode, useState } from 'react';
 
 export function ProgressiveList({ children, initial = 4 }: { children: ReactNode; initial?: number }) {
   const items = Children.toArray(children);
