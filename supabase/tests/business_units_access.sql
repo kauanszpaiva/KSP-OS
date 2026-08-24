@@ -1,16 +1,24 @@
 -- KSP OS business-unit authorization regression plan.
--- Run against a seeded Supabase preview/development branch after
--- 20260824023000_business_units_access_foundation.sql is applied.
+-- Run against a seeded Supabase preview/development branch after the full
+-- business-unit migration chain is applied.
+--
+-- This is the human-readable release scenario matrix. Core database/RLS cases
+-- also belong in business_units_access.test.sql and must execute in the Docker
+-- DB harness; Supabase runtime/Data API validation remains a pre-production gate.
 --
 -- Required identities:
---   OWNER_A   active founder_ceo
---   OWNER_B   active executive_operations
---   DEV_DOM   non-executive internal member assigned to Dominion
---   DEV_KDEV  non-executive internal member assigned to KSP Dev
---   DEV_AGY   non-executive internal member assigned to Agency
---   DEV_NONE  non-executive internal member with no unit membership
---   CLIENT_A  Portal-only user with a client membership/project entitlement
---   CLIENT_B  Portal-only user for a different client organization
+--   OWNER_A    active founder_ceo
+--   OWNER_B    active executive_operations
+--   ADMIN_DOM  non-executive Dominion access_level=admin
+--   DEV_DOM    non-executive Dominion access_level=member
+--   VIEW_DOM   non-executive Dominion access_level=viewer
+--   DEV_KDEV   non-executive KSP Dev access_level=member
+--   DEV_AGY    non-executive Agency access_level=member
+--   DEV_NONE   non-executive internal member with no unit membership
+--   FUTURE_INT internal organization membership with effective_from > now()
+--   FUTURE_BU  active internal member but business-unit membership effective_from > now()
+--   CLIENT_A   Portal-only user with a client membership/project entitlement
+--   CLIENT_B   Portal-only user for a different client organization
 --
 -- Seed projects:
 --   PROJ_DOM      business_unit_id = Dominion
@@ -25,28 +33,54 @@
 --   - OWNER_B can select Dominion + KSP Dev + Agency and all classified projects.
 --   - neither owner requires business_unit_memberships rows.
 --
+-- Effective-date boundary
+--   - FUTURE_INT is excluded by current_org_ids(), is_internal_member(),
+--     is_executive() and application getAuthContext() until effective_from.
+--   - a future-dated project_access_grant is excluded by has_project_access().
+--   - FUTURE_BU cannot access its unit or classified projects until effective_from.
+--
 -- Unit catalog
 --   - DEV_DOM can select Dominion but not KSP Dev or Agency.
 --   - DEV_KDEV can select KSP Dev but not Dominion or Agency.
 --   - DEV_AGY can select Agency but not Dominion or KSP Dev.
---   - DEV_NONE cannot select either unit.
+--   - DEV_NONE cannot select any operating unit.
 --   - non-executives cannot insert/update/delete business_units.
 --   - non-executives cannot grant/revoke business_unit_memberships.
 --
+-- New-project creation
+--   - OWNER_A can create a classified project in Dominion, KSP Dev or Agency.
+--   - ADMIN_DOM can create a project in Dominion.
+--   - ADMIN_DOM cannot create a project in KSP Dev/Agency without access there.
+--   - DEV_DOM access_level=member cannot create a project solely from unit scope.
+--   - VIEW_DOM access_level=viewer cannot create a project solely from unit scope.
+--   - an internal user with organization-wide project.manage plus active unit
+--     visibility may create a project in that visible unit.
+--   - DEV_NONE cannot create in any unit.
+--   - no authenticated user, including an executive, can create a project with
+--     business_unit_id = null.
+--
 -- Project boundary
 --   - with an active project_membership, DEV_DOM can_access_project(PROJ_DOM) = true.
+--   - with an active project_membership, DEV_DOM can_access_project(PROJ_KDEV) = false.
 --   - with an active project_membership, DEV_DOM can_access_project(PROJ_AGY) = false.
---   - with an active project_membership, DEV_AGY can_access_project(PROJ_DOM) = false.
 --   - an expired project_membership is excluded from effective application scope.
 --   - a legacy project keeps old behavior: an assigned member can access PROJ_LEGACY.
---   - DEV_NONE cannot insert a project classified into Dominion, KSP Dev or Agency.
---   - a Dominion member cannot insert/update a project into Agency.
+--
+-- Structural classification boundary
+--   - OWNER_A can classify PROJ_LEGACY into any active unit.
+--   - a non-executive assigned to PROJ_DOM cannot clear business_unit_id.
+--   - a non-executive with access to multiple units cannot move PROJ_DOM to another
+--     unit through a direct update/API call.
+--   - project field updates that do not change business_unit_id continue through
+--     the existing project/action authorization path.
 --
 -- Compatibility inheritance
 --   - when OWNER_A assigns PROJ_LEGACY to Dominion, its current non-executive
 --     project members receive active Dominion memberships.
 --   - founder_ceo/executive_operations project members do not require inherited
 --     business_unit_memberships rows.
+--   - future-dated executive memberships are not treated as global owners until
+--     effective_from.
 --   - inserting a new non-executive project_member on PROJ_DOM creates/refreshes
 --     that person's Dominion membership.
 --
@@ -56,6 +90,14 @@
 --     the old project row.
 --   - project-owned child tables whose RLS delegates to can_access_project()
 --     also become unreadable/unwritable to DEV_DOM by direct API query.
+--
+-- Access-level semantics
+--   - admin has unit-local project creation authority.
+--   - member/viewer do not gain project creation from access_level alone.
+--   - viewer is NOT yet a universal read-only role; mutation rights on existing
+--     resources remain governed by project/action RLS and permission policies.
+--     Do not certify viewer as read-only until downstream action-level coverage is
+--     implemented and executed as a separate regression matrix.
 --
 -- Cross-organization integrity
 --   - a project cannot reference a business_unit_id from another organization.
@@ -79,5 +121,11 @@
 --   - before making projects.business_unit_id NOT NULL, assert:
 --       select count(*) from projects where status <> 'archived' and business_unit_id is null;
 --     returns 0 for all active operational projects.
+--
+-- Transactionality follow-up
+--   - project creation currently inserts the project then its creator membership;
+--     the application attempts cleanup if the second insert fails. This is not an
+--     atomic guarantee. Replace with a transaction/RPC before certifying creation
+--     against forced mid-operation failure scenarios.
 
 select 'business unit authorization regression plan present' as plan;
