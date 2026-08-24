@@ -8,5 +8,6 @@
 /packages/database/ @kauanszpaiva
 /apps/command/ @kauanszpaiva
 /apps/portal/ @kauanszpaiva
+/apps/network/ @kauanszpaiva
 /docs/deployment/ @kauanszpaiva
 /.github/workflows/ @kauanszpaiva
