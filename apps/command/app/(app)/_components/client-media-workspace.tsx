@@ -8,6 +8,7 @@ import type { ClientMediaContentOption, ClientMediaProjectOption, ClientMediaVer
 import {
   failClientMediaUpload,
   finalizeClientMediaUpload,
+  linkClientMediaToProject,
   prepareClientMediaUpload,
   setClientMediaPublished,
   type ClientMediaActionResult
@@ -42,6 +43,30 @@ function PublicationButton({ version }: { version: ClientMediaVersionView }) {
   );
 }
 
+function LinkToProjectForm({ version, targets }: { version: ClientMediaVersionView; targets: ClientMediaProjectOption[] }) {
+  const [state, action, pending] = useActionState(linkClientMediaToProject, initial);
+  useActionToast(state, 'Video linked to another client project without re-uploading');
+  if (targets.length === 0) return null;
+
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="sourceVersionId" value={version.id} />
+      <select
+        name="targetProjectId"
+        required
+        defaultValue={targets[0]?.id}
+        aria-label={`Link ${version.deliverableName} to another client project`}
+        className="rounded-lg border border-line-2 bg-surface px-2.5 py-1.5 text-[12px] text-ink"
+      >
+        {targets.map((target) => <option key={target.id} value={target.id}>{target.clientName} · {target.name}</option>)}
+      </select>
+      <button type="submit" disabled={pending} className="rounded-lg border border-line-2 px-3 py-1.5 text-[12px] font-medium text-brand hover:bg-brand-tint disabled:opacity-50">
+        {pending ? 'Linking…' : 'Link without re-upload'}
+      </button>
+    </form>
+  );
+}
+
 export function ClientMediaWorkspace({
   projects,
   contentItems,
@@ -60,6 +85,20 @@ export function ClientMediaWorkspace({
     if (!projectId) return [];
     return contentItems.filter((item) => item.projectId === projectId || (!item.projectId && project && item.clientId && versions.some((version) => version.projectId === projectId && version.clientName === project.clientName)));
   }, [contentItems, project, projectId, versions]);
+
+  function linkTargets(version: ClientMediaVersionView) {
+    const projectsAlreadyUsingAsset = new Set(
+      versions
+        .filter((candidate) => candidate.storagePath && candidate.storagePath === version.storagePath)
+        .map((candidate) => candidate.projectId)
+    );
+    return projects.filter((candidate) => !projectsAlreadyUsingAsset.has(candidate.id));
+  }
+
+  function assetUseCount(version: ClientMediaVersionView) {
+    if (!version.storagePath) return 1;
+    return versions.filter((candidate) => candidate.storagePath === version.storagePath).length;
+  }
 
   async function uploadVideo(form: HTMLFormElement) {
     setMessage(null);
@@ -109,7 +148,7 @@ export function ClientMediaWorkspace({
       if (!finalized.ok) throw new Error(finalized.error ?? 'Could not verify the uploaded video.');
 
       form.reset();
-      setMessage({ tone: 'good', text: 'Video uploaded privately. Review it below, then publish the version when it is client-ready.' });
+      setMessage({ tone: 'good', text: 'Video uploaded privately. Review it below, publish it when client-ready, or link the same stored asset to another client project without uploading it twice.' });
       router.refresh();
     } catch (error) {
       if (versionId) {
@@ -128,8 +167,8 @@ export function ClientMediaWorkspace({
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line px-4 py-4 sm:px-5">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">KSP Agency · Client media</p>
-          <h2 className="mt-1 text-[16px] font-semibold text-ink">Upload, review and publish the actual video</h2>
-          <p className="mt-1 max-w-2xl text-[12.5px] leading-5 text-muted">Every upload becomes a private version. Nothing reaches the client until you explicitly publish that version.</p>
+          <h2 className="mt-1 text-[16px] font-semibold text-ink">Upload once, review, then publish to the right client spaces</h2>
+          <p className="mt-1 max-w-2xl text-[12.5px] leading-5 text-muted">Every upload is private and versioned. The same physical video can be linked to multiple client projects without duplicating the file, while each client-facing version keeps its own publication state.</p>
         </div>
         <Badge tone={versions.some((version) => version.clientVisible) ? 'good' : 'neutral'}>{versions.filter((version) => version.clientVisible).length} client-ready</Badge>
       </div>
@@ -172,30 +211,40 @@ export function ClientMediaWorkspace({
       <div className="divide-y divide-line">
         {versions.length === 0 ? (
           <div className="px-5 py-6 text-[13px] text-muted">No managed client videos yet.</div>
-        ) : versions.map((version) => (
-          <div key={version.id} className="p-4 sm:p-5">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.75fr)] lg:items-start">
-              <div className="flex min-w-0 gap-3">
-                <ShapeMark shape="square" icon="content" label="Video deliverable" tone={version.clientVisible ? 'good' : version.uploadState === 'ready' ? 'accent' : 'neutral'} size="sm" />
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-[14px] font-semibold text-ink">{version.deliverableName}</p>
-                    <Badge tone={version.clientVisible ? 'good' : version.uploadState === 'failed' ? 'risk' : version.uploadState === 'ready' ? 'accent' : 'warn'}>{version.clientVisible ? 'Client portal' : version.uploadState}</Badge>
-                  </div>
-                  <p className="mt-1 text-[12px] text-ink-3">{version.clientName} · {version.projectName} · V{version.versionNumber}{version.contentItemTitle ? ` · ${version.contentItemTitle}` : ''}</p>
-                  <p className="mt-1 truncate text-[11.5px] text-ink-4">{version.fileName ?? 'Video'}{version.fileSizeBytes ? ` · ${formatMediaSize(version.fileSizeBytes)}` : ''}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {version.uploadState === 'ready' && <PublicationButton version={version} />}
-                    {version.signedUrl && <a href={version.signedUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-line-2 px-3 py-1.5 text-[12px] font-medium text-brand hover:bg-brand-tint">Open private preview ↗</a>}
+        ) : versions.map((version) => {
+          const reuseCount = assetUseCount(version);
+          return (
+            <div key={version.id} className="p-4 sm:p-5">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.75fr)] lg:items-start">
+                <div className="flex min-w-0 gap-3">
+                  <ShapeMark shape="square" icon="content" label="Video deliverable" tone={version.clientVisible ? 'good' : version.uploadState === 'ready' ? 'accent' : 'neutral'} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-[14px] font-semibold text-ink">{version.deliverableName}</p>
+                      <Badge tone={version.clientVisible ? 'good' : version.uploadState === 'failed' ? 'risk' : version.uploadState === 'ready' ? 'accent' : 'warn'}>{version.clientVisible ? 'Client portal' : version.uploadState}</Badge>
+                      {reuseCount > 1 && <Badge tone="brand">Shared asset ×{reuseCount}</Badge>}
+                    </div>
+                    <p className="mt-1 text-[12px] text-ink-3">{version.clientName} · {version.projectName} · V{version.versionNumber}{version.contentItemTitle ? ` · ${version.contentItemTitle}` : ''}</p>
+                    <p className="mt-1 truncate text-[11.5px] text-ink-4">{version.fileName ?? 'Video'}{version.fileSizeBytes ? ` · ${formatMediaSize(version.fileSizeBytes)}` : ''}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {version.uploadState === 'ready' && <PublicationButton version={version} />}
+                      {version.signedUrl && <a href={version.signedUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-line-2 px-3 py-1.5 text-[12px] font-medium text-brand hover:bg-brand-tint">Open private preview ↗</a>}
+                    </div>
+                    {version.uploadState === 'ready' && (
+                      <div className="mt-3 border-t border-line pt-3">
+                        <p className="mb-2 text-[11px] text-ink-4">Cross-client/collaboration asset</p>
+                        <LinkToProjectForm version={version} targets={linkTargets(version)} />
+                      </div>
+                    )}
                   </div>
                 </div>
+                {version.signedUrl && version.mimeType?.startsWith('video/') && (
+                  <video src={version.signedUrl} controls preload="metadata" playsInline className="aspect-video w-full rounded-xl bg-black object-contain" aria-label={`Preview ${version.deliverableName} version ${version.versionNumber}`} />
+                )}
               </div>
-              {version.signedUrl && version.mimeType?.startsWith('video/') && (
-                <video src={version.signedUrl} controls preload="metadata" playsInline className="aspect-video w-full rounded-xl bg-black object-contain" aria-label={`Preview ${version.deliverableName} version ${version.versionNumber}`} />
-              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
