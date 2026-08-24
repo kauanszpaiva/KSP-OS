@@ -3,7 +3,9 @@ import { requireSession } from '../../../lib/session';
 import { formatDate } from '../../../lib/format';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getDecisions, getSignals } from '../data';
+import { ShapeMark } from '@ksp/ui';
 import { PageHeader, Panel, SectionLabel, StatePill } from '../_components/ui';
+import { ProgressiveList } from '../_components/progressive-list';
 
 export default async function InboxPage() {
   await requireSession();
@@ -41,26 +43,20 @@ export default async function InboxPage() {
             {pendingDecisions.length === 0 ? (
               <Panel className="px-4 py-3 text-[13px] text-ink-3">All decisions are resolved.</Panel>
             ) : (
-              <div className="space-y-2.5">
+              <Panel className="overflow-hidden">
+                <ProgressiveList initial={4}>
                 {pendingDecisions.map((decision) => (
-                  <Link key={decision.id} href="/decisions" className="block min-w-0 rounded-2xl border border-warn/30 bg-surface p-4 shadow-card transition-colors hover:border-warn/60 sm:rounded-xl">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-warn">Decision needed</p>
-                        <h2 className="mt-1 text-[14px] font-semibold capitalize leading-snug text-ink sm:text-[14.5px]">{decision.approval_type.replace(/_/g, ' ')}</h2>
-                        <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-3">Requested by {decision.requesterName} · {formatDate(decision.created_at)}</p>
-                      </div>
-                      <StatePill state={decision.status} />
+                  <Link key={decision.id} href="/decisions" className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-line px-3 py-3 first:border-t-0 hover:bg-surface-2/60 sm:px-4">
+                    <ShapeMark shape="diamond" icon="decisions" label="Decision" tone="warn" size="sm" />
+                    <div className="min-w-0">
+                      <h2 className="truncate text-[13.5px] font-semibold capitalize text-ink">{decision.approval_type.replace(/_/g, ' ')}</h2>
+                      <p className="mt-0.5 truncate text-[11.5px] text-ink-3">{decision.requesterName} · {decision.risk_level} risk{decision.due_at ? ` · ${formatDate(decision.due_at)}` : ''}</p>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-line pt-3 text-[11.5px]">
-                      <span className={decision.risk_level === 'high' || decision.risk_level === 'critical' ? 'font-medium text-risk' : 'text-ink-3'}>
-                        {decision.risk_level} risk{decision.due_at ? ` · due ${formatDate(decision.due_at)}` : ''}
-                      </span>
-                      <span className="shrink-0 font-medium text-brand">Review →</span>
-                    </div>
+                    <StatePill state={decision.status} />
                   </Link>
                 ))}
-              </div>
+                </ProgressiveList>
+              </Panel>
             )}
           </section>
 
@@ -69,24 +65,20 @@ export default async function InboxPage() {
             {activeSignals.length === 0 ? (
               <Panel className="px-4 py-3 text-[13px] text-ink-3">No signals need triage.</Panel>
             ) : (
-              <div className="space-y-2.5">
+              <Panel className="overflow-hidden">
+                <ProgressiveList initial={5}>
                 {activeSignals.map((signal) => (
-                  <Link key={signal.id} href="/signals" className="block min-w-0 rounded-2xl border border-line bg-surface p-4 shadow-card transition-colors hover:border-line-2 sm:rounded-xl">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10.5px] font-medium uppercase tracking-[0.07em] text-ink-4">{signal.item_type.replace(/_/g, ' ')}</p>
-                        <h2 className="mt-1 text-[14px] font-semibold leading-snug text-ink sm:text-[14.5px]">{signal.title}</h2>
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium capitalize ${signal.triage_status === 'new' ? 'bg-warn-tint text-warn' : 'bg-brand-tint text-brand'}`}>{signal.triage_status}</span>
+                  <Link key={signal.id} href="/signals" className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-line px-3 py-3 first:border-t-0 hover:bg-surface-2/60 sm:px-4">
+                    <ShapeMark shape={signal.item_type === 'risk' ? 'triangle' : 'square'} icon="signals" label="Signal" tone={signal.item_type === 'risk' ? 'risk' : 'accent'} size="sm" />
+                    <div className="min-w-0">
+                      <h2 className="truncate text-[13.5px] font-semibold text-ink">{signal.title}</h2>
+                      <p className="mt-0.5 truncate text-[11.5px] text-ink-3">{signal.item_type.replace(/_/g, ' ')} · {signal.creatorName} · {formatDate(signal.created_at)}</p>
                     </div>
-                    {signal.body && <p className="mt-2.5 line-clamp-3 text-[12.5px] leading-relaxed text-ink-2">{signal.body}</p>}
-                    <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-line pt-3 text-[11.5px] text-ink-3">
-                      <span className="min-w-0 flex-1 truncate">{signal.creatorName} · {formatDate(signal.created_at)}</span>
-                      <span className="shrink-0 font-medium text-brand">Triage →</span>
-                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-medium capitalize ${signal.triage_status === 'new' ? 'bg-warn-tint text-warn' : 'bg-brand-tint text-brand'}`}>{signal.triage_status}</span>
                   </Link>
                 ))}
-              </div>
+                </ProgressiveList>
+              </Panel>
             )}
           </section>
         </div>

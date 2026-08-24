@@ -3,7 +3,9 @@ import { requireSession } from '../../../lib/session';
 import { daysUntil, formatDate } from '../../../lib/format';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getMyCommitments, getTasks } from '../data';
+import { ShapeMark } from '@ksp/ui';
 import { PageHeader, Panel, SectionLabel, StatePill } from '../_components/ui';
+import { ProgressiveList } from '../_components/progressive-list';
 
 type WorkItem = {
   id: string;
@@ -25,26 +27,20 @@ function itemBand(item: WorkItem): 'now' | 'today' | 'week' | 'later' {
   return 'later';
 }
 
-function WorkCard({ item }: { item: WorkItem }) {
+function WorkRow({ item }: { item: WorkItem }) {
   return (
     <Link
       href={item.href}
-      className="block min-w-0 rounded-2xl border border-line bg-surface p-4 shadow-card transition-[border-color,transform] duration-fast hover:border-line-2 active:scale-[0.995] sm:rounded-xl sm:p-5"
+      className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-line px-3 py-3 transition-colors first:border-t-0 hover:bg-surface-2/60 sm:px-4"
     >
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.13em] text-ink-4">{item.kind}</p>
-          <h3 className="mt-1.5 text-[15px] font-semibold leading-snug text-ink sm:text-[16px]">{item.title}</h3>
-        </div>
-        <StatePill state={item.state} />
+      <ShapeMark shape={item.kind === 'Task' ? 'square' : 'circle'} icon={item.kind === 'Task' ? 'workspace' : 'commitments'} label={item.kind} tone={item.blocked ? 'risk' : 'accent'} size="sm" />
+      <div className="min-w-0">
+        <h3 className="truncate text-[13.5px] font-semibold text-ink sm:text-[14px]">{item.title}</h3>
+        <p className={`mt-0.5 truncate text-[11.5px] ${item.blocked ? 'font-medium text-risk' : 'text-ink-3'}`}>
+          {item.kind} · {item.blocked ? 'Needs intervention' : item.date ? formatDate(item.date) : 'No date'}
+        </p>
       </div>
-      {item.detail && <p className="mt-3 line-clamp-3 text-[13px] leading-relaxed text-ink-2 sm:text-[13.5px]">{item.detail}</p>}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-line pt-3 text-[11.5px] sm:text-[12px]">
-        <span className={item.blocked ? 'font-medium text-risk' : 'text-ink-3'}>
-          {item.blocked ? 'Blocked — needs intervention' : item.date ? `Due ${formatDate(item.date)}` : 'No date set'}
-        </span>
-        <span className="shrink-0 font-medium text-brand">Open →</span>
-      </div>
+      <StatePill state={item.state} />
     </Link>
   );
 }
@@ -127,9 +123,11 @@ export default async function TodayPage() {
               <section key={group.key} className="min-w-0">
                 <SectionLabel right={<span className="tnum rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-ink-3">{items.length}</span>}>{group.label}</SectionLabel>
                 <p className="-mt-1 mb-3 text-[12px] leading-relaxed text-ink-4 sm:text-[12.5px]">{group.note}</p>
-                <div className="space-y-2.5 sm:space-y-3">
-                  {items.map((item) => <WorkCard key={item.id} item={item} />)}
-                </div>
+                <Panel className="overflow-hidden">
+                  <ProgressiveList initial={group.key === 'now' ? 5 : 4}>
+                    {items.map((item) => <WorkRow key={item.id} item={item} />)}
+                  </ProgressiveList>
+                </Panel>
               </section>
             );
           })}

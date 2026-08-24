@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { Reveal, Segmented } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
-import { StatePill, stateToneDotClass } from './ui';
+import { Panel, StatePill, stateToneDotClass } from './ui';
+import { ProgressiveList } from './progressive-list';
 
 export interface TimelineItem {
   id: string;
@@ -274,13 +275,13 @@ function ListView({ items }: { items: TimelineItem[] }) {
             <span className="absolute -left-[22px] top-1 h-3 w-3 rounded-full bg-brand ring-4 ring-canvas" aria-hidden />
             <h2 className="font-display text-[15px] font-semibold text-ink">{monthLabel(month)}</h2>
           </div>
-          <div className="space-y-2">
-            {monthItems.map((item) => {
+          <Panel className="overflow-hidden">
+            <ProgressiveList initial={7}>{monthItems.map((item) => {
               const overdue = isOverdue(item.end) && !['done', 'completed'].includes(item.state);
               return (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-2.5 transition-colors duration-fast hover:bg-surface-2"
+                  className="flex items-center justify-between gap-3 border-t border-line px-3 py-3 transition-colors first:border-t-0 hover:bg-surface-2 sm:px-4"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13.5px] font-medium text-ink">{item.title}</p>
@@ -292,8 +293,8 @@ function ListView({ items }: { items: TimelineItem[] }) {
                   </div>
                 </div>
               );
-            })}
-          </div>
+            })}</ProgressiveList>
+          </Panel>
         </Reveal>
       ))}
     </div>

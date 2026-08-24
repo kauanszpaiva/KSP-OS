@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { CompanyOutcome } from '@ksp/database';
-import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
+import { BarChart, Donut, Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import type { MemberRef } from '../data';
 import { EmptyState, Panel, Ring, SectionLabel, StatePill } from './ui';
 import { OutcomeForm, OutcomeStateForm } from './forms';
@@ -32,36 +32,45 @@ function Lane({ outcome, canManage, delay, index }: { outcome: CompanyOutcome | 
     );
   }
   return (
-    <Reveal
-      delay={delay}
-      className="flex min-h-[188px] flex-col rounded-xl border border-line bg-surface p-5 shadow-card transition-[border-color,box-shadow] duration-fast hover:border-line-2 hover:shadow-pop"
-    >
-      <div className="mb-3 flex items-center justify-between">
-        <SlotOrdinal n={index + 1} />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4">Strategic slot</span>
-      </div>
-      <div className="flex items-start gap-4">
-        <Ring value={outcome.progress} />
-        <div className="min-w-0 flex-1">
-          <h3 className="text-[15px] font-semibold leading-snug text-ink">{outcome.title}</h3>
-          <p className="mt-1 text-[12px] text-ink-3">
-            {outcome.metric ? `${outcome.metric}${outcome.target ? ` → ${outcome.target}` : ''}` : 'No metric set'}
-          </p>
-          {outcome.horizon_days && <p className="mt-0.5 text-[12px] text-ink-4">{outcome.horizon_days}-day horizon</p>}
+    <Reveal delay={delay}>
+      <details className="group rounded-xl border border-line bg-surface shadow-card open:border-line-2">
+        <summary className="grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 marker:hidden sm:px-4 md:block md:p-5 [&::-webkit-details-marker]:hidden">
+          <ShapeMark shape="circle" icon="outcomes" label={`Strategic slot ${index + 1}`} tone="accent" size="sm" className="md:hidden" />
+          <div className="min-w-0">
+            <div className="mb-3 hidden items-center justify-between md:flex">
+              <SlotOrdinal n={index + 1} />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-4">Strategic slot</span>
+            </div>
+            <div className="hidden items-start gap-4 md:flex">
+              <Ring value={outcome.progress} />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[15px] font-semibold leading-snug text-ink">{outcome.title}</h3>
+                <p className="mt-1 text-[12px] text-ink-3">
+                  {outcome.metric ? `${outcome.metric}${outcome.target ? ` → ${outcome.target}` : ''}` : 'No metric set'}
+                </p>
+                {outcome.horizon_days && <p className="mt-0.5 text-[12px] text-ink-4">{outcome.horizon_days}-day horizon</p>}
+              </div>
+            </div>
+            <div className="md:hidden">
+              <h3 className="truncate text-[14px] font-semibold text-ink">{outcome.title}</h3>
+              <p className="mt-0.5 truncate text-[11.5px] text-ink-3">
+                {outcome.metric || 'Strategic outcome'} · {outcome.horizon_days ? `${outcome.horizon_days} days` : 'No horizon'}
+              </p>
+            </div>
+          </div>
+          <span className="tnum text-[12px] font-semibold text-brand md:hidden">{outcome.progress}%</span>
+        </summary>
+        <div className="border-t border-line px-4 pb-4 pt-3 md:border-t-0 md:px-5 md:pt-0">
+          {outcome.description && <p className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-ink-2 md:mt-3">{outcome.description}</p>}
+          {canManage && (
+            <div className="mt-3 flex items-center gap-1 border-t border-line pt-3">
+              <OutcomeStateForm id={outcome.id} target="paused">Pause</OutcomeStateForm>
+              <OutcomeStateForm id={outcome.id} target="completed">Complete</OutcomeStateForm>
+              <span className="ml-auto"><DeleteButton action={deleteOutcome} id={outcome.id} label="Delete" iconOnly confirmText={`Delete outcome "${outcome.title}"?`} /></span>
+            </div>
+          )}
         </div>
-      </div>
-      {outcome.description && (
-        <p className="mt-3 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-ink-2">
-          {outcome.description}
-        </p>
-      )}
-      {canManage && (
-        <div className="mt-auto flex items-center gap-1 border-t border-line pt-3">
-          <OutcomeStateForm id={outcome.id} target="paused">Pause</OutcomeStateForm>
-          <OutcomeStateForm id={outcome.id} target="completed">Complete</OutcomeStateForm>
-          <span className="ml-auto"><DeleteButton action={deleteOutcome} id={outcome.id} label="Delete" iconOnly confirmText={`Delete outcome "${outcome.title}"?`} /></span>
-        </div>
-      )}
+      </details>
     </Reveal>
   );
 }

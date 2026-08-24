@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
+import { BarChart, Donut, Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
 import type { CommentView, CommitmentView } from '../data';
 import { EmptyState, Panel, Rail, SectionLabel, StatePill } from './ui';
@@ -10,6 +10,7 @@ import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteCommitment } from '../actions';
 import { TimelineView, type TimelineItem } from './schedule-view';
+import { ProgressiveList } from './progressive-list';
 
 function Row({ c, canOperate, canDecide, comments }: { c: CommitmentView; canOperate: boolean; canDecide: boolean; comments: CommentView[] }) {
   const overdue = isOverdue(c.due_date) && c.state !== 'completed';
@@ -18,7 +19,8 @@ function Row({ c, canOperate, canDecide, comments }: { c: CommitmentView; canOpe
   const dateLabel = c.due_date ? formatDate(c.due_date) : c.next_action_date ? formatDate(c.next_action_date) : '—';
   return (
     <details className="group border-t border-line transition-colors duration-fast first:border-t-0 hover:bg-surface-2/60 open:bg-canvas/60">
-      <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden md:grid-cols-[1fr_140px_90px_112px]">
+      <summary className="grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-3 py-3 marker:hidden sm:px-4 [&::-webkit-details-marker]:hidden md:grid-cols-[auto_minmax(0,1fr)_140px_90px_112px]">
+        <ShapeMark shape="circle" icon="commitments" label="Commitment" tone={overdue ? 'risk' : c.state === 'blocked' ? 'risk' : 'accent'} size="sm" />
         <div className="min-w-0">
           <p className="truncate text-[14px] font-medium text-ink">{c.title}</p>
           <p className="truncate text-[12px] text-ink-3">{c.outcome_statement}</p>
@@ -34,7 +36,7 @@ function Row({ c, canOperate, canDecide, comments }: { c: CommitmentView; canOpe
           <span className="w-14"><Rail value={c.progress} tone={overdue ? 'risk' : 'brand'} /></span>
           <span className="tnum text-[11.5px] text-ink-3">{c.progress}%</span>
         </span>
-        <span className="col-span-2 hidden md:col-span-4 md:block" />
+        <span className="col-span-3 hidden md:col-span-5 md:block" />
       </summary>
 
       <div className="space-y-3 px-4 pb-4">
@@ -104,13 +106,14 @@ function Group({
     <Reveal delay={delay}>
       <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{items.length}</span>}>{title}</SectionLabel>
       <Panel>
-        <div className="hidden grid-cols-[1fr_140px_90px_112px] gap-4 border-b border-line px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-4 md:grid">
+        <div className="hidden grid-cols-[auto_minmax(0,1fr)_140px_90px_112px] gap-4 border-b border-line px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-ink-4 md:grid">
+          <span />
           <span>Commitment</span>
           <span>Owner</span>
           <span>Due</span>
           <span>Progress</span>
         </div>
-        {items.map((c) => (
+        <ProgressiveList initial={title === 'Active' ? 7 : 4}>{items.map((c) => (
           <Row
             key={c.id}
             c={c}
@@ -118,7 +121,7 @@ function Group({
             canDecide={canDecideAll}
             comments={commentsByCommitment.get(c.id) ?? []}
           />
-        ))}
+        ))}</ProgressiveList>
       </Panel>
     </Reveal>
   );

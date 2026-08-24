@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
+import { BarChart, Donut, Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import { daysUntil, formatDate, isOverdue } from '../../../lib/format';
 import type { CommitmentView } from '../data';
-import { EmptyState, Rail, StatePill } from './ui';
+import { EmptyState, Panel, Rail, StatePill } from './ui';
 import { TimelineView, type TimelineItem } from './schedule-view';
+import { ProgressiveList } from './progressive-list';
 
 function effectiveDate(c: CommitmentView): string | null {
   return c.due_date ?? c.next_action_date ?? null;
@@ -41,14 +42,14 @@ function RunwayView({ mine }: { mine: CommitmentView[] }) {
                 <h2 className="text-[13px] font-semibold text-ink">{band.label}</h2>
                 <p className="text-[11.5px] text-ink-3">{band.note}</p>
               </div>
-              <div className="space-y-2">
-                {items.map((c) => (
+              <Panel className="overflow-hidden">
+                <ProgressiveList initial={band.key === 'now' ? 5 : 4}>{items.map((c) => (
                   <article
                     key={c.id}
-                    className="relative rounded-lg border border-line bg-surface px-4 py-3 transition-[border-color,box-shadow] duration-fast hover:border-line-2 hover:shadow-card"
+                    className="relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-line px-3 py-3 transition-colors first:border-t-0 hover:bg-surface-2/55 sm:px-4"
                   >
                     <span className="absolute -left-[19px] top-5 h-2 w-2 rounded-full border-2 border-canvas bg-ink-4" aria-hidden />
-                    <div className="flex items-start justify-between gap-3">
+                    <ShapeMark shape="circle" icon="focus" label={band.label} tone={band.key === 'now' ? 'risk' : band.key === 'soon' ? 'warn' : band.key === 'week' ? 'accent' : 'neutral'} size="sm" />
                       <div className="min-w-0">
                         <p className="truncate text-[14px] font-medium text-ink">{c.title}</p>
                         <p className="truncate text-[12px] text-ink-3">{c.outcome_statement}</p>
@@ -57,14 +58,12 @@ function RunwayView({ mine }: { mine: CommitmentView[] }) {
                         <StatePill state={c.state} />
                         <p className="tnum mt-1 text-[11.5px] text-ink-3">{formatDate(effectiveDate(c))}</p>
                       </div>
-                    </div>
-                    <div className="mt-3 flex items-center gap-3">
-                      <Rail value={c.progress} />
-                      <span className="tnum shrink-0 text-[11.5px] text-ink-3">{c.progress}%</span>
+                    <div className="col-start-2 col-end-4 flex items-center gap-3">
+                      <Rail value={c.progress} /> <span className="tnum shrink-0 text-[11px] text-ink-3">{c.progress}%</span>
                     </div>
                   </article>
-                ))}
-              </div>
+                ))}</ProgressiveList>
+              </Panel>
             </Reveal>
           );
         })}
