@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Reveal, Segmented } from '@ksp/ui';
+import { Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import type { ContentItemView } from '../data';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { Board, type BoardColumn } from './board-view';
 import { CalendarView, type CalendarItem } from './calendar-view';
 import { ContentStatusForm } from './growth-forms';
+import { ProgressiveList } from './progressive-list';
 
 function ReadinessDots({ item }: { item: { brief_ready: boolean; asset_ready: boolean; rights_cleared: boolean; caption_ready: boolean } }) {
   const flags: Array<[string, boolean]> = [
@@ -29,23 +30,27 @@ function ListView({ items }: { items: ContentItemView[] }) {
   return (
     <Reveal>
       <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{items.length}</span>}>Calendar</SectionLabel>
-      <Panel className="divide-y divide-line">
-        {items.map((item) => (
-          <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0 flex-1">
+      <Panel>
+        <ProgressiveList initial={4}>{items.map((item) => (
+          <details key={item.id} className="group border-t border-line first:border-t-0 open:bg-canvas/55">
+            <summary className="grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 marker:hidden sm:px-4 [&::-webkit-details-marker]:hidden">
+              <ShapeMark shape="square" icon="content" label="Content item" tone={item.status === 'published' ? 'good' : item.status === 'approved' || item.status === 'scheduled' ? 'accent' : 'neutral'} size="sm" />
+              <div className="min-w-0">
               <p className="truncate text-[14px] font-medium text-ink">{item.title}</p>
               <p className="mt-0.5 truncate text-[12px] text-ink-3">
                 {item.channel}
                 {item.campaignName ? ` · ${item.campaignName}` : ''}
                 {item.publish_date ? ` · ${formatDate(item.publish_date)}` : ''}
               </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
+              </div>
               <ReadinessDots item={item} />
+            </summary>
+            <div className="flex items-center justify-between border-t border-line px-4 py-3">
+              <span className="text-[11.5px] text-ink-3">Stage</span>
               <ContentStatusForm id={item.id} currentStatus={item.status} />
             </div>
-          </div>
-        ))}
+          </details>
+        ))}</ProgressiveList>
       </Panel>
     </Reveal>
   );

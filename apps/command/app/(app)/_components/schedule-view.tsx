@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Reveal, Segmented } from '@ksp/ui';
+import { Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
 import { Panel, StatePill, stateToneDotClass } from './ui';
 import { ProgressiveList } from './progressive-list';
@@ -276,21 +276,19 @@ function ListView({ items }: { items: TimelineItem[] }) {
             <h2 className="font-display text-[15px] font-semibold text-ink">{monthLabel(month)}</h2>
           </div>
           <Panel className="overflow-hidden">
-            <ProgressiveList initial={7}>{monthItems.map((item) => {
+            <ProgressiveList initial={4}>{monthItems.map((item) => {
               const overdue = isOverdue(item.end) && !['done', 'completed'].includes(item.state);
               return (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 border-t border-line px-3 py-3 transition-colors first:border-t-0 hover:bg-surface-2 sm:px-4"
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-line px-3 py-2.5 transition-colors first:border-t-0 hover:bg-surface-2 sm:px-4"
                 >
-                  <div className="min-w-0 flex-1">
+                  <ShapeMark shape={item.subtitle.toLowerCase().includes('milestone') ? 'diamond' : 'circle'} icon={item.subtitle.toLowerCase().includes('milestone') ? 'schedule' : 'commitments'} label={item.subtitle} tone={overdue ? 'risk' : item.state === 'at_risk' ? 'warn' : item.state === 'in_progress' ? 'accent' : 'neutral'} size="sm" />
+                  <div className="min-w-0">
                     <p className="truncate text-[13.5px] font-medium text-ink">{item.title}</p>
-                    <p className="truncate text-[11.5px] text-ink-3">{item.subtitle}</p>
+                    <p className="truncate text-[11px] text-ink-3">{item.subtitle} · {item.state.replace(/_/g, ' ')}</p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <StatePill state={item.state} />
-                    <span className={`tnum text-[12px] ${overdue ? 'font-medium text-risk' : 'text-ink-3'}`}>{formatDate(item.end)}</span>
-                  </div>
+                  <span className={`tnum text-[11.5px] ${overdue ? 'font-medium text-risk' : 'text-ink-3'}`}>{formatDate(item.end)}</span>
                 </div>
               );
             })}</ProgressiveList>

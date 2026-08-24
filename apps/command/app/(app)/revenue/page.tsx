@@ -32,11 +32,11 @@ export default async function RevenuePage() {
         }
       />
 
-      <details className="mb-6 rounded-xl border border-line bg-surface shadow-card">
-        <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+      <details className="mb-5 ml-auto w-fit rounded-xl border border-line bg-surface shadow-card">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center px-3 py-2 text-[12px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 sm:px-4 sm:text-[13px] [&::-webkit-details-marker]:hidden">
           + New lead
         </summary>
-        <div className="animate-fade-slide-up border-t border-line p-4">
+        <div className="min-w-[min(88vw,420px)] animate-fade-slide-up border-t border-line p-4">
           <LeadForm />
         </div>
       </details>

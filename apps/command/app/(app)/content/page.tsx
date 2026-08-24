@@ -18,17 +18,17 @@ export default async function ContentPage() {
         description="The content calendar — what's publishing where, and whether it's actually ready."
       />
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+      <div className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-2 lg:gap-4">
         <details className="rounded-xl border border-line bg-surface shadow-card">
-          <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center px-3 py-2 text-[12px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 lg:justify-start lg:px-4 lg:py-3 lg:text-[13px] [&::-webkit-details-marker]:hidden">
             + New campaign
           </summary>
-          <div className="animate-fade-slide-up border-t border-line p-4">
+          <div className="col-span-2 animate-fade-slide-up border-t border-line p-4">
             <CampaignForm />
           </div>
         </details>
         <details className="rounded-xl border border-line bg-surface shadow-card">
-          <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center px-3 py-2 text-[12px] font-medium text-brand transition-colors duration-fast marker:hidden hover:bg-surface-2 lg:justify-start lg:px-4 lg:py-3 lg:text-[13px] [&::-webkit-details-marker]:hidden">
             + New content item
           </summary>
           <div className="animate-fade-slide-up border-t border-line p-4">

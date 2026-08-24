@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
+import { BarChart, Donut, Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import type { LeadView } from '../data';
 import { EmptyState, Panel, SectionLabel, StatePill } from './ui';
@@ -9,6 +9,7 @@ import { Board, type BoardColumn } from './board-view';
 import { LeadStatusForm } from './growth-forms';
 import { DeleteButton } from './crud-forms';
 import { deleteLead } from '../actions';
+import { ProgressiveList } from './progressive-list';
 
 function money(minor: number): string {
   return (minor / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -21,27 +22,29 @@ function ListView({ leads }: { leads: LeadView[] }) {
     <div className="space-y-8">
       <Reveal>
         <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{active.length}</span>}>Active</SectionLabel>
-        <Panel className="divide-y divide-line">
-          {active.map((l) => (
-            <div key={l.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
+        <Panel>
+          <ProgressiveList initial={4}>{active.map((l) => (
+            <details key={l.id} className="group border-t border-line first:border-t-0 open:bg-canvas/55">
+              <summary className="grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 marker:hidden sm:px-4 [&::-webkit-details-marker]:hidden">
+                <ShapeMark shape="circle" icon="revenue" label="Lead" tone={(l.probability ?? 0) >= 75 ? 'good' : (l.probability ?? 0) >= 40 ? 'accent' : 'neutral'} size="sm" />
+                <div className="min-w-0">
                 <p className="truncate text-[14px] font-medium text-ink">{l.name}</p>
                 <p className="mt-0.5 truncate text-[12px] text-ink-3">
                   {l.ownerName}
                   {l.next_action ? ` · ${l.next_action}` : ''}
-                  {l.target_close_date ? ` · closes ${formatDate(l.target_close_date)}` : ''}
                 </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3">
+                </div>
                 <span className="tnum text-[13px] text-ink-2">
                   {l.expected_value_minor != null ? money(l.expected_value_minor) : '—'}
-                  {l.probability != null && <span className="text-ink-4"> · {l.probability}%</span>}
                 </span>
+              </summary>
+              <div className="flex items-center gap-3 border-t border-line px-4 py-3">
+                <span className="mr-auto text-[11.5px] text-ink-3">{l.probability ?? 0}%{l.target_close_date ? ` · ${formatDate(l.target_close_date)}` : ''}</span>
                 <LeadStatusForm id={l.id} target="archived">Close</LeadStatusForm>
                 <DeleteButton action={deleteLead} id={l.id} label="Delete" iconOnly confirmText={`Delete lead "${l.name}"?`} />
               </div>
-            </div>
-          ))}
+            </details>
+          ))}</ProgressiveList>
         </Panel>
       </Reveal>
 
