@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import type { NextConfig } from 'next';
 
+const PREVIEW_SUPABASE_URL = 'https://yszxtinabzamsayfkymq.supabase.co';
+const PREVIEW_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_CaRrns_DFeUblNnyH8Fp5A_Rn2yy6Ww';
+
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -13,7 +16,16 @@ const securityHeaders = [
   }
 ];
 
-function readVersionedProductionSupabaseEnv(): Record<string, string> {
+function readVersionedSupabaseEnv(): Record<string, string> {
+  if (process.env.VERCEL_ENV === 'preview') {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = PREVIEW_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = PREVIEW_SUPABASE_PUBLISHABLE_KEY;
+    return {
+      NEXT_PUBLIC_SUPABASE_URL: PREVIEW_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: PREVIEW_SUPABASE_PUBLISHABLE_KEY
+    };
+  }
+
   if (process.env.VERCEL_ENV !== 'production') return {};
 
   const workflow = readFileSync(new URL('../../.github/workflows/setup-login.yml', import.meta.url), 'utf8');
@@ -40,7 +52,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   transpilePackages: ['@ksp/permissions', '@ksp/ui', '@ksp/auth', '@ksp/database', '@ksp/validation', '@ksp/observability'],
-  env: readVersionedProductionSupabaseEnv(),
+  env: readVersionedSupabaseEnv(),
   eslint: {
     ignoreDuringBuilds: true,
   },
