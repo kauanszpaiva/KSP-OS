@@ -229,7 +229,10 @@ const actorTests = `
     set local role anon;
     select set_config('request.jwt.claim.sub', '', true);
     do $$ declare c int; begin
-      select count(*) into c from client_meetings; if c <> 0 then raise exception 'anonymous meeting isolation failed: %', c; end if;
+      begin
+        select count(*) into c from client_meetings;
+        if c <> 0 then raise exception 'anonymous meeting isolation failed: %', c; end if;
+      exception when insufficient_privilege then null; end;
       if has_function_privilege('anon', 'preview_portal_invitation(text)', 'execute') then raise exception 'anon can execute invitation preview'; end if;
     end $$;
   rollback;
