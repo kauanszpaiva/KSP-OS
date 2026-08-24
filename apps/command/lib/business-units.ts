@@ -1,15 +1,6 @@
 import { cookies } from 'next/headers';
 import type { SupabaseClient } from '@ksp/database';
-
-export const BUSINESS_UNIT_COOKIE = 'ksp_business_unit';
-export const ALL_BUSINESS_UNITS = 'all';
-
-export interface BusinessUnitRef {
-  id: string;
-  key: string;
-  name: string;
-  focus: string | null;
-}
+import { ALL_BUSINESS_UNITS, BUSINESS_UNIT_COOKIE, type BusinessUnitRef } from './business-unit-shared';
 
 export async function getBusinessUnits(supabase: SupabaseClient): Promise<BusinessUnitRef[]> {
   const { data } = await supabase
