@@ -80,7 +80,8 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
       .from('project_memberships')
       .select('project_id')
       .eq('organization_id', organizationId)
-      .eq('profile_id', user.id),
+      .eq('profile_id', user.id)
+      .or(`effective_until.is.null,effective_until.gt.${now}`),
     supabase
       .from('internal_permission_grants')
       .select('action, resource_type, resource_id')
