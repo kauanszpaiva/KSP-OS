@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import type { BusinessUnitRef } from '../../../lib/business-units';
+import type { BusinessUnitRef } from '../../../lib/business-unit-shared';
 import { createMissionInBusinessUnit, type DivisionActionResult } from '../divisions/actions';
 import type { ClientRef } from '../data';
 
