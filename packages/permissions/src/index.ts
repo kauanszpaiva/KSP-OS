@@ -117,34 +117,42 @@ export function canPerform(actor: MembershipContext, action: PermissionAction, r
     return { allowed: false, reason: 'posted_or_locked_record_denied' };
   }
 
-  if (actor.explicitGrants.includes(action)) return { allowed: true, reason: 'explicit_grant' };
-  if ((actor.scopedGrants ?? []).some((grant) => matchesScopedGrant(grant, action, resource))) {
-    return { allowed: true, reason: 'scoped_grant' };
-  }
+  const scopedGrant = (actor.scopedGrants ?? []).find((grant) => matchesScopedGrant(grant, action, resource));
 
-  if (actor.internalRoles.some((role) => executiveRoles.includes(role))) {
-    const approvalRequired = ['finance.post', 'payment.refund', 'access.grant', 'production.deploy'].includes(action) || resource.classification === 'restricted' || (resource.amountMinor ?? 0) >= 500000;
-    return { allowed: true, reason: 'executive_internal_scope', approvalRequired };
-  }
+  // Internal authorization may use organization-wide and scoped grants before
+  // role defaults. Client-only actors are deliberately excluded here: a client
+  // grant can expand actions inside the Portal boundary, but can never bypass
+  // publication/classification/project isolation below.
+  if (actor.internalRoles.length > 0) {
+    if (actor.explicitGrants.includes(action)) return { allowed: true, reason: 'explicit_grant' };
+    if (scopedGrant) return { allowed: true, reason: 'scoped_grant' };
 
-  if (action.startsWith('client.') || action.startsWith('project.') || action.startsWith('document.')) {
-    if (resource.projectId && actor.projectIds.includes(resource.projectId) && resource.classification !== 'restricted') {
-      return { allowed: !['client.internal_note.read', 'access.grant', 'access.revoke'].includes(action), reason: 'assigned_project_internal_scope' };
+    if (actor.internalRoles.some((role) => executiveRoles.includes(role))) {
+      const approvalRequired = ['finance.post', 'payment.refund', 'access.grant', 'production.deploy'].includes(action) || resource.classification === 'restricted' || (resource.amountMinor ?? 0) >= 500000;
+      return { allowed: true, reason: 'executive_internal_scope', approvalRequired };
+    }
+
+    if (action.startsWith('client.') || action.startsWith('project.') || action.startsWith('document.')) {
+      if (resource.projectId && actor.projectIds.includes(resource.projectId) && resource.classification !== 'restricted') {
+        return { allowed: !['client.internal_note.read', 'access.grant', 'access.revoke'].includes(action), reason: 'assigned_project_internal_scope' };
+      }
     }
   }
 
   const clientMembership = actor.clientMemberships.find((membership) => membership.clientOrganizationId === resource.clientOrganizationId && !membership.suspended && (!membership.effectiveUntil || membership.effectiveUntil > new Date()));
   if (clientMembership) {
     // A client-organization membership is not a blanket entitlement to every
-    // project. When a concrete project is in scope, the project must also be in
-    // the actor's effective project set (or have matched an explicit scoped grant
-    // above). This mirrors the database's deny-by-default portal project rules.
+    // project. The project list is resolved through Portal RLS and must contain
+    // the concrete project before any application-level action is allowed.
     if (resource.projectId && !actor.projectIds.includes(resource.projectId)) {
       return { allowed: false, reason: 'client_project_scope_denied' };
     }
     if (resource.publicationState !== 'published_to_client' && action !== 'request.submit') return { allowed: false, reason: 'not_published_to_client' };
     if (resource.classification !== 'public') return { allowed: false, reason: 'client_safe_fields_only' };
     if (action === 'request.submit') return { allowed: true, reason: 'client_request_submission_allowed' };
+
+    if (scopedGrant) return { allowed: true, reason: 'client_scoped_grant' };
+
     if (action === 'invoice.pay') return { allowed: ['client_owner', 'client_billing_contact'].includes(clientMembership.role), reason: 'client_billing_scope' };
     if (action === 'change_order.client_approve') return { allowed: ['client_owner', 'client_project_approver'].includes(clientMembership.role), reason: 'client_approval_scope' };
     return { allowed: ['client.read', 'project.read', 'document.download', 'invoice.read'].includes(action), reason: 'client_published_scope' };
