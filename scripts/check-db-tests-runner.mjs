@@ -24,8 +24,11 @@ exec "$REAL_DOCKER" "$@"
 try {
   await import('./check-db-tests.mjs');
 } catch (err) {
-  if (err.message.includes('docker') || err.message.includes('operation not permitted')) {
-    console.log('Docker is not fully supported in this environment, skipping full DB test.');
+  const message = err instanceof Error ? err.message : String(err);
+  const environmentLimitation = message.includes('docker') || message.includes('operation not permitted');
+
+  if (environmentLimitation && !process.env.CI) {
+    console.log(`Docker is not fully supported in this local environment; skipping full DB test.\n${message}`);
     process.exitCode = 0;
   } else {
     throw err;
