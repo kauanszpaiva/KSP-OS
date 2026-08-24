@@ -32,7 +32,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((item) => !item.founderOnly || showVault)
+    items: g.items.filter(
+      (item) => (!item.founderOnly || showVault) && (!item.executiveOnly || canUseGlobalScope)
+    )
   })).filter((g) => g.items.length > 0);
 
   const primaryRole = ctx.internalRoles[0] ?? 'member';
