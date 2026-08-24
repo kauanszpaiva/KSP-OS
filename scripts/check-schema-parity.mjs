@@ -68,6 +68,10 @@ for (const remap of evidence.remaps) {
     sourceFailures.push(`${remap.name}: repo filename metadata does not match evidence`);
     continue;
   }
+  if (remap.classification !== 'normalized_sql_equivalent') {
+    sourceFailures.push(`${remap.name}: remap is not classified normalized_sql_equivalent`);
+    continue;
+  }
 
   const repoSql = fs.readFileSync(repoPath, 'utf8');
   const repoNormalizedMd5 = md5(normalizeSql(repoSql));
@@ -102,15 +106,15 @@ const names = evidence.remaps.map((remap) => remap.name);
 const quotedNames = names.map((name) => `'${name.replaceAll("'", "''")}'`).join(',');
 const sql = `
 select version, name,
-  md5(
+  md5(trim(
     regexp_replace(
       regexp_replace(
         regexp_replace(lower(array_to_string(statements, E'\\n')), E'(?s)/\\\\*.*?\\\\*/', ' ', 'g'),
         E'--[^\\n]*', ' ', 'g'
       ),
-      E'\\s+', ' ', 'g'
+      '[[:space:]]+', ' ', 'g'
     )
-  ) as normalized_md5
+  )) as normalized_md5
 from supabase_migrations.schema_migrations
 where name in (${quotedNames})
 order by version;
