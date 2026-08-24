@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "targetProjectRef": "tqwnsxjrlomosfblleqy",
   "acceptedLiveOnlyMigrations": [
     "portfolio_os_foundation",
@@ -7,6 +7,21 @@
     "portfolio_os_function_execute_scope",
     "portfolio_os_user_profiles"
   ],
-  "blockedUntilClassified": true,
-  "note": "These live-only migrations are acknowledged drift, not repository migrations. Production DDL remains blocked until their ownership and forward lineage are explicitly classified."
+  "liveOnlyClassifications": {
+    "portfolio_os_foundation": "live_only_legacy_preserve",
+    "portfolio_os_function_hardening": "live_only_legacy_preserve",
+    "portfolio_os_function_execute_scope": "live_only_legacy_preserve",
+    "portfolio_os_user_profiles": "live_only_legacy_preserve"
+  },
+  "classificationEvidence": "docs/deployment/LIVE_ONLY_LINEAGE_CLASSIFICATION_2026-08-24.json",
+  "versionRemapEvidence": "docs/deployment/LIVE_MIGRATION_REMAPS_2026-08-24.json",
+  "blockedUntilClassified": false,
+  "productionDdlBlocked": true,
+  "productionReleaseBlockers": [
+    "verify Vercel Preview Supabase environment binding",
+    "complete or explicitly approve the staging forward-replay plan",
+    "classify remaining authenticated SECURITY DEFINER callers before further ACL changes",
+    "protect GitHub main and require canonical CI contexts"
+  ],
+  "note": "The four Portfolio OS migrations are now explicitly classified as a live-only legacy subsystem that must be preserved until a separate data migration or retirement decision. This closes their classification gate but does not authorize production DDL; production remains blocked by the independent release gates listed above."
 }
