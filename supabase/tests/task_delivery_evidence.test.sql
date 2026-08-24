@@ -26,7 +26,8 @@ begin;
   end $$;
 rollback;
 
--- The assigned owner cannot bypass the delivery gate by disabling the requirement.
+-- The assigned owner cannot bypass the delivery gate by disabling a requirement
+-- owned by a different creator. This matches the trigger's canonical error.
 begin;
   set local role authenticated;
   select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
@@ -35,7 +36,7 @@ begin;
       update tasks set requires_delivery=false where id='70000000-0000-0000-0000-000000000001'::uuid;
       raise exception 'assigned owner disabled the delivery requirement';
     exception when others then
-      if sqlerrm not like '%task_delivery_requirement_locked%' then raise; end if;
+      if sqlerrm not like '%task_delivery_requirement_change_not_allowed%' then raise; end if;
     end;
   end $$;
 rollback;
