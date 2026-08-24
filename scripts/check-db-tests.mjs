@@ -127,13 +127,41 @@ function bootstrapDb(name) {
     $$;
 
     create schema vault;
-    create table vault.decrypted_secrets (
-      name text primary key,
-      decrypted_secret text
+    create table vault.secrets (
+      id uuid primary key default gen_random_uuid(),
+      name text not null unique,
+      secret text not null,
+      description text,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
     );
-    insert into vault.decrypted_secrets(name, decrypted_secret) values
-      ('ksp_resend_api_key', 'docker-test-resend-key'),
-      ('ksp_portal_base_url', 'https://portal.test.invalid');
+    create view vault.decrypted_secrets as
+      select id, name, description, secret as decrypted_secret, created_at, updated_at
+      from vault.secrets;
+    create or replace function vault.create_secret(new_secret text, new_name text, new_description text default null)
+    returns uuid language plpgsql security definer set search_path = '' as $$
+    declare v_id uuid;
+    begin
+      insert into vault.secrets(name, secret, description)
+      values (new_name, new_secret, new_description)
+      returning id into v_id;
+      return v_id;
+    end
+    $$;
+    create or replace function vault.update_secret(secret_id uuid, new_secret text default null, new_name text default null, new_description text default null)
+    returns void language plpgsql security definer set search_path = '' as $$
+    begin
+      update vault.secrets
+      set secret = coalesce(new_secret, secret),
+          name = coalesce(new_name, name),
+          description = coalesce(new_description, description),
+          updated_at = now()
+      where id = secret_id;
+    end
+    $$;
+    insert into vault.secrets(name, secret, description) values
+      ('ksp_resend_api_key', 'docker-test-resend-key', 'Docker-only deterministic provider stub'),
+      ('ksp_portal_base_url', 'https://portal.test.invalid', 'Docker-only portal base URL');
   `);
 }
 function applyMigration(db, file) {
