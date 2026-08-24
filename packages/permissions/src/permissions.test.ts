@@ -47,8 +47,9 @@ describe('central permission engine', () => {
     })).toMatchObject({ allowed: false, reason: 'client_project_scope_denied' });
   });
 
-  it('honors a project-scoped grant only for the named project', () => {
+  it('honors an internal project-scoped grant only for the named project', () => {
     const grantedActor = actor({
+      internalRoles: ['developer'],
       scopedGrants: [{ action: 'project.manage', projectId: 'project-a' }]
     });
 
@@ -65,8 +66,9 @@ describe('central permission engine', () => {
     }).allowed).toBe(false);
   });
 
-  it('does not turn a client-scoped grant into authority for another client', () => {
+  it('does not turn a client-scoped grant into authority for another client or internal content', () => {
     const grantedActor = actor({
+      clientMemberships: [{ clientOrganizationId: 'client-a', role: 'client_viewer' }],
       scopedGrants: [{ action: 'invoice.read', clientOrganizationId: 'client-a' }]
     });
 
@@ -75,7 +77,7 @@ describe('central permission engine', () => {
       clientOrganizationId: 'client-a',
       classification: 'public',
       publicationState: 'published_to_client'
-    }).allowed).toBe(true);
+    })).toMatchObject({ allowed: true, reason: 'client_scoped_grant' });
 
     expect(canPerform(grantedActor, 'invoice.read', {
       organizationId: 'org',
@@ -83,5 +85,19 @@ describe('central permission engine', () => {
       classification: 'public',
       publicationState: 'published_to_client'
     }).allowed).toBe(false);
+
+    expect(canPerform(grantedActor, 'invoice.read', {
+      organizationId: 'org',
+      clientOrganizationId: 'client-a',
+      classification: 'internal',
+      publicationState: 'published_to_client'
+    })).toMatchObject({ allowed: false, reason: 'client_safe_fields_only' });
+
+    expect(canPerform(grantedActor, 'invoice.read', {
+      organizationId: 'org',
+      clientOrganizationId: 'client-a',
+      classification: 'public',
+      publicationState: 'internal_review'
+    })).toMatchObject({ allowed: false, reason: 'not_published_to_client' });
   });
 });
