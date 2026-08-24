@@ -46,3 +46,34 @@ export async function resolveBusinessUnitScope(
   if (canUseGlobalScope) return { units, activeBusinessUnitId: null };
   return { units, activeBusinessUnitId: units[0]?.id ?? null };
 }
+
+/**
+ * Returns project IDs that should participate in the selected operating view.
+ * `null` means the caller is in the global owner view and should not filter.
+ * Legacy projects without a business unit stay included until the backfill is
+ * complete so rollout cannot hide existing work.
+ */
+export async function getScopedProjectIds(
+  supabase: SupabaseClient,
+  activeBusinessUnitId: string | null
+): Promise<Set<string> | null> {
+  if (!activeBusinessUnitId) return null;
+
+  const { data } = await supabase.from('projects').select('id, business_unit_id');
+  const ids = new Set<string>();
+  for (const project of (data ?? []) as Array<{ id: string; business_unit_id: string | null }>) {
+    if (!project.business_unit_id || project.business_unit_id === activeBusinessUnitId) ids.add(project.id);
+  }
+  return ids;
+}
+
+export function inProjectScope(
+  projectId: string | null | undefined,
+  scopedProjectIds: Set<string> | null
+): boolean {
+  if (!scopedProjectIds) return true;
+  // Unattached records are shared/legacy until KSP OS adds a direct unit key for
+  // them; they must not disappear during the project-first migration.
+  if (!projectId) return true;
+  return scopedProjectIds.has(projectId);
+}
