@@ -29,6 +29,15 @@ if [ "$1" = "exec" ] && [ "$3" = "createdb" ]; then
   for ARG in "$@"; do DB_NAME="$ARG"; done
 
   $REAL_DOCKER "$@" || ex\it $?
+
+  # A disaster-recovery target must be genuinely empty. The custom-format dump
+  # already contains the Supabase platform shim objects, so pre-seeding them in
+  # the recovery database would create duplicate schemas/types/functions and
+  # turn a valid restore into a false failure.
+  if [ "$DB_NAME" = "recovery" ]; then
+    ex\it 0
+  fi
+
   $REAL_DOCKER exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d "$DB_NAME" <<'SQL'
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
