@@ -60,7 +60,7 @@
   },
   "clientMediaWorkspace": {
     "repoFile": "20260824025000_client_media_workspace.sql",
-    "classification": "duplicate_live_version_equivalent_to_repo_canonical",
+    "classification": "duplicate_live_versions_normalized_equivalent_to_repo",
     "canonicalLiveVersion": "20260824125223",
     "canonicalLiveRawMd5": "05820e0673db1322626790bbe3a39632",
     "duplicateLiveVersion": "20260824125150",
@@ -68,6 +68,6 @@
     "livePunctuationNormalizedMd5": "68130650cd9c4efcf24ce43e268791fe",
     "normalization": "strip SQL comments, lowercase, collapse whitespace, then remove whitespace around parentheses, commas, equals signs, and semicolons",
     "historyAction": "preserve_both_live_rows_do_not_rewrite_migration_history",
-    "note": "Both live rows normalize to the same punctuation-aware hash. The canonical live row is expected to match the repository file byte-for-byte; CI validates that raw MD5 before this classification can pass."
+    "note": "The two live rows differ at the raw-text level but normalize to the same punctuation-aware SQL hash. CI requires the repository migration to normalize to that same hash and preserves both immutable live raw hashes for runtime drift detection."
   }
 }
