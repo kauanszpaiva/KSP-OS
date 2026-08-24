@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "targetProjectRef": "tqwnsxjrlomosfblleqy",
+  "capturedAt": "2026-08-24T19:48:00Z",
+  "productionDdlBlocked": true,
+  "portfolioLegacySubsystem": {
+    "classification": "live_only_legacy_subsystem",
+    "repositoryRuntimeReferencesObserved": false,
+    "externalDatabaseDependenciesObserved": ["auth.users"],
+    "forwardPlan": "preserve_in_production_until_explicit_data_migration_or_retirement_review",
+    "reason": "The Portfolio OS objects exist only in production migration lineage, have no current repository migration/runtime references observed, contain live rows, and are internally self-contained except for auth.users foreign keys. They must not be dropped or rewritten as a lineage repair.",
+    "migrations": [
+      {
+        "version": "20260807165502",
+        "name": "portfolio_os_foundation",
+        "rawStatementsMd5": "e815b00ecfe3757e778359d4c0256c7c",
+        "classification": "live_only_legacy_preserve",
+        "createdTables": [
+          "portfolio_activity_logs",
+          "portfolio_entities",
+          "portfolio_entity_memberships",
+          "portfolio_integration_connections",
+          "portfolio_invitations",
+          "portfolio_project_memberships",
+          "portfolio_projects",
+          "portfolio_resources"
+        ],
+        "liveRowsObserved": {
+          "portfolio_activity_logs": 0,
+          "portfolio_entities": 1,
+          "portfolio_entity_memberships": 1,
+          "portfolio_integration_connections": 0,
+          "portfolio_invitations": 0,
+          "portfolio_project_memberships": 0,
+          "portfolio_projects": 1,
+          "portfolio_resources": 0
+        }
+      },
+      {
+        "version": "20260807170203",
+        "name": "portfolio_os_function_hardening",
+        "rawStatementsMd5": "9fddfe9b93c7a8fb0900235f7faa0894",
+        "classification": "live_only_legacy_preserve"
+      },
+      {
+        "version": "20260807170215",
+        "name": "portfolio_os_function_execute_scope",
+        "rawStatementsMd5": "e2cce25ac8270873316e0473a260aac4",
+        "classification": "live_only_legacy_preserve"
+      },
+      {
+        "version": "20260807170421",
+        "name": "portfolio_os_user_profiles",
+        "rawStatementsMd5": "846dc2dec8e757a9c8d92036542984dd",
+        "classification": "live_only_legacy_preserve",
+        "createdTables": ["portfolio_user_profiles"],
+        "liveRowsObserved": {"portfolio_user_profiles": 1}
+      }
+    ]
+  },
+  "clientMediaWorkspace": {
+    "repoFile": "20260824025000_client_media_workspace.sql",
+    "classification": "duplicate_live_version_equivalent_to_repo_canonical",
+    "canonicalLiveVersion": "20260824125223",
+    "canonicalLiveRawMd5": "05820e0673db1322626790bbe3a39632",
+    "duplicateLiveVersion": "20260824125150",
+    "duplicateLiveRawMd5": "16fe81bf9e2db7f7fd84eb6a3c5c7175",
+    "livePunctuationNormalizedMd5": "68130650cd9c4efcf24ce43e268791fe",
+    "normalization": "strip SQL comments, lowercase, collapse whitespace, then remove whitespace around parentheses, commas, equals signs, and semicolons",
+    "historyAction": "preserve_both_live_rows_do_not_rewrite_migration_history",
+    "note": "Both live rows normalize to the same punctuation-aware hash. The canonical live row is expected to match the repository file byte-for-byte; CI validates that raw MD5 before this classification can pass."
+  }
+}
