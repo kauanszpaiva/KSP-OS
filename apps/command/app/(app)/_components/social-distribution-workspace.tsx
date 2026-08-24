@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 import { Badge, useActionToast } from '@ksp/ui';
 import type { ClientMediaProjectOption } from '../client-media-data';
-import type { SocialContentOption, SocialControlMode, SocialDistributionView, SocialProfileView, SocialStatus } from '../social-distribution-data';
+import type { SocialClientOption, SocialContentOption, SocialControlMode, SocialDistributionView, SocialProfileView, SocialStatus } from '../social-distribution-data';
 import {
   createSocialDistribution,
   createSocialProfile,
@@ -39,7 +39,7 @@ function ControlBadge({ mode }: { mode: SocialControlMode }) {
   return <Badge tone={tone}>{controlLabels[mode]}</Badge>;
 }
 
-function ProfileForm({ projects }: { projects: ClientMediaProjectOption[] }) {
+function ProfileForm({ clients, projects }: { clients: SocialClientOption[]; projects: ClientMediaProjectOption[] }) {
   const [state, action, pending] = useActionState(createSocialProfile, initial);
   useActionToast(state, 'Social profile added');
 
@@ -50,7 +50,8 @@ function ProfileForm({ projects }: { projects: ClientMediaProjectOption[] }) {
         <label className="text-[12px] font-medium text-ink-2">Profile name<input name="displayName" required minLength={2} placeholder="BEZ Group" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
         <label className="text-[12px] font-medium text-ink-2">Platform<select name="platform" defaultValue="instagram" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]"><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="tiktok">TikTok</option><option value="youtube">YouTube</option><option value="linkedin">LinkedIn</option><option value="other">Other</option></select></label>
         <label className="text-[12px] font-medium text-ink-2">Handle<input name="handle" placeholder="@bezgroup" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
-        <label className="text-[12px] font-medium text-ink-2">Project scope<select name="projectId" defaultValue="" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]"><option value="">KSP / global profile</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.clientName} · {project.name}</option>)}</select></label>
+        <label className="text-[12px] font-medium text-ink-2">Client scope<select name="clientId" defaultValue="" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]"><option value="">KSP / global profile</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.displayName} · all projects</option>)}</select></label>
+        <label className="text-[12px] font-medium text-ink-2">Project scope <span className="font-normal text-ink-4">(optional)</span><select name="projectId" defaultValue="" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]"><option value="">No project restriction</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.clientName} · {project.name}</option>)}</select></label>
         <label className="text-[12px] font-medium text-ink-2 sm:col-span-2">Editorial role<input name="editorialRole" placeholder="Institution/community, founder authority, podcast/cuts…" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
         <label className="text-[12px] font-medium text-ink-2">Publication control<select name="controlMode" defaultValue="unknown" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]"><option value="controlled">Controlled by KSP</option><option value="shared">Shared / collaboration</option><option value="external">External / client publishes</option><option value="unknown">Confirm responsibility</option></select></label>
         <label className="text-[12px] font-medium text-ink-2">Account owner<input name="accountOwner" placeholder="BEZ Group / Everton / KSP" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
@@ -135,7 +136,7 @@ function QueueSection({ title, description, items, empty }: { title: string; des
   );
 }
 
-export function SocialDistributionWorkspace({ profiles, contentItems, distributions, projects }: { profiles: SocialProfileView[]; contentItems: SocialContentOption[]; distributions: SocialDistributionView[]; projects: ClientMediaProjectOption[] }) {
+export function SocialDistributionWorkspace({ clients, profiles, contentItems, distributions, projects }: { clients: SocialClientOption[]; profiles: SocialProfileView[]; contentItems: SocialContentOption[]; distributions: SocialDistributionView[]; projects: ClientMediaProjectOption[] }) {
   const active = distributions.filter((item) => !['published', 'withdrawn', 'skipped'].includes(item.status));
   const controlledQueue = active.filter((item) => ['controlled', 'shared'].includes(item.controlMode));
   const externalWatch = active.filter((item) => ['external', 'unknown'].includes(item.controlMode));
@@ -149,20 +150,20 @@ export function SocialDistributionWorkspace({ profiles, contentItems, distributi
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">KSP Agency · Social distribution control</p>
             <h2 className="mt-1 text-[16px] font-semibold text-ink">One content source, separate publication responsibility per profile</h2>
-            <p className="mt-1 max-w-3xl text-[12.5px] leading-5 text-muted">Profile defaults define the normal owner, publisher, approver and KPI owner. Each content item can override those defaults. Client delivery, Portal visibility and social publication remain independent states.</p>
+            <p className="mt-1 max-w-3xl text-[12.5px] leading-5 text-muted">Profiles can be KSP-global, client-wide, or project-specific. Defaults define the normal owner, publisher, approver and KPI owner; each content item can override those defaults. Client delivery, Portal visibility and social publication remain independent states.</p>
           </div>
           <div className="flex flex-wrap gap-2"><Badge tone="good">{controlledQueue.length} KSP/shared open</Badge><Badge tone="warn">{externalWatch.length} external/confirm</Badge><Badge tone="brand">{published} published with evidence</Badge></div>
         </div>
       </div>
 
-      <div className="grid gap-3 border-b border-line p-4 sm:p-5 lg:grid-cols-2"><ProfileForm projects={projects} /><RouteForm profiles={profiles} contentItems={contentItems} /></div>
+      <div className="grid gap-3 border-b border-line p-4 sm:p-5 lg:grid-cols-2"><ProfileForm clients={clients} projects={projects} /><RouteForm profiles={profiles} contentItems={contentItems} /></div>
 
       <div className="border-b border-line px-4 py-3 sm:px-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-4">Profile responsibility matrix</p>
         <div className="mt-2 grid gap-2 lg:grid-cols-2">
           {profiles.length === 0 ? <p className="text-[12px] text-muted">No social profiles configured yet.</p> : profiles.map((profile) => (
             <div key={profile.id} className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-line-2 px-3 py-2.5">
-              <div className="min-w-0"><p className="text-[12.5px] font-semibold text-ink">{profile.displayName} <span className="font-normal text-ink-4">· {profile.platform}{profile.handle ? ` · ${profile.handle}` : ''}</span></p>{profile.editorialRole && <p className="mt-0.5 text-[11.5px] text-ink-3">{profile.editorialRole}</p>}<p className="mt-0.5 text-[11px] text-ink-4">{profile.clientName ? `${profile.clientName}${profile.projectName ? ` · ${profile.projectName}` : ''}` : 'KSP / global'} · owner: {profile.accountOwner ?? 'not assigned'} · publishes: {profile.publisher ?? 'not assigned'} · approves: {profile.approver ?? 'not assigned'} · KPI: {profile.kpiOwner ?? 'not assigned'}</p></div>
+              <div className="min-w-0"><p className="text-[12.5px] font-semibold text-ink">{profile.displayName} <span className="font-normal text-ink-4">· {profile.platform}{profile.handle ? ` · ${profile.handle}` : ''}</span></p>{profile.editorialRole && <p className="mt-0.5 text-[11.5px] text-ink-3">{profile.editorialRole}</p>}<p className="mt-0.5 text-[11px] text-ink-4">{profile.clientName ? `${profile.clientName}${profile.projectName ? ` · ${profile.projectName}` : ' · all projects'}` : 'KSP / global'} · owner: {profile.accountOwner ?? 'not assigned'} · publishes: {profile.publisher ?? 'not assigned'} · approves: {profile.approver ?? 'not assigned'} · KPI: {profile.kpiOwner ?? 'not assigned'}</p></div>
               <ControlBadge mode={profile.controlMode} />
             </div>
           ))}
