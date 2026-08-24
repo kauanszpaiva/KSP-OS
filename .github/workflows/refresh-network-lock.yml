@@ -1,0 +1,33 @@
+name: refresh-network-lock
+
+on:
+  push:
+    branches:
+      - fix/network-standalone-app
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/network-standalone-app
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Commit refreshed lockfile
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore(network): refresh workspace lockfile"
+          git push origin HEAD:fix/network-standalone-app

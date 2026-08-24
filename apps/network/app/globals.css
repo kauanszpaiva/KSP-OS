@@ -1,0 +1,247 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------ theme -- */
+/* Light theme (default). KSP identity: purple primary, green accent. */
+:root {
+  color-scheme: light;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  --canvas: 245 245 249;
+  --surface: 255 255 255;
+  --surface-2: 244 244 248;
+  --surface-3: 236 236 242;
+  --overlay: 17 18 23;
+
+  --ink: 26 27 33;
+  --ink-2: 71 73 82;
+  --ink-3: 109 111 122;
+  --ink-4: 150 152 163;
+
+  --line: 232 232 238;
+  --line-2: 216 217 226;
+
+  --brand: 139 47 201;
+  --brand-strong: 107 31 166;
+  --brand-tint: 244 235 252;
+  --on-brand: 255 255 255;
+
+  --accent: 122 179 20;
+  --accent-strong: 79 122 10;
+  --accent-tint: 238 246 223;
+  --on-accent: 20 24 10;
+
+  --good: 33 122 72;
+  --good-tint: 231 244 236;
+  --warn: 138 90 18;
+  --warn-tint: 246 239 225;
+  --risk: 168 42 34;
+  --risk-tint: 247 233 231;
+
+  --shadow-card: 0 1px 2px rgb(17 18 23 / 0.04), 0 2px 6px -2px rgb(17 18 23 / 0.05);
+  --shadow-pop: 0 4px 12px -3px rgb(17 18 23 / 0.08), 0 14px 34px -10px rgb(17 18 23 / 0.16);
+  --shadow-brand: 0 4px 14px -5px rgb(139 47 201 / 0.35);
+
+  --motion-fast: 120ms;
+  --motion: 200ms;
+  --motion-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Dark theme — grafite/preto base, echoing the logo. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --canvas: 13 14 18;
+  --surface: 22 23 29;
+  --surface-2: 30 31 38;
+  --surface-3: 38 40 48;
+  --overlay: 0 0 0;
+
+  --ink: 236 237 242;
+  --ink-2: 190 192 201;
+  --ink-3: 146 148 158;
+  --ink-4: 108 110 120;
+
+  --line: 40 42 50;
+  --line-2: 55 57 67;
+
+  --brand: 178 122 255;
+  --brand-strong: 155 92 240;
+  --brand-tint: 44 30 64;
+  --on-brand: 22 18 30;
+
+  --accent: 146 214 46;
+  --accent-strong: 176 230 110;
+  --accent-tint: 38 48 22;
+  --on-accent: 20 24 10;
+
+  --good: 76 191 126;
+  --good-tint: 26 46 36;
+  --warn: 214 170 92;
+  --warn-tint: 48 40 24;
+  --risk: 232 116 106;
+  --risk-tint: 54 30 28;
+
+  --shadow-card: 0 1px 1px rgb(0 0 0 / 0.5), 0 3px 8px -2px rgb(0 0 0 / 0.5);
+  --shadow-pop: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 16px 40px -8px rgb(0 0 0 / 0.7);
+  --shadow-brand: 0 4px 16px -4px rgb(178 122 255 / 0.45);
+}
+
+/* User-selectable accent families. Functional good/warn/risk colors are kept
+   outside these overrides so state meaning is never palette-dependent. */
+:root[data-palette='ocean'] {
+  --brand: 33 102 189;
+  --brand-strong: 25 78 151;
+  --brand-tint: 231 240 252;
+  --accent: 14 165 168;
+  --accent-strong: 12 116 119;
+  --accent-tint: 226 246 245;
+  --shadow-brand: 0 4px 14px -5px rgb(33 102 189 / 0.32);
+}
+
+:root[data-palette='ember'] {
+  --brand: 190 70 56;
+  --brand-strong: 151 48 38;
+  --brand-tint: 252 235 231;
+  --accent: 220 146 36;
+  --accent-strong: 157 94 14;
+  --accent-tint: 250 241 220;
+  --shadow-brand: 0 4px 14px -5px rgb(190 70 56 / 0.32);
+}
+
+:root[data-palette='forest'] {
+  --brand: 22 121 96;
+  --brand-strong: 13 87 68;
+  --brand-tint: 226 244 238;
+  --accent: 129 170 37;
+  --accent-strong: 84 117 15;
+  --accent-tint: 239 247 221;
+  --shadow-brand: 0 4px 14px -5px rgb(22 121 96 / 0.32);
+}
+
+:root[data-theme='dark'][data-palette='ocean'] {
+  --brand: 102 166 255;
+  --brand-strong: 70 137 234;
+  --brand-tint: 24 42 66;
+  --accent: 75 205 205;
+  --accent-strong: 129 226 224;
+  --accent-tint: 23 49 50;
+}
+
+:root[data-theme='dark'][data-palette='ember'] {
+  --brand: 244 128 111;
+  --brand-strong: 226 98 81;
+  --brand-tint: 61 31 29;
+  --accent: 241 180 78;
+  --accent-strong: 250 205 125;
+  --accent-tint: 55 43 23;
+}
+
+:root[data-theme='dark'][data-palette='forest'] {
+  --brand: 77 199 158;
+  --brand-strong: 47 167 128;
+  --brand-tint: 22 51 42;
+  --accent: 172 211 75;
+  --accent-strong: 201 229 126;
+  --accent-tint: 41 50 23;
+}
+
+/* ------------------------------------------------------------------- base -- */
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  background: rgb(var(--canvas));
+  color: rgb(var(--ink));
+  font-family: var(--font-sans);
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Figures align in columns — essential for an operations tool. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.font-display {
+  letter-spacing: -0.014em;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.012em;
+}
+
+/* Restrained, keyboard-visible focus using the brand hue. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid rgb(var(--brand));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: rgb(var(--brand) / 0.22);
+}
+
+/* Skeleton shimmer — pure CSS, transform-only for performance. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(var(--surface-2));
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(var(--ink) / 0.06), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Custom scrollbars stay quiet in both themes. */
+* {
+  scrollbar-color: rgb(var(--line-2)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--line-2));
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
