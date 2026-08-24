@@ -9,8 +9,10 @@ import type { Config } from 'tailwindcss';
  * `<alpha-value>` bridge so opacity utilities (`bg-brand/10`) keep working and a
  * single class set themes correctly in both modes.
  *
- * Brand: purple is primary (navigation, actions, brand); green (`accent`) is the
- * highlight / success / completed-progress hue — the KSP identity.
+ * The existing semantic `brand`/`accent` variables remain runtime-compatible
+ * while the KSP Inc operating-experience migration is staged. The fixed
+ * `ksp-*` identity tokens below are the visual foundation for the new
+ * cross-surface system and are intentionally separate from success/warn/risk.
  */
 const withAlpha = (variable: string) => `rgb(var(${variable}) / <alpha-value>)`;
 
@@ -55,8 +57,12 @@ const config: Config = {
         good: { DEFAULT: withAlpha('--good'), tint: withAlpha('--good-tint') },
         warn: { DEFAULT: withAlpha('--warn'), tint: withAlpha('--warn-tint') },
         risk: { DEFAULT: withAlpha('--risk'), tint: withAlpha('--risk-tint') },
+        'ksp-carbon': '#17181D',
+        'ksp-graphite': '#2A2C33',
+        'ksp-paper': '#F4F5F7',
+        'ksp-signal': '#B6FF41',
         // Legacy KSP names kept for the auth/setup screens — remapped onto the
-        // new brand variables so those screens adopt the identity for free.
+        // current semantic variables until those surfaces move to the new shell.
         executive: withAlpha('--brand'),
         paper: withAlpha('--canvas'),
         ksp: {
