@@ -71,6 +71,34 @@ function divisionKey(raw: string, name: string): string | null {
   return /^[a-z0-9][a-z0-9_-]{1,62}$/.test(key) ? key : null;
 }
 
+async function canCreateProjectInBusinessUnit(
+  supabase: SupabaseClient,
+  ctx: AuthContext,
+  businessUnitId: string
+): Promise<boolean> {
+  const globalDecision = canPerform(ctx.membership, 'project.manage', {
+    organizationId: ctx.organizationId,
+    classification: 'internal'
+  });
+  if (globalDecision.allowed) return true;
+
+  const now = new Date().toISOString();
+  const { data: unitAdmin } = await supabase
+    .from('business_unit_memberships')
+    .select('id')
+    .eq('organization_id', ctx.organizationId)
+    .eq('business_unit_id', businessUnitId)
+    .eq('profile_id', ctx.user.id)
+    .in('access_level', ['owner', 'admin'])
+    .is('suspended_at', null)
+    .lte('effective_from', now)
+    .or(`effective_until.is.null,effective_until.gt.${now}`)
+    .limit(1)
+    .maybeSingle();
+
+  return Boolean(unitAdmin);
+}
+
 export async function createBusinessUnit(_prev: DivisionActionResult, form: FormData): Promise<DivisionActionResult> {
   const gate = await executive();
   if ('error' in gate) return { ok: false, error: gate.error };
@@ -120,7 +148,13 @@ export async function setBusinessUnitMembership(_prev: DivisionActionResult, for
 
   const now = new Date().toISOString();
   const [{ data: unit }, { data: orgMembership }] = await Promise.all([
-    supabase.from('business_units').select('id, name').eq('id', businessUnitId).eq('organization_id', ctx.organizationId).eq('status', 'active').maybeSingle(),
+    supabase
+      .from('business_units')
+      .select('id, name')
+      .eq('id', businessUnitId)
+      .eq('organization_id', ctx.organizationId)
+      .eq('status', 'active')
+      .maybeSingle(),
     supabase
       .from('organization_memberships')
       .select('profile_id, internal_role')
@@ -128,6 +162,7 @@ export async function setBusinessUnitMembership(_prev: DivisionActionResult, for
       .eq('profile_id', profileId)
       .not('internal_role', 'is', null)
       .is('suspended_at', null)
+      .lte('effective_from', now)
       .or(`effective_until.is.null,effective_until.gt.${now}`)
       .limit(1)
       .maybeSingle()
@@ -151,7 +186,14 @@ export async function setBusinessUnitMembership(_prev: DivisionActionResult, for
   );
   if (error) return { ok: false, error: 'Could not update division access.' };
 
-  await record(supabase, ctx, 'business_unit.access_granted', 'business_unit_memberships', businessUnitId, `Granted ${accessLevel} access to ${unit.name}`);
+  await record(
+    supabase,
+    ctx,
+    'business_unit.access_granted',
+    'business_unit_memberships',
+    businessUnitId,
+    `Granted ${accessLevel} access to ${unit.name}`
+  );
   revalidatePath('/divisions');
   return { ok: true };
 }
@@ -173,7 +215,14 @@ export async function revokeBusinessUnitMembership(_prev: DivisionActionResult, 
     .eq('profile_id', profileId);
   if (error) return { ok: false, error: 'Could not revoke division access.' };
 
-  await record(supabase, ctx, 'business_unit.access_revoked', 'business_unit_memberships', businessUnitId, 'Revoked division access');
+  await record(
+    supabase,
+    ctx,
+    'business_unit.access_revoked',
+    'business_unit_memberships',
+    businessUnitId,
+    'Revoked division access'
+  );
   revalidatePath('/divisions');
   return { ok: true };
 }
@@ -210,7 +259,14 @@ export async function setProjectBusinessUnit(_prev: DivisionActionResult, form: 
     .single();
   if (error || !project) return { ok: false, error: 'Could not classify the project.' };
 
-  await record(supabase, ctx, 'project.business_unit_changed', 'projects', projectId, `Assigned ${project.name} to ${unitName}`);
+  await record(
+    supabase,
+    ctx,
+    'project.business_unit_changed',
+    'projects',
+    projectId,
+    `Assigned ${project.name} to ${unitName}`
+  );
   revalidatePath('/divisions');
   revalidatePath('/missions');
   revalidatePath('/workspace');
@@ -222,9 +278,6 @@ export async function createMissionInBusinessUnit(_prev: DivisionActionResult, f
   if ('error' in gate) return { ok: false, error: gate.error };
   const { supabase, ctx } = gate;
 
-  const decision = canPerform(ctx.membership, 'project.manage', { organizationId: ctx.organizationId, classification: 'internal' });
-  if (!decision.allowed) return { ok: false, error: 'You are not permitted to create projects.' };
-
   const parsed = createMissionSchema.safeParse({
     name: form.get('name'),
     projectType: form.get('projectType'),
@@ -234,6 +287,9 @@ export async function createMissionInBusinessUnit(_prev: DivisionActionResult, f
 
   const businessUnitId = safeId(form.get('businessUnitId'));
   if (!businessUnitId) return { ok: false, error: 'Choose a KSP division for this project.' };
+
+  const canCreate = await canCreateProjectInBusinessUnit(supabase, ctx, businessUnitId);
+  if (!canCreate) return { ok: false, error: 'You are not permitted to create projects in this KSP division.' };
 
   // Normal RLS makes this both an existence and authorization check. A member
   // cannot create a project in a division they cannot see/access.
@@ -268,14 +324,20 @@ export async function createMissionInBusinessUnit(_prev: DivisionActionResult, f
     role: ctx.internalRoles[0] ?? 'contractor'
   });
   if (membershipError) {
-    // Do not leave an invisible orphan if the membership edge fails. Executives
-    // can always delete; non-executive global project managers may rely on the
-    // existing delete policy, so failure here is still reported explicitly.
+    // This is a compatibility cleanup, not a transaction guarantee. The release
+    // plan keeps transactional project + membership creation as a follow-up.
     await supabase.from('projects').delete().eq('id', data.id);
     return { ok: false, error: 'Project access could not be initialized.' };
   }
 
-  await record(supabase, ctx, 'mission.created', 'projects', data.id, `Created project in ${unit.name}: ${parsed.data.name}`);
+  await record(
+    supabase,
+    ctx,
+    'mission.created',
+    'projects',
+    data.id,
+    `Created project in ${unit.name}: ${parsed.data.name}`
+  );
   revalidatePath('/missions');
   revalidatePath('/workspace');
   return { ok: true };
