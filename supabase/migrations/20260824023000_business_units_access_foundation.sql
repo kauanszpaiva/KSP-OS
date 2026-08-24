@@ -11,6 +11,11 @@
 -- existing project members are automatically inherited into that unit so the
 -- classification cannot silently lock out people who already had legitimate access.
 
+create schema if not exists business_unit_private;
+revoke all on schema business_unit_private from public;
+revoke all on schema business_unit_private from anon;
+grant usage on schema business_unit_private to authenticated;
+
 create table if not exists public.business_units (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -23,13 +28,14 @@ create table if not exists public.business_units (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (organization_id, key),
+  unique (id, organization_id),
   check (key ~ '^[a-z0-9][a-z0-9_-]{1,62}$')
 );
 
 create table if not exists public.business_unit_memberships (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
-  business_unit_id uuid not null references public.business_units(id) on delete cascade,
+  business_unit_id uuid not null,
   profile_id uuid not null references public.profiles(id) on delete cascade,
   access_level text not null default 'member' check (access_level in ('owner', 'admin', 'member', 'viewer')),
   effective_from timestamptz not null default now(),
@@ -38,11 +44,21 @@ create table if not exists public.business_unit_memberships (
   granted_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   unique (business_unit_id, profile_id),
+  constraint business_unit_memberships_unit_org_fkey
+    foreign key (business_unit_id, organization_id)
+    references public.business_units(id, organization_id)
+    on delete cascade,
   check (effective_until is null or effective_until > effective_from)
 );
 
 alter table public.projects
-  add column if not exists business_unit_id uuid references public.business_units(id) on delete set null;
+  add column if not exists business_unit_id uuid;
+
+alter table public.projects
+  add constraint projects_business_unit_org_fkey
+  foreign key (business_unit_id, organization_id)
+  references public.business_units(id, organization_id)
+  on delete restrict;
 
 create index if not exists business_units_org_status_idx
   on public.business_units (organization_id, status, sort_order, name);
@@ -84,12 +100,16 @@ on conflict (organization_id, key) do update
       sort_order = excluded.sort_order,
       updated_at = now();
 
-create or replace function public.can_access_business_unit(target_business_unit_id uuid)
+-- Keep the authorization helper outside exposed schemas. It intentionally runs
+-- as definer so RLS on the membership table cannot recursively hide the rows used
+-- to evaluate RLS itself. Every identifier is schema-qualified and search_path is
+-- empty; the function still authorizes against auth.uid() for every call.
+create or replace function business_unit_private.can_access_business_unit(target_business_unit_id uuid)
 returns boolean
 language sql
 stable
 security definer
-set search_path = 'pg_catalog', 'public'
+set search_path = ''
 as $$
   select exists (
     select 1
@@ -112,9 +132,9 @@ as $$
   );
 $$;
 
-revoke all on function public.can_access_business_unit(uuid) from public;
-revoke all on function public.can_access_business_unit(uuid) from anon;
-grant execute on function public.can_access_business_unit(uuid) to authenticated;
+revoke all on function business_unit_private.can_access_business_unit(uuid) from public;
+revoke all on function business_unit_private.can_access_business_unit(uuid) from anon;
+grant execute on function business_unit_private.can_access_business_unit(uuid) to authenticated;
 
 -- Unit catalog: executives see all; everyone else sees only units they belong to.
 drop policy if exists business_units_read on public.business_units;
@@ -122,15 +142,7 @@ create policy business_units_read on public.business_units
 for select to authenticated
 using (
   public.is_executive(organization_id)
-  or exists (
-    select 1
-    from public.business_unit_memberships bum
-    where bum.business_unit_id = business_units.id
-      and bum.profile_id = auth.uid()
-      and bum.suspended_at is null
-      and bum.effective_from <= now()
-      and (bum.effective_until is null or bum.effective_until > now())
-  )
+  or business_unit_private.can_access_business_unit(id)
 );
 
 drop policy if exists business_units_insert on public.business_units;
@@ -182,7 +194,7 @@ for select to authenticated
 using (
   organization_id in (select public.current_org_ids())
   and (public.is_executive(organization_id) or public.can_access_project(id))
-  and (business_unit_id is null or public.can_access_business_unit(business_unit_id))
+  and (business_unit_id is null or business_unit_private.can_access_business_unit(business_unit_id))
 );
 
 drop policy if exists projects_insert on public.projects;
@@ -190,7 +202,7 @@ create policy projects_insert on public.projects
 for insert to authenticated
 with check (
   organization_id in (select public.current_org_ids())
-  and (business_unit_id is null or public.can_access_business_unit(business_unit_id))
+  and (business_unit_id is null or business_unit_private.can_access_business_unit(business_unit_id))
 );
 
 drop policy if exists projects_update on public.projects;
@@ -199,11 +211,11 @@ for update to authenticated
 using (
   organization_id in (select public.current_org_ids())
   and (public.is_executive(organization_id) or public.can_access_project(id))
-  and (business_unit_id is null or public.can_access_business_unit(business_unit_id))
+  and (business_unit_id is null or business_unit_private.can_access_business_unit(business_unit_id))
 )
 with check (
   organization_id in (select public.current_org_ids())
-  and (business_unit_id is null or public.can_access_business_unit(business_unit_id))
+  and (business_unit_id is null or business_unit_private.can_access_business_unit(business_unit_id))
 );
 
 -- Compatibility bridge: when an existing project is classified, inherit its
@@ -211,11 +223,11 @@ with check (
 -- inherit the unit membership too. We deliberately do not auto-revoke unit access
 -- when one project link is removed because the person may still need that unit via
 -- another project; revocation remains an explicit audited access-control action.
-create or replace function public.ksp_sync_project_business_unit_membership()
+create or replace function business_unit_private.sync_project_membership()
 returns trigger
 language plpgsql
 security definer
-set search_path = 'pg_catalog', 'public'
+set search_path = ''
 as $$
 begin
   if tg_table_name = 'projects' then
@@ -259,17 +271,18 @@ begin
 end;
 $$;
 
-revoke all on function public.ksp_sync_project_business_unit_membership() from public;
-revoke all on function public.ksp_sync_project_business_unit_membership() from anon;
+revoke all on function business_unit_private.sync_project_membership() from public;
+revoke all on function business_unit_private.sync_project_membership() from anon;
+revoke all on function business_unit_private.sync_project_membership() from authenticated;
 
 -- Projects trigger only needs UPDATE because the current create flow stays
 -- unclassified until an executive chooses the unit.
 drop trigger if exists ksp_projects_business_unit_membership_sync on public.projects;
 create trigger ksp_projects_business_unit_membership_sync
 after update of business_unit_id on public.projects
-for each row execute function public.ksp_sync_project_business_unit_membership();
+for each row execute function business_unit_private.sync_project_membership();
 
 drop trigger if exists ksp_project_memberships_business_unit_sync on public.project_memberships;
 create trigger ksp_project_memberships_business_unit_sync
 after insert on public.project_memberships
-for each row execute function public.ksp_sync_project_business_unit_membership();
+for each row execute function business_unit_private.sync_project_membership();
