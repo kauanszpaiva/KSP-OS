@@ -135,6 +135,67 @@ export function Dot({ tone = 'neutral', className }: { tone?: Tone; className?: 
   return <span className={cx('inline-block h-1.5 w-1.5 rounded-full', map[tone], className)} aria-hidden />;
 }
 
+/* ---------------------------------------------------------- Visual marks -- */
+
+export type ShapeKind = 'circle' | 'square' | 'diamond' | 'triangle';
+
+const MARK_TONE: Record<Tone, string> = {
+  neutral: 'bg-surface-3 text-ink-3',
+  brand: 'bg-brand-tint text-brand',
+  accent: 'bg-accent-tint text-accent-strong',
+  good: 'bg-good-tint text-good',
+  warn: 'bg-warn-tint text-warn',
+  risk: 'bg-risk-tint text-risk'
+};
+
+const MARK_SIZE: Record<'sm' | 'md' | 'lg', { frame: string; icon: string }> = {
+  sm: { frame: 'h-7 w-7', icon: 'h-3.5 w-3.5' },
+  md: { frame: 'h-9 w-9', icon: 'h-[17px] w-[17px]' },
+  lg: { frame: 'h-11 w-11', icon: 'h-5 w-5' }
+};
+
+/**
+ * A redundant category cue: shape + icon + stable semantic tone. It keeps
+ * dense operational views scannable without making color the only signal.
+ */
+export function ShapeMark({
+  shape,
+  icon,
+  label,
+  tone = 'brand',
+  size = 'md',
+  className
+}: {
+  shape: ShapeKind;
+  icon: IconName;
+  label: string;
+  tone?: Tone;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}) {
+  const dimensions = MARK_SIZE[size];
+  const shapeClass =
+    shape === 'circle'
+      ? 'rounded-full'
+      : shape === 'square'
+        ? 'rounded-[10px]'
+        : shape === 'diamond'
+          ? 'rotate-45 rounded-[8px]'
+          : '[clip-path:polygon(50%_3%,97%_91%,3%_91%)]';
+  const iconClass = shape === 'diamond' ? '-rotate-45' : shape === 'triangle' ? 'translate-y-0.5' : '';
+
+  return (
+    <span
+      className={cx('inline-flex shrink-0 items-center justify-center', dimensions.frame, shapeClass, MARK_TONE[tone], className)}
+      role="img"
+      aria-label={label}
+      title={label}
+    >
+      <Icon name={icon} className={cx(dimensions.icon, iconClass)} />
+    </span>
+  );
+}
+
 /* --------------------------------------------------------------- Avatar -- */
 
 const AVATAR_HUES = ['bg-brand', 'bg-accent', 'bg-good', 'bg-warn', 'bg-risk'];
@@ -252,6 +313,57 @@ export function ProgressBar({
     <div className={cx('h-1.5 w-full overflow-hidden rounded-full bg-surface-2', className)} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
       <div className={cx('h-full rounded-full transition-[width] duration-slow ease-standard', pct >= 100 ? PROGRESS_FILL.accent : PROGRESS_FILL[tone])} style={{ width: `${pct}%` }} />
     </div>
+  );
+}
+
+const RING_STROKE_TONE: Record<Tone, string> = {
+  neutral: 'stroke-ink-4',
+  brand: 'stroke-brand',
+  accent: 'stroke-accent',
+  good: 'stroke-good',
+  warn: 'stroke-warn',
+  risk: 'stroke-risk'
+};
+
+/** Compact circular completion display for project and milestone summaries. */
+export function ProgressRing({
+  value,
+  tone = 'brand',
+  size = 58,
+  stroke = 5,
+  label
+}: {
+  value: number;
+  tone?: Tone;
+  size?: number;
+  stroke?: number;
+  label?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - pct / 100);
+  const strokeClass = RING_STROKE_TONE[tone];
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" role="img" aria-label={label ?? `${pct}% complete`}>
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke} className="stroke-surface-3" />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        className={strokeClass}
+        style={{ transition: 'stroke-dashoffset var(--motion-slow) var(--ease-standard)' }}
+      />
+      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" className="tnum fill-ink text-[11px] font-semibold">
+        {pct}%
+      </text>
+    </svg>
   );
 }
 

@@ -19,6 +19,7 @@ export type IconName =
   | 'check'
   | 'user'
   | 'sliders'
+  | 'palette'
   | 'logout'
   | 'pulse'
   | 'focus'
@@ -84,6 +85,15 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   sliders: <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />,
+  palette: (
+    <>
+      <path d="M12 3a9 9 0 1 0 0 18h1.2a1.8 1.8 0 0 0 0-3.6h-.7a1.7 1.7 0 0 1 0-3.4H16a5 5 0 0 0 5-5c0-3.3-4-6-9-6z" />
+      <circle cx="7.5" cy="10" r="1" />
+      <circle cx="10" cy="6.8" r="1" />
+      <circle cx="14.2" cy="6.6" r="1" />
+      <circle cx="17.2" cy="9.5" r="1" />
+    </>
+  ),
   logout: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
   pulse: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
   focus: (

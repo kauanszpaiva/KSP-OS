@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Avatar, Icon, IconButton, ThemeToggle, cx, useDismissable, type IconName } from '@ksp/ui';
+import { Avatar, Icon, IconButton, PalettePicker, ThemeToggle, cx, useDismissable, type IconName } from '@ksp/ui';
 import type { Notification } from '@ksp/database';
 import type { NavGroup, NavItem } from '../../../lib/nav';
 import { CommandPalette, CommandPaletteTrigger, type PalettePerms } from './command-palette';
@@ -208,6 +208,7 @@ export function Shell({
               </div>
             </details>
             <NotificationsMenu notifications={notifications} />
+            <span className="hidden sm:inline-flex"><PalettePicker /></span>
             <span className="hidden sm:inline-flex"><ThemeToggle /></span>
             <details className="group relative">
               <summary className="flex min-h-11 min-w-11 cursor-pointer select-none items-center justify-center rounded-full transition-transform duration-fast marker:hidden hover:scale-105 sm:min-h-9 sm:min-w-9 [&::-webkit-details-marker]:hidden"><Avatar name={user.displayName} /></summary>
@@ -267,6 +268,7 @@ function MobileMoreSheet({ open, onClose, groups, mobilePrimary, isActive }: { o
         <div className="mb-4 flex items-center justify-between">
           <div><p className="text-[17px] font-semibold text-ink">More</p><p className="mt-0.5 text-[12px] text-ink-4">All company modules</p></div>
           <div className="flex items-center gap-1">
+            <PalettePicker />
             <ThemeToggle />
             <IconButton icon="x" label="Close" size="sm" onClick={onClose} />
           </div>

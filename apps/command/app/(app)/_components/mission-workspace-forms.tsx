@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import { ShapeMark } from '@ksp/ui';
 import {
   addMissionDependency,
   createMilestone,
@@ -138,14 +139,38 @@ export function MissionEditForm({
 export function MilestoneForm({ projectId }: { projectId: string }) {
   const [state, action, pending] = useActionState(createMilestone, initial);
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2">
-      <input aria-label="Input field" type="hidden" name="projectId" value={projectId} />
-      <input name="title" aria-label="Title" placeholder="Milestone title" className="min-w-0 flex-1 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" required />
-      <input aria-label="Phase (optional)" name="phase" placeholder="Phase (optional)" className="w-32 rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none" />
-      <input name="startDate" aria-label="Start Date" type="date" title="Start date (optional, for the Timeline view)" className="rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none" />
-      <input name="dueDate" aria-label="Due Date" type="date" className="rounded-lg border border-line-2 bg-surface px-2 py-1 text-sm text-ink focus:border-brand focus:outline-none" />
-      <button type="submit" disabled={pending} className={ghostBtn}>{pending ? 'Adding…' : 'Add'}</button>
-      <FormError state={state} />
+    <form action={action} className="rounded-xl border border-dashed border-line-2 bg-surface-2/35 p-2.5">
+      <input aria-label="Project ID" type="hidden" name="projectId" value={projectId} />
+      <div className="grid min-w-0 gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center">
+        <ShapeMark shape="diamond" icon="schedule" label="New milestone" tone="accent" size="sm" className="hidden sm:inline-flex" />
+        <label className="min-w-0">
+          <span className="sr-only">Milestone title</span>
+          <input name="title" placeholder="Name the milestone" className="h-11 w-full min-w-0 rounded-lg border border-line-2 bg-surface px-3 text-[13px] text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none sm:h-9" required />
+        </label>
+        <label>
+          <span className="sr-only">Target date</span>
+          <input name="dueDate" type="date" title="Target date" className="h-11 w-full rounded-lg border border-line-2 bg-surface px-2 text-[12px] text-ink focus:border-brand focus:outline-none sm:h-9 sm:w-[9.5rem]" />
+        </label>
+        <button type="submit" disabled={pending} className={`${ghostBtn} h-11 sm:h-9`}>{pending ? 'Adding…' : 'Add'}</button>
+      </div>
+
+      <details className="group/options mt-1.5">
+        <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1.5 px-1 text-[10.5px] font-medium text-ink-4 marker:hidden hover:text-brand [&::-webkit-details-marker]:hidden">
+          More options
+          <span className="transition-transform group-open/options:rotate-45" aria-hidden>+</span>
+        </summary>
+        <div className="grid gap-2 border-t border-line pt-2 sm:grid-cols-2">
+          <label>
+            <span className="mb-1 block text-[10.5px] font-medium text-ink-4">Phase</span>
+            <input name="phase" placeholder="e.g. Launch" className="h-11 w-full rounded-lg border border-line-2 bg-surface px-3 text-[12px] text-ink placeholder:text-ink-4 focus:border-brand focus:outline-none sm:h-9" />
+          </label>
+          <label>
+            <span className="mb-1 block text-[10.5px] font-medium text-ink-4">Start date</span>
+            <input name="startDate" type="date" title="Start date for timeline" className="h-11 w-full rounded-lg border border-line-2 bg-surface px-2 text-[12px] text-ink focus:border-brand focus:outline-none sm:h-9" />
+          </label>
+        </div>
+      </details>
+      <div className="mt-1"><FormError state={state} /></div>
     </form>
   );
 }

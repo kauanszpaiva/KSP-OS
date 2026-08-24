@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Avatar, Icon, ThemeToggle, cx } from '@ksp/ui';
+import { Avatar, Icon, PalettePicker, ThemeToggle, cx } from '@ksp/ui';
 import type { NavItem } from '../../../lib/nav';
 
 const MOBILE_PRIMARY_LABELS = new Set(['Home', 'Projects', 'Approvals', 'Files']);
@@ -119,6 +119,7 @@ export function PortalShell({
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <PalettePicker />
             <ThemeToggle />
             <details className="group relative">
               <summary className="flex cursor-pointer select-none items-center rounded-full transition-transform duration-fast marker:hidden active:scale-95 hover:scale-105 [&::-webkit-details-marker]:hidden">

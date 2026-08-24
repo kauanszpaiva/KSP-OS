@@ -72,6 +72,65 @@
   --shadow-brand: 0 4px 16px -4px rgb(178 122 255 / 0.45);
 }
 
+/* Accent palettes are a presentation preference only. Status colors remain
+   stable so success, warning and risk never change meaning between users. */
+:root[data-palette='ocean'] {
+  --brand: 33 102 189;
+  --brand-strong: 25 78 151;
+  --brand-tint: 231 240 252;
+  --accent: 14 165 168;
+  --accent-strong: 12 116 119;
+  --accent-tint: 226 246 245;
+  --shadow-brand: 0 4px 14px -5px rgb(33 102 189 / 0.32);
+}
+
+:root[data-palette='ember'] {
+  --brand: 190 70 56;
+  --brand-strong: 151 48 38;
+  --brand-tint: 252 235 231;
+  --accent: 220 146 36;
+  --accent-strong: 157 94 14;
+  --accent-tint: 250 241 220;
+  --shadow-brand: 0 4px 14px -5px rgb(190 70 56 / 0.32);
+}
+
+:root[data-palette='forest'] {
+  --brand: 22 121 96;
+  --brand-strong: 13 87 68;
+  --brand-tint: 226 244 238;
+  --accent: 129 170 37;
+  --accent-strong: 84 117 15;
+  --accent-tint: 239 247 221;
+  --shadow-brand: 0 4px 14px -5px rgb(22 121 96 / 0.32);
+}
+
+:root[data-theme='dark'][data-palette='ocean'] {
+  --brand: 102 166 255;
+  --brand-strong: 70 137 234;
+  --brand-tint: 24 42 66;
+  --accent: 75 205 205;
+  --accent-strong: 129 226 224;
+  --accent-tint: 23 49 50;
+}
+
+:root[data-theme='dark'][data-palette='ember'] {
+  --brand: 244 128 111;
+  --brand-strong: 226 98 81;
+  --brand-tint: 61 31 29;
+  --accent: 241 180 78;
+  --accent-strong: 250 205 125;
+  --accent-tint: 55 43 23;
+}
+
+:root[data-theme='dark'][data-palette='forest'] {
+  --brand: 77 199 158;
+  --brand-strong: 47 167 128;
+  --brand-tint: 22 51 42;
+  --accent: 172 211 75;
+  --accent-strong: 201 229 126;
+  --accent-tint: 41 50 23;
+}
+
 html {
   min-width: 320px;
   min-height: 100%;
