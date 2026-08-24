@@ -16,8 +16,8 @@ export interface PortalAuthContext {
 
 /**
  * Client-portal equivalent of getAuthContext: resolves the signed-in user's
- * active client memberships plus the concrete projects and scoped permission
- * rows that RLS currently exposes to that user.
+ * active client memberships plus the concrete Portal projects and scoped
+ * permission rows that are effective for that client identity.
  */
 export async function getPortalAuthContext(supabase: SupabaseClient): Promise<PortalAuthContext | null> {
   const user = await getSessionUser(supabase);
@@ -45,11 +45,13 @@ export async function getPortalAuthContext(supabase: SupabaseClient): Promise<Po
     .map((m) => ({ clientOrganizationId: m.client_organization_id, role: m.role }));
   const now = new Date().toISOString();
 
-  // `projects` is intentionally read through normal portal RLS. The resulting
-  // IDs are therefore the effective project boundary, not an application-side
-  // reconstruction of portal policy.
+  // Do not derive Portal scope from a generic `projects` SELECT: a person may
+  // legitimately have both internal and client identities, and the internal
+  // projects_member_read policy would then widen this list. `portal_visible_projects`
+  // is the canonical Portal-only projection backed by project_access_grants +
+  // active client membership.
   const [projectResult, grantResult, mfa] = await Promise.all([
-    supabase.from('projects').select('id'),
+    supabase.rpc('portal_visible_projects'),
     supabase
       .from('client_permission_grants')
       .select('action, client_organization_id, project_id')
@@ -61,7 +63,7 @@ export async function getPortalAuthContext(supabase: SupabaseClient): Promise<Po
     getSessionAal(supabase)
   ]);
 
-  const projectIds = (projectResult.data ?? []).map((row: { id: string }) => row.id);
+  const projectIds = ((projectResult.data ?? []) as Array<{ id: string }>).map((row) => row.id);
   const scopedGrants: ScopedPermissionGrant[] = (
     (grantResult.data ?? []) as Array<{
       action: PermissionAction;
