@@ -65,9 +65,9 @@
     "canonicalLiveRawMd5": "05820e0673db1322626790bbe3a39632",
     "duplicateLiveVersion": "20260824125150",
     "duplicateLiveRawMd5": "16fe81bf9e2db7f7fd84eb6a3c5c7175",
-    "livePunctuationNormalizedMd5": "68130650cd9c4efcf24ce43e268791fe",
+    "livePunctuationNormalizedMd5": "87d9508fcafb244f31351b11d8a98656",
     "normalization": "strip SQL comments, lowercase, collapse whitespace, then remove whitespace around parentheses, commas, equals signs, and semicolons",
     "historyAction": "preserve_both_live_rows_do_not_rewrite_migration_history",
-    "note": "The two live rows differ at the raw-text level but normalize to the same punctuation-aware SQL hash. CI requires the repository migration to normalize to that same hash and preserves both immutable live raw hashes for runtime drift detection."
+    "note": "The two live rows differ at the raw-text level but both normalize to the same punctuation-aware SQL hash as the repository migration. CI verifies the repository-normalized hash and preserves both immutable live raw hashes for runtime drift detection."
   }
 }
