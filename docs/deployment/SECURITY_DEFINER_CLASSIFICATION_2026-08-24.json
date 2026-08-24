@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "targetProjectRef": "tqwnsxjrlomosfblleqy",
+  "capturedAt": "2026-08-24T20:01:00Z",
+  "rule": "Classify every production public SECURITY DEFINER function executable by authenticated before changing grants. Trigger-only or anonymous-unnecessary execution is removed only after isolated staging validation and the production DDL gate opens; RLS helpers and authenticated business RPCs retain authenticated execution when required by callers.",
+  "productionAuthenticatedFunctions": [
+    {
+      "signature": "accept_portal_invitation(text)",
+      "classification": "authenticated_business_rpc",
+      "authenticatedExecute": "required",
+      "evidence": ["apps/portal/app/actions.ts", "apps/portal/app/invite/[token]/page.tsx"],
+      "guard": "Requires auth.uid(), locks a matching unexpired invitation, and verifies the authenticated profile email matches the invitation before creating membership/access."
+    },
+    {
+      "signature": "apply_approval_decision()",
+      "classification": "trigger_only_helper",
+      "authenticatedExecute": "unnecessary_direct_rpc",
+      "anonymousExecute": "unnecessary",
+      "evidence": ["database trigger approval_decisions_apply_status AFTER INSERT ON public.approval_decisions"],
+      "disposition": "Staging hardening already revokes direct client execution and the approval trigger was revalidated. Promote that revocation only after the production DDL gate opens."
+    },
+    {
+      "signature": "can_access_project(uuid)",
+      "classification": "rls_helper",
+      "authenticatedExecute": "required_by_rls",
+      "evidence": ["projects/project_memberships/tasks/mission RLS policies"]
+    },
+    {
+      "signature": "current_org_ids()",
+      "classification": "rls_helper",
+      "authenticatedExecute": "required_by_rls",
+      "anonymousExecute": "unnecessary",
+      "evidence": ["organization/project/content/deliverable/storage and other tenant RLS policies"],
+      "disposition": "Staging hardening already removes anonymous/public direct execution while preserving authenticated RLS use."
+    },
+    {
+      "signature": "has_project_access(uuid)",
+      "classification": "authorization_helper",
+      "authenticatedExecute": "intentional",
+      "evidence": ["database authorization model and executable RLS regression fixtures"]
+    },
+    {
+      "signature": "is_executive(uuid)",
+      "classification": "rls_helper",
+      "authenticatedExecute": "required_by_rls",
+      "evidence": ["finance/access/audit/projects/tasks and other executive RLS policies"]
+    },
+    {
+      "signature": "is_founder(uuid)",
+      "classification": "rls_helper",
+      "authenticatedExecute": "required_by_rls",
+      "anonymousExecute": "unnecessary",
+      "evidence": ["Founder OS RLS policies"],
+      "disposition": "Staging hardening already removes anonymous/public direct execution while preserving authenticated RLS use."
+    },
+    {
+      "signature": "is_internal_member(uuid)",
+      "classification": "rls_helper",
+      "authenticatedExecute": "required_by_rls",
+      "evidence": ["client/access/activity/change-order/request and other internal RLS policies"]
+    },
+    {
+      "signature": "portal_visible_projects()",
+      "classification": "authenticated_read_rpc",
+      "authenticatedExecute": "required",
+      "evidence": ["packages/auth/src/portal-context.ts"],
+      "guard": "Returns only projects with an active client membership and active project.read grant for auth.uid()."
+    },
+    {
+      "signature": "portfolio_accept_invitations()",
+      "classification": "legacy_authenticated_business_rpc",
+      "authenticatedExecute": "preserve_with_legacy_subsystem",
+      "guard": "Requires auth.uid() and authenticated email, and accepts only matching pending unexpired Portfolio invitations."
+    },
+    {
+      "signature": "portfolio_can_access_entity(uuid)",
+      "classification": "legacy_portfolio_rls_helper",
+      "authenticatedExecute": "preserve_with_legacy_subsystem"
+    },
+    {
+      "signature": "portfolio_can_access_project(uuid)",
+      "classification": "legacy_portfolio_rls_helper",
+      "authenticatedExecute": "preserve_with_legacy_subsystem"
+    },
+    {
+      "signature": "portfolio_can_manage_entity(uuid)",
+      "classification": "legacy_portfolio_rls_helper",
+      "authenticatedExecute": "preserve_with_legacy_subsystem"
+    },
+    {
+      "signature": "portfolio_can_manage_project(uuid)",
+      "classification": "legacy_portfolio_rls_helper",
+      "authenticatedExecute": "preserve_with_legacy_subsystem"
+    },
+    {
+      "signature": "portfolio_is_global_owner()",
+      "classification": "legacy_portfolio_rls_helper",
+      "authenticatedExecute": "preserve_with_legacy_subsystem"
+    },
+    {
+      "signature": "post_journal_entry(uuid,uuid,text)",
+      "classification": "authenticated_finance_business_rpc",
+      "authenticatedExecute": "required",
+      "evidence": ["apps/command/app/(app)/actions.ts"],
+      "guard": "Requires auth.uid(), actor equality, executive or finance.post permission, draft state, unlocked accounting period, idempotency key, and balanced journal validation."
+    },
+    {
+      "signature": "preview_portal_invitation(text)",
+      "classification": "authenticated_read_rpc",
+      "authenticatedExecute": "required",
+      "evidence": ["apps/portal/app/invite/[token]/page.tsx"],
+      "guard": "Requires auth.uid() and returns only limited invitation preview fields for the supplied token."
+    }
+  ],
+  "futureStagingOnlyFunctions": [
+    {
+      "signature": "respond_partner_assignment(uuid,text,text)",
+      "classification": "authenticated_partner_business_rpc",
+      "authenticatedExecute": "required_when_partner_schema_promotes",
+      "evidence": ["apps/network/app/actions.ts", "supabase/tests/business_units_access.test.sql"],
+      "note": "Not present in production because Partner Operations has not been promoted. Staging negative-path tests proved cross-partner and offboarding denial."
+    }
+  ],
+  "classificationStatus": "complete",
+  "productionAclChangesAuthorized": false,
+  "nextSafeAclPromotion": [
+    "revoke direct client execution from apply_approval_decision()",
+    "revoke anonymous/public execution from current_org_ids()",
+    "revoke anonymous/public execution from is_founder(uuid)",
+    "retain authenticated execution for RLS helpers and intentional authenticated RPCs"
+  ]
+}
