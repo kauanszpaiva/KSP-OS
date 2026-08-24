@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart, Donut, Reveal, Segmented } from '@ksp/ui';
+import { BarChart, Donut, Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import type { Product } from '@ksp/database';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { ProductActiveForm } from './growth-forms';
 import { DeleteButton } from './crud-forms';
 import { deleteProduct } from '../actions';
+import { ProgressiveList } from './progressive-list';
 
 function money(minor: number): string {
   return (minor / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -19,22 +20,24 @@ function GridView({ products }: { products: Product[] }) {
     <div className="space-y-8">
       <Reveal>
         <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{active.length}</span>}>Active</SectionLabel>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {active.map((p) => (
-            <Panel key={p.id} className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-[14px] font-semibold text-ink">{p.name}</h3>
-                {p.price_minor != null && <span className="tnum shrink-0 text-[13px] font-medium text-ink-2">{money(p.price_minor)}</span>}
-              </div>
-              {p.category && <p className="mt-1 text-[11.5px] uppercase tracking-wide text-ink-4">{p.category}</p>}
-              {p.description && <p className="mt-2 line-clamp-2 text-[13px] text-ink-2">{p.description}</p>}
-              <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
+        <Panel className="overflow-hidden">
+          <ProgressiveList initial={5}>{active.map((p) => (
+            <details key={p.id} className="group border-t border-line first:border-t-0 open:bg-canvas/55">
+              <summary className="grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 marker:hidden sm:px-4 [&::-webkit-details-marker]:hidden">
+                <ShapeMark shape="diamond" icon="products" label={p.category || 'Product'} tone="accent" size="sm" />
+                <div className="min-w-0"><h3 className="truncate text-[14px] font-semibold text-ink">{p.name}</h3><p className="mt-0.5 truncate text-[11.5px] capitalize text-ink-3">{p.category || 'Uncategorized'}</p></div>
+                {p.price_minor != null && <span className="tnum shrink-0 text-[12px] font-medium text-ink-2">{money(p.price_minor)}</span>}
+              </summary>
+              <div className="border-t border-line px-4 py-3">
+                {p.description && <p className="mb-3 text-[12.5px] leading-relaxed text-ink-2">{p.description}</p>}
+                <div className="flex items-center justify-between">
                 <ProductActiveForm id={p.id} active={p.active} />
                 <DeleteButton action={deleteProduct} id={p.id} label="Delete" iconOnly confirmText={`Delete product "${p.name}"?`} />
+                </div>
               </div>
-            </Panel>
-          ))}
-        </div>
+            </details>
+          ))}</ProgressiveList>
+        </Panel>
       </Reveal>
 
       {archived.length > 0 && (
