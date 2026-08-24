@@ -116,19 +116,26 @@ export async function setBusinessUnitMembership(_prev: DivisionActionResult, for
   const profileId = safeId(form.get('profileId'));
   const accessLevel = String(form.get('accessLevel') ?? 'member');
   if (!businessUnitId || !profileId) return { ok: false, error: 'Invalid division or member.' };
-  if (!['owner', 'admin', 'member', 'viewer'].includes(accessLevel)) return { ok: false, error: 'Invalid access level.' };
+  if (!['admin', 'member', 'viewer'].includes(accessLevel)) return { ok: false, error: 'Invalid access level.' };
 
+  const now = new Date().toISOString();
   const [{ data: unit }, { data: orgMembership }] = await Promise.all([
-    supabase.from('business_units').select('id, name').eq('id', businessUnitId).eq('organization_id', ctx.organizationId).maybeSingle(),
+    supabase.from('business_units').select('id, name').eq('id', businessUnitId).eq('organization_id', ctx.organizationId).eq('status', 'active').maybeSingle(),
     supabase
       .from('organization_memberships')
-      .select('profile_id')
+      .select('profile_id, internal_role')
       .eq('organization_id', ctx.organizationId)
       .eq('profile_id', profileId)
+      .not('internal_role', 'is', null)
       .is('suspended_at', null)
+      .or(`effective_until.is.null,effective_until.gt.${now}`)
+      .limit(1)
       .maybeSingle()
   ]);
   if (!unit || !orgMembership) return { ok: false, error: 'Division or active team member not found.' };
+  if (['founder_ceo', 'executive_operations'].includes(String(orgMembership.internal_role))) {
+    return { ok: false, error: 'Global owners already have access to every KSP division.' };
+  }
 
   const { error } = await supabase.from('business_unit_memberships').upsert(
     {
@@ -261,7 +268,9 @@ export async function createMissionInBusinessUnit(_prev: DivisionActionResult, f
     role: ctx.internalRoles[0] ?? 'contractor'
   });
   if (membershipError) {
-    // Do not leave an invisible orphan if the membership edge fails.
+    // Do not leave an invisible orphan if the membership edge fails. Executives
+    // can always delete; non-executive global project managers may rely on the
+    // existing delete policy, so failure here is still reported explicitly.
     await supabase.from('projects').delete().eq('id', data.id);
     return { ok: false, error: 'Project access could not be initialized.' };
   }
