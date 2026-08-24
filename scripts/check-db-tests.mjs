@@ -52,6 +52,7 @@ const reconciliationName = '202608130001_runtime_reconciliation.sql';
 const reconciliation = fs.readFileSync(`supabase/migrations/${reconciliationName}`, 'utf8');
 const managedFilesTest = fs.readFileSync('supabase/tests/managed_files.test.sql', 'utf8');
 const taskDeliveryEvidenceTest = fs.readFileSync('supabase/tests/task_delivery_evidence.test.sql', 'utf8');
+const businessUnitsAccessTest = fs.readFileSync('supabase/tests/business_units_access.test.sql', 'utf8');
 if (!migrations.includes(reconciliationName)) throw new Error(`${reconciliationName} missing`);
 
 function dockerExec(args, options = {}) {
@@ -371,6 +372,7 @@ try {
   psql('drift', actorTests);
   psql('drift', managedFilesTest);
   psql('drift', taskDeliveryEvidenceTest);
+  psql('drift', businessUnitsAccessTest);
 
   psql('drift', `insert into organizations (name, slug) values ('Recovery Marker', 'runtime-recovery-marker');`);
   const dump = dockerExec([containerName, 'pg_dump', '-U', 'postgres', '-d', 'drift', '-Fc'], { encoding: null }).stdout;
@@ -379,7 +381,7 @@ try {
   const recoveryProbe = psql('recovery', `select count(*) from organizations where slug='runtime-recovery-marker';`);
   if (!recoveryProbe.stdout.match(/\b1\b/)) throw new Error('Backup/restore rehearsal did not recover the marker row.');
 
-  console.log(`Behavioral DB rehearsal passed on ${image}: full chain, production-like drift reconciliation, idempotence, rollback, actor-level RLS, managed-files RLS, task-delivery RLS, tenant/client isolation, invariants, and backup/restore.`);
+  console.log(`Behavioral DB rehearsal passed on ${image}: full chain, production-like drift reconciliation, idempotence, rollback, actor-level RLS, business-unit revocation and inheritance, managed-files RLS, task-delivery RLS, tenant/client isolation, invariants, and backup/restore.`);
 } finally {
   run('docker', ['rm', '-f', containerName], { allowFailure: true });
 }

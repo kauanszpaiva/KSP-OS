@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "targetProjectRef": "tqwnsxjrlomosfblleqy",
+  "acceptedLiveOnlyMigrations": [
+    "portfolio_os_foundation",
+    "portfolio_os_function_hardening",
+    "portfolio_os_function_execute_scope",
+    "portfolio_os_user_profiles"
+  ],
+  "blockedUntilClassified": true,
+  "note": "These live-only migrations are acknowledged drift, not repository migrations. Production DDL remains blocked until their ownership and forward lineage are explicitly classified."
+}
