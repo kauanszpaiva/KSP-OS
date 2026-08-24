@@ -14,6 +14,11 @@ export type SocialStatus =
   | 'withdrawn'
   | 'skipped';
 
+export interface SocialClientOption {
+  id: string;
+  displayName: string;
+}
+
 export interface SocialProfileView {
   id: string;
   displayName: string;
@@ -25,6 +30,7 @@ export interface SocialProfileView {
   publisher: string | null;
   approver: string | null;
   kpiOwner: string | null;
+  clientId: string | null;
   projectId: string | null;
   projectName: string | null;
   clientName: string | null;
@@ -35,6 +41,7 @@ export interface SocialContentOption {
   title: string;
   channel: string;
   status: string;
+  clientId: string | null;
   projectId: string | null;
   projectName: string | null;
   clientName: string | null;
@@ -116,11 +123,13 @@ export async function getSocialDistributionWorkspaceData(supabase: SupabaseClien
       .select('id, content_item_id, social_profile_id, deliverable_version_id, control_mode, publisher, approver, status, scheduled_for, delivered_at, published_at, publication_url, evidence_kind, evidence_note')
       .order('created_at', { ascending: false })
       .limit(300),
-    supabase.from('client_organizations').select('id, display_name'),
+    supabase.from('client_organizations').select('id, display_name').eq('status', 'active').order('display_name'),
     supabase.from('projects').select('id, name, client_id')
   ]);
 
-  const clients = new Map(((clientsRaw ?? []) as Array<{ id: string; display_name: string }>).map((client) => [client.id, client.display_name]));
+  const clientRows = (clientsRaw ?? []) as Array<{ id: string; display_name: string }>;
+  const clientOptions: SocialClientOption[] = clientRows.map((client) => ({ id: client.id, displayName: client.display_name }));
+  const clients = new Map(clientRows.map((client) => [client.id, client.display_name]));
   const projects = new Map(((projectsRaw ?? []) as Array<{ id: string; name: string; client_id: string | null }>).map((project) => [project.id, project]));
 
   const profiles: SocialProfileView[] = ((profilesRaw ?? []) as ProfileRow[]).map((profile) => {
@@ -137,6 +146,7 @@ export async function getSocialDistributionWorkspaceData(supabase: SupabaseClien
       publisher: profile.default_publisher,
       approver: profile.default_approver,
       kpiOwner: profile.kpi_owner,
+      clientId,
       projectId: profile.project_id,
       projectName: project?.name ?? null,
       clientName: clientId ? clients.get(clientId) ?? null : null
@@ -151,6 +161,7 @@ export async function getSocialDistributionWorkspaceData(supabase: SupabaseClien
       title: item.title,
       channel: item.channel,
       status: item.status,
+      clientId,
       projectId: item.project_id,
       projectName: project?.name ?? null,
       clientName: clientId ? clients.get(clientId) ?? null : null
@@ -197,5 +208,5 @@ export async function getSocialDistributionWorkspaceData(supabase: SupabaseClien
     }];
   });
 
-  return { profiles, contentItems, distributions };
+  return { clients: clientOptions, profiles, contentItems, distributions };
 }
