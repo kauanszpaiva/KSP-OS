@@ -1,7 +1,9 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 import { ProgressiveList } from './progressive-list';
+
+afterEach(cleanup);
 
 describe('ProgressiveList', () => {
   it('limits the first layer and exposes the remaining item count', () => {
