@@ -53,6 +53,7 @@ const reconciliation = fs.readFileSync(`supabase/migrations/${reconciliationName
 const managedFilesTest = fs.readFileSync('supabase/tests/managed_files.test.sql', 'utf8');
 const taskDeliveryEvidenceTest = fs.readFileSync('supabase/tests/task_delivery_evidence.test.sql', 'utf8');
 const businessUnitsAccessTest = fs.readFileSync('supabase/tests/business_units_access.test.sql', 'utf8');
+const privateProfileAvatarsTest = fs.readFileSync('supabase/tests/private_profile_avatars.test.sql', 'utf8');
 if (!migrations.includes(reconciliationName)) throw new Error(`${reconciliationName} missing`);
 
 function dockerExec(args, options = {}) {
@@ -111,6 +112,12 @@ function grantAppTableAccess(db) {
     grant select on all tables in schema public to anon;
     grant select, insert, update, delete on all tables in schema public to authenticated;
     grant usage, select on all sequences in schema public to authenticated;
+
+    -- Mirror the production column-level self-service grant, which is more
+    -- restrictive than this rehearsal's generic app-table bootstrap grant.
+    revoke update on public.profiles from authenticated;
+    grant update (display_name, avatar_path, phone_e164, timezone, locale, sms_opt_in)
+      on public.profiles to authenticated;
 
     grant usage on schema storage to anon, authenticated;
     grant select on storage.buckets to anon, authenticated;
@@ -373,6 +380,7 @@ try {
   psql('drift', managedFilesTest);
   psql('drift', taskDeliveryEvidenceTest);
   psql('drift', businessUnitsAccessTest);
+  psql('drift', privateProfileAvatarsTest);
 
   psql('drift', `insert into organizations (name, slug) values ('Recovery Marker', 'runtime-recovery-marker');`);
   const dump = dockerExec([containerName, 'pg_dump', '-U', 'postgres', '-d', 'drift', '-Fc'], { encoding: null }).stdout;
@@ -381,7 +389,7 @@ try {
   const recoveryProbe = psql('recovery', `select count(*) from organizations where slug='runtime-recovery-marker';`);
   if (!recoveryProbe.stdout.match(/\b1\b/)) throw new Error('Backup/restore rehearsal did not recover the marker row.');
 
-  console.log(`Behavioral DB rehearsal passed on ${image}: full chain, production-like drift reconciliation, idempotence, rollback, actor-level RLS, business-unit revocation and inheritance, managed-files RLS, task-delivery RLS, tenant/client isolation, invariants, and backup/restore.`);
+  console.log(`Behavioral DB rehearsal passed on ${image}: full chain, production-like drift reconciliation, idempotence, rollback, actor-level RLS, business-unit revocation and inheritance, managed-files RLS, task-delivery RLS, private-profile/avatar RLS, tenant/client isolation, invariants, and backup/restore.`);
 } finally {
   run('docker', ['rm', '-f', containerName], { allowFailure: true });
 }

@@ -15,7 +15,7 @@ import { createTaskTool, listMissionsTool, readTools, registerTools, whoamiTool,
  */
 
 const validContext: AuthContext = {
-  user: { id: 'user-1', email: 'op@ksp.test', displayName: 'Operator One' },
+  user: { id: 'user-1', email: 'op@ksp.test', displayName: 'Operator One', avatarUrl: null },
   organizationId: 'org-1',
   internalRoles: ['founder_ceo'],
   mfa: true,

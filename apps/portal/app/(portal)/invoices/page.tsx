@@ -1,6 +1,6 @@
 import { requirePortalSession } from '../../../lib/session';
 import { createServerClient } from '@ksp/database';
-import { Card, Badge, ShapeMark, cx } from '@ksp/ui';
+import { Card, Badge, Icon, ShapeMark, cx } from '@ksp/ui';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { ProgressiveList } from '../_components/progressive-list';
@@ -53,7 +53,13 @@ export default async function InvoicesPage({
       <div className="flex min-w-0 flex-col gap-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">Invoices</h1>
-          <p className="mt-1 text-sm text-ink-3">Manage your billing and payments.</p>
+          <details className="group mt-1 text-ink-3">
+            <summary className="inline-flex cursor-pointer select-none items-center gap-1.5 text-[12px] font-medium marker:hidden hover:text-ink [&::-webkit-details-marker]:hidden">
+              About this page
+              <Icon name="chevron-down" className="h-3.5 w-3.5 transition-transform duration-fast group-open:rotate-180" />
+            </summary>
+            <p className="mt-2 text-sm">Manage your billing and payments.</p>
+          </details>
         </div>
         <Card className="flex flex-col items-center justify-center py-16 text-center">
           <p className="text-[14px] font-medium text-ink">Unable to load invoices</p>
@@ -73,7 +79,13 @@ export default async function InvoicesPage({
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-ink">Invoices</h1>
-          <p className="mt-1 text-sm text-ink-3">Manage your billing and payments.</p>
+          <details className="group mt-1 text-ink-3">
+            <summary className="inline-flex cursor-pointer select-none items-center gap-1.5 text-[12px] font-medium marker:hidden hover:text-ink [&::-webkit-details-marker]:hidden">
+              About this page
+              <Icon name="chevron-down" className="h-3.5 w-3.5 transition-transform duration-fast group-open:rotate-180" />
+            </summary>
+            <p className="mt-2 text-sm">Manage your billing and payments.</p>
+          </details>
         </div>
         {unpaidCount > 0 && (
           <div className="flex w-full flex-wrap items-center gap-4 rounded-xl border border-warn/30 bg-warn-tint px-4 py-3 sm:w-auto sm:flex-nowrap">

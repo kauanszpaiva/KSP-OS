@@ -11,7 +11,7 @@ import { NAV_GROUPS, FOUNDER_MOBILE_PRIMARY, FOUNDER_NAV, FOUNDER_NAV_GROUPS } f
 
 function ctxWith(roles: InternalRole[]): AuthContext {
   return {
-    user: { id: 'u1', email: 'u@ksp', displayName: 'U' },
+    user: { id: 'u1', email: 'u@ksp', displayName: 'U', avatarUrl: null },
     organizationId: 'org',
     internalRoles: roles,
     mfa: true,

@@ -109,7 +109,7 @@ export function Shell({
   children
 }: {
   groups: NavGroup[];
-  user: { displayName: string; email: string; role: string };
+  user: { displayName: string; email: string; role: string; avatarUrl: string | null };
   mobilePrimary: NavItem[];
   notifications: Notification[];
   palettePerms: PalettePerms;
@@ -164,11 +164,11 @@ export function Shell({
         </nav>
 
         <div className={cx('border-t border-line', collapsed ? 'flex justify-center px-2 py-3' : 'px-2 py-3 xl:px-3')}>
-          {collapsed ? <Avatar name={user.displayName} size="sm" /> : (
+          {collapsed ? <Avatar name={user.displayName} imageUrl={user.avatarUrl} size="sm" /> : (
             <>
-              <div className="flex justify-center xl:hidden"><Avatar name={user.displayName} size="sm" /></div>
+              <div className="flex justify-center xl:hidden"><Avatar name={user.displayName} imageUrl={user.avatarUrl} size="sm" /></div>
               <div className="hidden items-center gap-2.5 xl:flex">
-                <Avatar name={user.displayName} />
+                <Avatar name={user.displayName} imageUrl={user.avatarUrl} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12.5px] font-medium leading-tight text-ink">{user.displayName}</p>
                   <p className="truncate text-[11px] leading-tight text-ink-3">{user.role}</p>
@@ -211,12 +211,13 @@ export function Shell({
             <span className="hidden sm:inline-flex"><PalettePicker /></span>
             <span className="hidden sm:inline-flex"><ThemeToggle /></span>
             <details className="group relative">
-              <summary className="flex min-h-11 min-w-11 cursor-pointer select-none items-center justify-center rounded-full transition-transform duration-fast marker:hidden hover:scale-105 sm:min-h-9 sm:min-w-9 [&::-webkit-details-marker]:hidden"><Avatar name={user.displayName} /></summary>
+              <summary className="flex min-h-11 min-w-11 cursor-pointer select-none items-center justify-center rounded-full transition-transform duration-fast marker:hidden hover:scale-105 sm:min-h-9 sm:min-w-9 [&::-webkit-details-marker]:hidden"><Avatar name={user.displayName} imageUrl={user.avatarUrl} /></summary>
               <div className="absolute right-0 z-30 mt-2 w-60 origin-top-right animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-pop">
                 <div className="border-b border-line px-3 py-2.5">
                   <p className="truncate text-[13px] font-medium text-ink">{user.displayName}</p>
                   <p className="truncate text-[11.5px] text-ink-3">{user.email}</p>
                 </div>
+                <MenuLink href="/settings/profile" icon="user" label="Profile" />
                 <form action="/auth/signout" method="post" className="pt-1">
                   <button type="submit" className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-ink-2 transition-colors duration-fast hover:bg-surface-2 hover:text-ink"><Icon name="logout" className="h-[18px] w-[18px]" />Sign out</button>
                 </form>

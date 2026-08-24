@@ -39,7 +39,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = {
     displayName: ctx.user.displayName,
     email: ctx.user.email,
-    role: ROLE_LABELS[primaryRole] ?? primaryRole
+    role: ROLE_LABELS[primaryRole] ?? primaryRole,
+    avatarUrl: ctx.user.avatarUrl
   };
 
   // Mirror each quick-action's own server-side create gate so the palette only

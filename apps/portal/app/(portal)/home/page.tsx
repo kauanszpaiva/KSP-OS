@@ -78,7 +78,13 @@ export default async function PortalHomePage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand">Client home</p>
           </div>
           <h1 className="mt-2 font-display text-[27px] font-semibold leading-none text-ink sm:text-[31px]">Hi, {firstName}.</h1>
-          <p className="mt-2 text-[12.5px] text-ink-3">What needs you, what is moving and what comes next.</p>
+          <details className="group mt-2 text-ink-3">
+            <summary className="inline-flex cursor-pointer select-none items-center gap-1.5 text-[12px] font-medium marker:hidden hover:text-ink [&::-webkit-details-marker]:hidden">
+              About this page
+              <Icon name="chevron-down" className="h-3.5 w-3.5 transition-transform duration-fast group-open:rotate-180" />
+            </summary>
+            <p className="mt-2 text-[12.5px]">What needs you, what is moving and what comes next.</p>
+          </details>
         </div>
 
         <nav aria-label="Quick access" className="flex max-w-full gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

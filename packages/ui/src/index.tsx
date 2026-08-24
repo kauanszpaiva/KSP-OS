@@ -7,3 +7,4 @@ export * from './toast';
 export * from './confirm-dialog';
 export * from './theme';
 export * from './theme-script';
+export * from './profile-settings-form';
