@@ -15,13 +15,22 @@
   },
   "classificationEvidence": "docs/deployment/LIVE_ONLY_LINEAGE_CLASSIFICATION_2026-08-24.json",
   "versionRemapEvidence": "docs/deployment/LIVE_MIGRATION_REMAPS_2026-08-24.json",
+  "securityDefinerEvidence": "docs/deployment/SECURITY_DEFINER_CLASSIFICATION_2026-08-24.json",
+  "previewStagingBinding": {
+    "status": "source_enforced_and_preview_built",
+    "stagingProjectRef": "yszxtinabzamsayfkymq",
+    "enforcedIn": [
+      "apps/command/next.config.ts",
+      "apps/portal/next.config.ts",
+      "apps/network/next.config.ts"
+    ],
+    "vercelPreviewEvidence": "PR #128 produced Ready Vercel Preview deployments for Command, Portal, and Network after the source-enforced staging binding change."
+  },
   "blockedUntilClassified": false,
   "productionDdlBlocked": true,
   "productionReleaseBlockers": [
-    "verify Vercel Preview Supabase environment binding",
     "complete or explicitly approve the staging forward-replay plan",
-    "classify remaining authenticated SECURITY DEFINER callers before further ACL changes",
     "protect GitHub main and require canonical CI contexts"
   ],
-  "note": "The four Portfolio OS migrations are now explicitly classified as a live-only legacy subsystem that must be preserved until a separate data migration or retirement decision. This closes their classification gate but does not authorize production DDL; production remains blocked by the independent release gates listed above."
+  "note": "Database lineage, July-to-August remaps, duplicate client-media history, production SECURITY DEFINER callers, and Preview-to-staging binding are now classified/evidenced. Production DDL remains blocked by the two independent release gates listed above."
 }
