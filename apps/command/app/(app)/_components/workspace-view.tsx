@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Avatar, Icon, Reveal, Segmented } from '@ksp/ui';
+import { Avatar, Icon, Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import { formatDate, isOverdue } from '../../../lib/format';
 import type { CommentView, MemberRef, TaskDeliveryEvidenceView, TaskView } from '../data';
 import { updateTaskStatus } from '../actions';
@@ -14,14 +14,15 @@ import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteTask } from '../actions';
 import { TaskDeliveryPanel } from './task-delivery-panel';
+import { ProgressiveList } from './progressive-list';
 
 function TaskRow({ task, members, comments, evidence }: { task: TaskView; members: MemberRef[]; comments: CommentView[]; evidence: TaskDeliveryEvidenceView[] }) {
   const overdue = isOverdue(task.due_date);
   const active = task.status === 'active';
   return (
     <details className="group border-t border-line transition-colors duration-fast first:border-t-0 hover:bg-surface-2/45 open:bg-canvas/55">
-      <summary className="grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5 px-3 py-3 marker:hidden sm:px-4 [&::-webkit-details-marker]:hidden">
-        <Avatar name={task.ownerName} size="sm" />
+      <summary className="grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-3 marker:hidden sm:px-4 [&::-webkit-details-marker]:hidden">
+        <ShapeMark shape={task.blocked ? 'triangle' : 'square'} icon="workspace" label="Task" tone={task.blocked ? 'risk' : overdue ? 'warn' : 'neutral'} size="sm" />
         <div className="min-w-0">
           <p className="truncate text-[13.5px] font-medium leading-tight text-ink sm:text-[14px]">{task.title}</p>
           <p className="mt-1 line-clamp-1 text-[11.5px] text-ink-3 sm:text-[12px]">
@@ -71,7 +72,7 @@ function ListView({ tasks, members, commentsByTask, deliveryEvidenceByTask }: { 
       {blocked.length > 0 && (
         <Reveal>
           <SectionLabel right={<span className="tnum text-[12px] text-risk">{blocked.length}</span>}>Blocked</SectionLabel>
-          <Panel>{blocked.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} evidence={deliveryEvidenceByTask.get(task.id) ?? []} />)}</Panel>
+          <Panel><ProgressiveList initial={4}>{blocked.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} evidence={deliveryEvidenceByTask.get(task.id) ?? []} />)}</ProgressiveList></Panel>
         </Reveal>
       )}
       <Reveal delay={60}>
@@ -79,7 +80,7 @@ function ListView({ tasks, members, commentsByTask, deliveryEvidenceByTask }: { 
         {open.length === 0 ? (
           <p className="rounded-lg border border-line bg-surface px-4 py-4 text-[13px] text-ink-3">Nothing open.</p>
         ) : (
-          <Panel>{open.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} evidence={deliveryEvidenceByTask.get(task.id) ?? []} />)}</Panel>
+          <Panel><ProgressiveList initial={7}>{open.map((task) => <TaskRow key={task.id} task={task} members={members} comments={commentsByTask.get(task.id) ?? []} evidence={deliveryEvidenceByTask.get(task.id) ?? []} />)}</ProgressiveList></Panel>
         )}
       </Reveal>
       {done.length > 0 && (

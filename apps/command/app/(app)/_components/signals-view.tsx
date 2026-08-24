@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Reveal, Segmented } from '@ksp/ui';
+import { Reveal, Segmented, ShapeMark } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import type { SignalView } from '../data';
 import { EmptyState, Panel, SectionLabel } from './ui';
 import { Board, type BoardColumn } from './board-view';
 import { SlideOver } from './slide-over';
 import { ConvertSignalForm, SignalStatusSelectForm, TriageSignalForm } from './signal-decision-forms';
+import { ProgressiveList } from './progressive-list';
 
 const STATUS_LABEL: Record<string, string> = {
   new: 'New',
@@ -33,38 +34,18 @@ const COLUMN_DEFS: Array<{ value: string; label: string }> = [
 
 function SignalRow({ signal, onOpenDetail }: { signal: SignalView; onOpenDetail: (s: SignalView) => void }) {
   return (
-    <div className="border-t border-line px-4 py-3 transition-colors duration-fast first:border-t-0 hover:bg-surface-2">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={() => onOpenDetail(signal)}
-            className="block max-w-full truncate text-left text-[14px] font-medium text-ink transition-colors duration-fast hover:text-brand"
-          >
+    <button type="button" onClick={() => onOpenDetail(signal)} className="group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-line px-3 py-3 text-left transition-colors first:border-t-0 hover:bg-surface-2 sm:px-4">
+      <ShapeMark shape={signal.item_type === 'risk' ? 'triangle' : 'square'} icon="signals" label={TYPE_LABEL[signal.item_type] ?? 'Signal'} tone={signal.item_type === 'risk' ? 'risk' : signal.triage_status === 'new' ? 'warn' : 'accent'} size="sm" />
+        <div className="min-w-0">
+          <span className="block max-w-full truncate text-[14px] font-medium text-ink transition-colors duration-fast group-hover:text-brand">
             {signal.title}
-          </button>
+          </span>
           <p className="mt-0.5 text-[12px] text-ink-3">
             {TYPE_LABEL[signal.item_type] ?? signal.item_type} · {signal.creatorName} · {formatDate(signal.created_at)}
           </p>
-          {signal.body && <p className="mt-1.5 line-clamp-2 text-[13px] text-ink-2">{signal.body}</p>}
         </div>
-        {signal.triage_status === 'new' && (
-          <div className="flex shrink-0 gap-1">
-            <TriageSignalForm id={signal.id} target="triaged">
-              Mark triaged
-            </TriageSignalForm>
-            <TriageSignalForm id={signal.id} target="dismissed">
-              Dismiss
-            </TriageSignalForm>
-          </div>
-        )}
-      </div>
-      {signal.triage_status === 'triaged' && (
-        <div className="mt-3 border-t border-line pt-3">
-          <ConvertSignalForm signalId={signal.id} defaultTitle={signal.title} />
-        </div>
-      )}
-    </div>
+      <span className="shrink-0 rounded-full bg-surface-2 px-2 py-1 text-[10.5px] font-medium text-ink-3">{STATUS_LABEL[signal.triage_status]}</span>
+    </button>
   );
 }
 
@@ -79,9 +60,7 @@ function ListView({ signals, onOpenDetail }: { signals: SignalView[]; onOpenDeta
           <p className="rounded-lg border border-line bg-surface px-4 py-5 text-[13px] text-ink-3">Nothing waiting on triage.</p>
         ) : (
           <Panel>
-            {active.map((s) => (
-              <SignalRow key={s.id} signal={s} onOpenDetail={onOpenDetail} />
-            ))}
+            <ProgressiveList initial={6}>{active.map((s) => <SignalRow key={s.id} signal={s} onOpenDetail={onOpenDetail} />)}</ProgressiveList>
           </Panel>
         )}
       </Reveal>
@@ -90,9 +69,7 @@ function ListView({ signals, onOpenDetail }: { signals: SignalView[]; onOpenDeta
         <Reveal delay={60}>
           <SectionLabel right={<span className="tnum text-[12px] text-ink-3">{closed.length}</span>}>Resolved</SectionLabel>
           <Panel>
-            {closed.map((s) => (
-              <SignalRow key={s.id} signal={s} onOpenDetail={onOpenDetail} />
-            ))}
+            <ProgressiveList initial={4}>{closed.map((s) => <SignalRow key={s.id} signal={s} onOpenDetail={onOpenDetail} />)}</ProgressiveList>
           </Panel>
         </Reveal>
       )}

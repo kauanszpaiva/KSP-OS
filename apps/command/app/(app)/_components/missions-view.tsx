@@ -10,6 +10,7 @@ import { DependencyForm, MilestoneForm, MilestoneStatusForm, MissionEditForm, Mi
 import { CommentThread } from './comment-thread';
 import { DeleteButton } from './crud-forms';
 import { deleteMilestone, deleteMission } from '../actions';
+import { ProgressiveList } from './progressive-list';
 
 function DetailSection({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -111,17 +112,17 @@ function MissionDetail({ mission, allMissions, clients, comments }: { mission: M
 
 function MobileMissionCard({ mission, allMissions, clients, comments }: { mission: MissionView; allMissions: MissionView[]; clients: ClientRef[]; comments: CommentView[] }) {
   return (
-    <details className="group min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card open:border-line-2">
-      <summary className="cursor-pointer list-none px-4 py-4 marker:hidden [&::-webkit-details-marker]:hidden">
+    <details className="group min-w-0 border-t border-line first:border-t-0 open:bg-canvas/55">
+      <summary className="cursor-pointer list-none px-3 py-3 marker:hidden sm:px-4 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
           <div className="flex min-w-0 items-start gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-[14px] font-semibold leading-snug text-ink">{mission.name}</p>
-              <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-ink-3">{mission.next_action || mission.project_type.replace(/_/g, ' ')}</p>
+              <p className="mt-0.5 truncate text-[11.5px] text-ink-3">{mission.next_action || mission.project_type.replace(/_/g, ' ')}</p>
             </div>
             <Icon name="chevron-down" className="mt-0.5 h-4 w-4 shrink-0 text-ink-4 transition-transform group-open:rotate-180" />
           </div>
-          <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
             <StatePill state={mission.health} />
             {mission.clientName && <Badge tone="brand" className="max-w-full truncate">{mission.clientName}</Badge>}
             <span className="tnum text-[10.5px] text-ink-4">{mission.milestones.length} milestones · {mission.memberIds.length} members</span>
@@ -160,11 +161,13 @@ function ProjectDirectory({ missions, clients, commentsByMission }: { missions: 
         <EmptyState icon="missions" title="No projects match this search." hint="Try a project name, client, type or next action." />
       ) : (
         <>
-          <div className="space-y-2.5 md:hidden">
-            {filtered.map((mission) => (
-              <MobileMissionCard key={mission.id} mission={mission} allMissions={missions} clients={clients} comments={commentsByMission.get(mission.id) ?? []} />
-            ))}
-          </div>
+          <Panel className="overflow-hidden md:hidden">
+            <ProgressiveList initial={6}>
+              {filtered.map((mission) => (
+                <MobileMissionCard key={mission.id} mission={mission} allMissions={missions} clients={clients} comments={commentsByMission.get(mission.id) ?? []} />
+              ))}
+            </ProgressiveList>
+          </Panel>
 
           <div className="hidden gap-3 md:grid md:grid-cols-[minmax(230px,0.75fr)_minmax(0,1.45fr)] xl:grid-cols-[minmax(280px,0.65fr)_minmax(0,1.6fr)]">
             <Panel className="self-start overflow-hidden">
