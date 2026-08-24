@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { isFounder, canViewFounderVault, type AuthContext } from '@ksp/auth';
+import { isExecutive, isFounder, canViewFounderVault, type AuthContext } from '@ksp/auth';
 import type { InternalRole } from '@ksp/permissions';
 import { NAV_GROUPS, FOUNDER_MOBILE_PRIMARY, FOUNDER_NAV, FOUNDER_NAV_GROUPS } from './nav';
 
 /**
- * Founder OS access-layer regression tests (Layers 1 & 2 — navigation + routing
- * decision). The DB layer (RLS) is proven separately by the SQL matrix in
- * supabase/tests/founder_os.sql; here we lock the app-side gates.
+ * Founder/Control Center access-layer regression tests (Layers 1 & 2 —
+ * navigation + routing decision). The DB layer (RLS) is proven separately by
+ * SQL matrices; here we lock the app-side visibility gates.
  */
 
 function ctxWith(roles: InternalRole[]): AuthContext {
@@ -19,11 +19,13 @@ function ctxWith(roles: InternalRole[]): AuthContext {
   };
 }
 
-// The exact predicate AppLayout uses to build the company sidebar.
-function visibleNav(showFounder: boolean) {
-  return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((item) => !item.founderOnly || showFounder) })).filter(
-    (g) => g.items.length > 0
-  );
+function visibleNav(showFounder: boolean, showExecutive: boolean) {
+  return NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter(
+      (item) => (!item.founderOnly || showFounder) && (!item.executiveOnly || showExecutive)
+    )
+  })).filter((g) => g.items.length > 0);
 }
 
 describe('Founder OS role gate (app layer)', () => {
@@ -48,13 +50,13 @@ describe('Founder OS navigation isolation', () => {
   });
 
   it('hides the Founder OS entry from non-founders', () => {
-    const nonFounder = visibleNav(false).flatMap((g) => g.items);
+    const nonFounder = visibleNav(false, false).flatMap((g) => g.items);
     expect(nonFounder.some((i) => i.href === '/founder')).toBe(false);
     expect(nonFounder.some((i) => i.founderOnly)).toBe(false);
   });
 
   it('shows the Founder OS entry to the founder', () => {
-    const founder = visibleNav(true).flatMap((g) => g.items);
+    const founder = visibleNav(true, true).flatMap((g) => g.items);
     expect(founder.some((i) => i.href === '/founder')).toBe(true);
   });
 
@@ -87,5 +89,31 @@ describe('Founder OS navigation isolation', () => {
       '/founder/knowledge',
       '/founder/work'
     ]);
+  });
+});
+
+describe('Control Center navigation isolation', () => {
+  it('marks Control Center executiveOnly', () => {
+    const entry = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.href === '/control-center');
+    expect(entry).toBeDefined();
+    expect(entry?.executiveOnly).toBe(true);
+  });
+
+  it('shows Control Center to founder and executive operations', () => {
+    for (const roles of [['founder_ceo'], ['executive_operations']] as InternalRole[][]) {
+      const ctx = ctxWith(roles);
+      expect(isExecutive(ctx)).toBe(true);
+      const visible = visibleNav(isFounder(ctx), isExecutive(ctx)).flatMap((g) => g.items);
+      expect(visible.some((i) => i.href === '/control-center')).toBe(true);
+    }
+  });
+
+  it('hides Control Center from non-executive roles', () => {
+    for (const roles of [['developer'], ['designer'], ['sales_specialist'], ['contractor'], []] as InternalRole[][]) {
+      const ctx = ctxWith(roles);
+      expect(isExecutive(ctx)).toBe(false);
+      const visible = visibleNav(isFounder(ctx), isExecutive(ctx)).flatMap((g) => g.items);
+      expect(visible.some((i) => i.href === '/control-center')).toBe(false);
+    }
   });
 });
