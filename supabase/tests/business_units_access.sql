@@ -6,6 +6,7 @@
 --   OWNER_A   active founder_ceo
 --   OWNER_B   active executive_operations
 --   DEV_DOM   non-executive internal member assigned to Dominion
+--   DEV_KDEV  non-executive internal member assigned to KSP Dev
 --   DEV_AGY   non-executive internal member assigned to Agency
 --   DEV_NONE  non-executive internal member with no unit membership
 --   CLIENT_A  Portal-only user with a client membership/project entitlement
@@ -13,19 +14,21 @@
 --
 -- Seed projects:
 --   PROJ_DOM      business_unit_id = Dominion
+--   PROJ_KDEV     business_unit_id = KSP Dev
 --   PROJ_AGY      business_unit_id = Agency
 --   PROJ_LEGACY   business_unit_id = null
 --
 -- Assertions:
 --
 -- Global owners
---   - OWNER_A can select Dominion + Agency and all classified projects.
---   - OWNER_B can select Dominion + Agency and all classified projects.
+--   - OWNER_A can select Dominion + KSP Dev + Agency and all classified projects.
+--   - OWNER_B can select Dominion + KSP Dev + Agency and all classified projects.
 --   - neither owner requires business_unit_memberships rows.
 --
 -- Unit catalog
---   - DEV_DOM can select Dominion but not Agency.
---   - DEV_AGY can select Agency but not Dominion.
+--   - DEV_DOM can select Dominion but not KSP Dev or Agency.
+--   - DEV_KDEV can select KSP Dev but not Dominion or Agency.
+--   - DEV_AGY can select Agency but not Dominion or KSP Dev.
 --   - DEV_NONE cannot select either unit.
 --   - non-executives cannot insert/update/delete business_units.
 --   - non-executives cannot grant/revoke business_unit_memberships.
@@ -36,7 +39,7 @@
 --   - with an active project_membership, DEV_AGY can_access_project(PROJ_DOM) = false.
 --   - an expired project_membership is excluded from effective application scope.
 --   - a legacy project keeps old behavior: an assigned member can access PROJ_LEGACY.
---   - DEV_NONE cannot insert a project classified into Dominion or Agency.
+--   - DEV_NONE cannot insert a project classified into Dominion, KSP Dev or Agency.
 --   - a Dominion member cannot insert/update a project into Agency.
 --
 -- Compatibility inheritance

@@ -2,12 +2,15 @@
 
 ## Decision intent
 
-KSP OS is the operating-system layer for the KSP organization. It must support multiple operating divisions without cloning the application, database, auth model, or client portal.
+KSP OS is the operating-system layer for **KSP Inc.**, the parent/umbrella brand. It must support multiple operating divisions without cloning the application, database, auth model, or client portal.
 
-The first two operating divisions are:
+The current operating divisions are:
 
-- **KSP Dominion Group** — software, systems, web applications, automation and AI.
-- **KSP Agency** — creative media, marketing, campaigns, landing pages and content production.
+- **KSP Dominion Group** — **Business Transformation & Growth**: strategy, operations, revenue systems, processes, consulting and business transformation.
+- **KSP Dev** — **Technology & AI**: software, SaaS, apps, AI, automation, data, integrations, platforms, cloud and digital products.
+- **KSP Agency** — **Brand & Marketing**: branding, positioning, campaigns, social, advertising, acquisition, creative and content production.
+
+KSP Inc. is not duplicated as a row in `business_units`. In product language, the owners' **All KSP** scope is the KSP Inc. umbrella view across every current and future operating unit.
 
 A future KSP operating arm must be creatable as data (`business_units`) rather than requiring a new schema or a fork of KSP OS.
 
@@ -73,7 +76,7 @@ Core fields:
 - `status`
 - `sort_order`
 
-Initial seeds are `dominion` and `agency` for each active KSP organization.
+Canonical seeds are `dominion`, `dev` and `agency` for each active KSP organization.
 
 ### `business_unit_memberships`
 
@@ -110,7 +113,7 @@ The field remains nullable until the legacy project backfill is complete.
 
 KSP OS provides a persistent scope switcher:
 
-- Owners: `All KSP`, `KSP Dominion Group`, `KSP Agency`, and any future active unit.
+- Owners: `All KSP` (the KSP Inc. umbrella), `KSP Dominion Group`, `KSP Dev`, `KSP Agency`, and any future active unit.
 - Non-owners: only RLS-visible units; no `All KSP` option.
 
 The selected unit is a view preference, not an authorization token. The server revalidates the cookie value against the RLS-visible unit list.
@@ -127,7 +130,7 @@ The **KSP Structure** control page is owner-only and supports:
 ### Phase 0 — compatibility foundation
 
 - Add `business_units` and `business_unit_memberships`.
-- Seed Dominion and Agency.
+- Seed Dominion, Dev and Agency with the approved focus of each vertical.
 - Add nullable `projects.business_unit_id`.
 - Preserve unclassified project behavior.
 - Load persisted permission grants into Command and Portal auth contexts.
@@ -164,7 +167,7 @@ Before production application of the migration:
 
 1. Run TypeScript typecheck/build/lint/unit tests.
 2. Apply the migration to a Supabase preview/development branch.
-3. Run RLS scenarios for owner, Dominion-only member, Agency-only member, revoked member and client Portal user.
+3. Run RLS scenarios for both global-owner roles, Dominion-only member, Dev-only member, Agency-only member, revoked member and client Portal user.
 4. Verify classification inheritance and revocation behavior.
 5. Verify direct project-child table access fails after division revocation.
 6. Verify existing client Portal project/publication access remains unchanged.

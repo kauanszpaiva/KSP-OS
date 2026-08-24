@@ -95,12 +95,12 @@ export default async function DivisionsPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-4">Owner layer</p>
-            <h2 className="mt-1 text-[16px] font-semibold text-ink">Global KSP OS control</h2>
+            <h2 className="mt-1 text-[16px] font-semibold text-ink">KSP Inc. global control</h2>
             <p className="mt-1 max-w-3xl text-[12px] leading-5 text-ink-3">
               Founder & CEO and Executive Operations remain global owners. They do not need a division membership to see or administer any KSP arm.
             </p>
           </div>
-          <span className="rounded-full border border-brand/20 bg-brand-tint px-3 py-1 text-[11px] font-semibold text-brand">All divisions</span>
+          <span className="rounded-full border border-brand/20 bg-brand-tint px-3 py-1 text-[11px] font-semibold text-brand">KSP Inc. · All divisions</span>
         </div>
       </section>
 
