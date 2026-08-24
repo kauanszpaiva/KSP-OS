@@ -219,9 +219,17 @@ begin;
   set local role anon;
   select set_config('request.jwt.claim.sub', '', true);
   do $$ declare p int; d int; begin
-    select count(*) into p from public.social_profiles;
-    select count(*) into d from public.social_distributions;
-    if p <> 0 or d <> 0 then raise exception 'anonymous social-control isolation failed'; end if;
+    begin
+      select count(*) into p from public.social_profiles;
+      if p <> 0 then raise exception 'anonymous social profile isolation failed: %', p; end if;
+    exception when insufficient_privilege then null; end;
+    begin
+      select count(*) into d from public.social_distributions;
+      if d <> 0 then raise exception 'anonymous social distribution isolation failed: %', d; end if;
+    exception when insufficient_privilege then null; end;
+    if has_function_privilege('anon', 'current_org_ids()', 'execute') then
+      raise exception 'anon can execute current_org_ids helper';
+    end if;
   end $$;
 rollback;
 
