@@ -71,9 +71,7 @@ export async function getPortalAuthContext(supabase: SupabaseClient): Promise<Po
   ).map((row) => ({
     action: row.action,
     clientOrganizationId: row.client_organization_id,
-    projectId: row.project_id ?? undefined,
-    resourceType: row.project_id ? 'project' : 'client_organization',
-    resourceId: row.project_id ?? row.client_organization_id
+    projectId: row.project_id ?? undefined
   }));
 
   const membership: MembershipContext = {
