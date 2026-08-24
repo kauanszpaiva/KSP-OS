@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { BusinessUnitRef } from '../../../lib/business-units';
 import { ALL_BUSINESS_UNITS, BUSINESS_UNIT_COOKIE } from '../../../lib/business-units';
@@ -27,23 +28,30 @@ export function BusinessUnitScope({
         <p className="truncate text-[13px] font-semibold text-ink">{active?.name ?? 'All KSP'}</p>
         <p className="truncate text-[11px] text-ink-3">{active?.focus ?? 'Global command view across every KSP division.'}</p>
       </div>
-      <label className="flex shrink-0 items-center gap-2 text-[11px] font-medium text-ink-3">
-        <span className="sr-only">KSP division</span>
-        <select
-          aria-label="KSP division"
-          value={value}
-          onChange={(event) => {
-            document.cookie = `${BUSINESS_UNIT_COOKIE}=${encodeURIComponent(event.target.value)}; Path=/; SameSite=Lax; Max-Age=31536000`;
-            router.refresh();
-          }}
-          className="h-10 min-w-[13rem] rounded-lg border border-line-2 bg-surface px-3 text-[12px] font-medium text-ink focus:border-brand focus:outline-none"
-        >
-          {canUseGlobalScope && <option value={ALL_BUSINESS_UNITS}>All KSP</option>}
-          {units.map((unit) => (
-            <option key={unit.id} value={unit.id}>{unit.name}</option>
-          ))}
-        </select>
-      </label>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {canUseGlobalScope ? (
+          <Link href="/divisions" className="inline-flex h-10 items-center rounded-lg border border-line-2 px-3 text-[11px] font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-brand">
+            Manage structure
+          </Link>
+        ) : null}
+        <label className="flex items-center gap-2 text-[11px] font-medium text-ink-3">
+          <span className="sr-only">KSP division</span>
+          <select
+            aria-label="KSP division"
+            value={value}
+            onChange={(event) => {
+              document.cookie = `${BUSINESS_UNIT_COOKIE}=${encodeURIComponent(event.target.value)}; Path=/; SameSite=Lax; Max-Age=31536000`;
+              router.refresh();
+            }}
+            className="h-10 min-w-[13rem] rounded-lg border border-line-2 bg-surface px-3 text-[12px] font-medium text-ink focus:border-brand focus:outline-none"
+          >
+            {canUseGlobalScope && <option value={ALL_BUSINESS_UNITS}>All KSP</option>}
+            {units.map((unit) => (
+              <option key={unit.id} value={unit.id}>{unit.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
     </div>
   );
 }
