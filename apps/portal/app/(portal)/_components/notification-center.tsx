@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge, Card } from '@ksp/ui';
+import { ShapeMark } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import type { Notification } from '@ksp/database';
+import { ProgressiveList } from './progressive-list';
 
 export function NotificationCenter({ notifications, markReadAction }: { notifications: Notification[], markReadAction: (id: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -26,19 +27,21 @@ export function NotificationCenter({ notifications, markReadAction }: { notifica
             {notifications.length === 0 ? (
                <div className="p-4 text-center"><p className="text-[13px] text-ink-4">No notifications yet.</p></div>
             ) : (
-              <ul className="divide-y divide-line">
+              <div role="list">
+                <ProgressiveList initial={5}>
                 {notifications.map(n => (
-                  <li key={n.id} className={`p-4 hover:bg-surface-2 transition-colors cursor-pointer ${!n.read_at ? 'bg-brand/5' : ''}`} onClick={() => { if (!n.read_at) { markReadAction(n.id); } if (n.link) { window.location.href = n.link; } }}>
-                    <div className="flex gap-3">
-                        {!n.read_at && <div className="w-2 h-2 rounded-full bg-brand mt-1.5 flex-shrink-0" />}
+                  <div role="listitem" key={n.id} className={`cursor-pointer border-t border-line p-3 first:border-t-0 hover:bg-surface-2 ${!n.read_at ? 'bg-brand/5' : ''}`} onClick={() => { if (!n.read_at) { markReadAction(n.id); } if (n.link) { window.location.href = n.link; } }}>
+                    <div className="flex items-start gap-3">
+                        <ShapeMark shape="circle" icon="bell" label="Notification" tone={!n.read_at ? 'brand' : 'neutral'} size="sm" />
                         <div className="min-w-0 flex-1">
-                            <p className={`text-[13px] ${!n.read_at ? 'font-medium text-ink' : 'text-ink-2'}`}>{n.summary}</p>
+                            <p className={`line-clamp-2 text-[13px] ${!n.read_at ? 'font-medium text-ink' : 'text-ink-2'}`}>{n.summary}</p>
                             <p className="text-[11px] text-ink-4 mt-1">{formatDate(n.created_at)}</p>
                         </div>
                     </div>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+                </ProgressiveList>
+              </div>
             )}
           </div>
         </div>

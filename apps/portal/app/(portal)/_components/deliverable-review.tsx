@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useActionState, useRef } from 'react';
-import { Badge, Card, useActionToast, useConfirm } from '@ksp/ui';
+import { Badge, ShapeMark, useActionToast, useConfirm } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import { isClientSafeReference } from '../../../lib/client-safe-project';
 import { ThreadedComments } from './threaded-comments';
@@ -17,16 +17,14 @@ export function DeliverableReview({ version, deliverableName, approvalRequest, c
   const fileReference = isClientSafeReference(version.file_reference) ? version.file_reference : null;
 
   return (
-    <Card className="overflow-hidden">
-      <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2">
+    <div className="border-t border-line first:border-t-0">
+      <button type="button" onClick={() => setOpen(!open)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2">
+        <ShapeMark shape="diamond" icon="content" label="Deliverable" tone={version.status === 'approved' ? 'good' : 'warn'} size="sm" />
         <div className="min-w-0">
           <p className="truncate text-[14px] font-medium text-ink">{deliverableName}</p>
-          <p className="mt-0.5 line-clamp-1 text-[12.5px] text-ink-3">Version {version.version_number}</p>
+          <p className="mt-0.5 truncate text-[12px] text-ink-3">Version {version.version_number} · {formatDate(version.created_at)}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="tnum text-[12px] text-ink-4">{formatDate(version.created_at)}</span>
-          <Badge tone={version.status === 'approved' ? 'good' : version.status === 'pending_review' ? 'warn' : 'neutral'}>{version.status}</Badge>
-        </div>
+        <Badge tone={version.status === 'approved' ? 'good' : version.status === 'pending_review' ? 'warn' : 'neutral'}>{version.status}</Badge>
       </button>
 
       {open && (
@@ -73,6 +71,6 @@ export function DeliverableReview({ version, deliverableName, approvalRequest, c
           )}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

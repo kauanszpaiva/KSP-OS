@@ -83,7 +83,7 @@ export default async function InvoiceDetailPage({
       </div>
 
       <div className="grid min-w-0 gap-6 md:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-6 md:col-span-2">
+        <div className="order-2 flex min-w-0 flex-col gap-6 md:order-1 md:col-span-2">
           <Card className="flex min-w-0 flex-col overflow-hidden">
             <div className="border-b border-line bg-surface-2 px-4 py-3">
               <h3 className="text-[13px] font-semibold text-ink">Line Items</h3>
@@ -91,10 +91,10 @@ export default async function InvoiceDetailPage({
             <div className="flex min-w-0 flex-col divide-y divide-line">
               {(invoice.invoice_lines as any[])?.length ? (
                 (invoice.invoice_lines as any[]).map((line) => (
-                  <div key={line.id} className="flex min-w-0 flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div key={line.id} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="break-words text-[14px] font-medium text-ink">{line.description}</p>
-                      <p className="text-[12px] text-ink-3">Qty: {line.quantity}</p>
+                      <p className="line-clamp-2 text-[14px] font-medium text-ink">{line.description}</p>
+                      <p className="text-[11.5px] text-ink-3">Qty {line.quantity}</p>
                     </div>
                     <p className="shrink-0 text-[14px] font-semibold text-ink">{formatCurrency(line.amount_minor, line.currency)}</p>
                   </div>
@@ -132,7 +132,7 @@ export default async function InvoiceDetailPage({
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-6">
+        <div className="order-1 flex min-w-0 flex-col gap-6 md:order-2">
           <Card className="flex min-w-0 flex-col p-4">
             <h3 className="text-[13px] font-semibold text-ink">Summary</h3>
             <div className="mt-4 flex min-w-0 flex-col gap-3 text-[14px]">

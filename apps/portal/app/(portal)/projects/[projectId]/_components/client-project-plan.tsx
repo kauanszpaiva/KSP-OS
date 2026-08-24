@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { ClientSafeMilestone } from '../../../../../lib/client-safe-project';
+import { ProgressiveList } from '../../../_components/progressive-list';
 
 type PlanView = 'timeline' | 'gantt' | 'calendar' | 'roadmap';
 
@@ -56,14 +57,15 @@ function dotClasses(status: ClientSafeMilestone['status']): string {
 
 function TimelineView({ milestones }: { milestones: ClientSafeMilestone[] }) {
   return (
-    <ol className="relative space-y-0" aria-label="Project timeline">
+    <div className="relative" role="list" aria-label="Project timeline">
+      <ProgressiveList initial={4}>
       {milestones.map((milestone, index) => (
-        <li key={milestone.id} className="relative grid grid-cols-[28px_1fr] gap-3 pb-5 last:pb-0">
+        <div key={milestone.id} role="listitem" className="relative grid grid-cols-[28px_1fr] gap-3 border-t border-line py-3 first:border-t-0">
           <div className="relative flex justify-center">
             <span className={`mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface ${dotClasses(milestone.status)}`} />
-            {index < milestones.length - 1 && <span className="absolute top-4 bottom-[-4px] w-px bg-line" />}
+            {index < milestones.length - 1 && <span className="absolute top-4 bottom-[-12px] w-px bg-line" />}
           </div>
-          <div className="min-w-0 rounded-xl border border-line bg-surface px-4 py-3">
+          <div className="min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 {milestone.phase && <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-4">{milestone.phase}</p>}
@@ -71,11 +73,12 @@ function TimelineView({ milestones }: { milestones: ClientSafeMilestone[] }) {
               </div>
               <span className={`rounded-full border px-2 py-1 text-[11px] font-medium ${statusClasses(milestone.status)}`}>{STATUS_LABEL[milestone.status]}</span>
             </div>
-            <p className="mt-2 text-[12px] text-ink-3">{formatDate(milestone.dueDate)}</p>
+            <p className="mt-1 text-[12px] text-ink-3">{formatDate(milestone.dueDate)}</p>
           </div>
-        </li>
+        </div>
       ))}
-    </ol>
+      </ProgressiveList>
+    </div>
   );
 }
 
@@ -243,7 +246,7 @@ export function ClientProjectPlan({ milestones }: { milestones: ClientSafeMilest
         ))}
       </div>
 
-      <div id={`project-plan-${view}`} role="tabpanel" tabIndex={0} className="rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5">
+      <div id={`project-plan-${view}`} role="tabpanel" tabIndex={0} className="rounded-2xl border border-line bg-surface p-3 shadow-card sm:p-5">
         {ordered.length === 0 ? (
           <EmptyPlanView message="The client-facing plan has not been published yet." />
         ) : view === 'timeline' ? (

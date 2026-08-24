@@ -1,4 +1,4 @@
-import { Badge, Card, EmptyState, Reveal } from '@ksp/ui';
+import { Badge, Card, EmptyState, Reveal, ShapeMark } from '@ksp/ui';
 import { requirePortalSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate, formatMoney } from '../../../lib/format';
@@ -6,6 +6,7 @@ import { getChangeOrderDecisions, getChangeOrderItems, getChangeOrderVersions, g
 import { DeliverableReview } from '../_components/deliverable-review';
 import { postComment, recordDeliverableDecision } from '../../actions';
 import { DecisionForm } from './_components/decision-form';
+import { ProgressiveList } from '../_components/progressive-list';
 
 export default async function PortalApprovalsPage() {
   await requirePortalSession();
@@ -45,7 +46,8 @@ export default async function PortalApprovalsPage() {
         }).length === 0 ? (
           <EmptyState icon="decisions" title="No deliverables awaiting review." hint="Deliverables KSP publishes for your approval will show up here." />
         ) : (
-          <div className="space-y-4 mb-8">
+          <Card className="mb-8 overflow-hidden">
+            <ProgressiveList initial={3}>
             {deliverableVersions.filter((v) => {
               const req = deliverableRequests.find((r) => r.deliverable_version_id === v.id);
               return req && req.status === 'pending_approval';
@@ -64,7 +66,8 @@ export default async function PortalApprovalsPage() {
                 />
               );
             })}
-          </div>
+            </ProgressiveList>
+          </Card>
         )}
 
         <p className="mt-8 mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Change orders awaiting decision</p>
@@ -72,18 +75,20 @@ export default async function PortalApprovalsPage() {
         {awaiting.length === 0 ? (
           <EmptyState icon="decisions" title="Nothing awaiting your review." hint="Change orders KSP publishes for review will show up here." />
         ) : (
-          <div className="space-y-4">
-            {awaiting.map((v) => (
-              <Card key={v.id} className="p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+          <Card className="overflow-hidden">
+            <ProgressiveList initial={3}>{awaiting.map((v) => (
+              <details key={v.id} className="group border-t border-line first:border-t-0">
+                <summary className="grid cursor-pointer list-none grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 hover:bg-surface-2">
+                  <ShapeMark shape="triangle" icon="decisions" label="Decision needed" tone="warn" size="sm" />
                   <div className="min-w-0">
-                    <p className="text-[12px] text-ink-4">{projectTitleById.get(v.projectId) ?? 'Project'} · v{v.version_number}</p>
-                    <p className="mt-1 text-[14px] text-ink">{v.scope_summary}</p>
+                    <p className="truncate text-[14px] font-medium text-ink">{projectTitleById.get(v.projectId) ?? 'Project'} · v{v.version_number}</p>
+                    <p className="truncate text-[12px] text-ink-3">{v.scope_summary}</p>
                   </div>
                   <p className="tnum shrink-0 text-[16px] font-semibold text-ink">{formatMoney(v.price_minor, v.currency)}</p>
-                </div>
+                </summary>
+                <div className="border-t border-line bg-surface px-4 py-4">
                 {items.filter((i) => i.change_order_version_id === v.id).length > 0 && (
-                  <ul className="mt-3 space-y-1 border-t border-line pt-3">
+                  <ul className="space-y-1">
                     {items
                       .filter((i) => i.change_order_version_id === v.id)
                       .map((i) => (
@@ -97,9 +102,10 @@ export default async function PortalApprovalsPage() {
                 <div className="mt-4 border-t border-line pt-4">
                   <DecisionForm changeOrderVersionId={v.id} />
                 </div>
-              </Card>
-            ))}
-          </div>
+                </div>
+              </details>
+            ))}</ProgressiveList>
+          </Card>
         )}
       </div>
 
@@ -109,7 +115,7 @@ export default async function PortalApprovalsPage() {
           <p className="rounded-lg border border-line bg-surface px-4 py-5 text-[13px] text-ink-3">No decisions recorded yet.</p>
         ) : (
           <Card className="divide-y divide-line overflow-hidden">
-            {decided.map((v) => {
+            <ProgressiveList initial={4}>{decided.map((v) => {
               const decision = decisionByVersionId.get(v.id);
               return (
                 <div key={v.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -125,7 +131,7 @@ export default async function PortalApprovalsPage() {
                   </div>
                 </div>
               );
-            })}
+            })}</ProgressiveList>
           </Card>
         )}
       </div>
