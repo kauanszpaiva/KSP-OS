@@ -4,6 +4,7 @@ import { Card, Badge, Icon, Button } from '@ksp/ui';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { ProgressiveList } from '../../_components/progressive-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,11 +87,14 @@ export default async function InvoiceDetailPage({
         <div className="order-2 flex min-w-0 flex-col gap-6 md:order-1 md:col-span-2">
           <Card className="flex min-w-0 flex-col overflow-hidden">
             <div className="border-b border-line bg-surface-2 px-4 py-3">
-              <h3 className="text-[13px] font-semibold text-ink">Line Items</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-[13px] font-semibold text-ink">Line Items</h3>
+                <span className="text-[11.5px] text-ink-4">{(invoice.invoice_lines as any[])?.length ?? 0}</span>
+              </div>
             </div>
             <div className="flex min-w-0 flex-col divide-y divide-line">
               {(invoice.invoice_lines as any[])?.length ? (
-                (invoice.invoice_lines as any[]).map((line) => (
+                <ProgressiveList initial={5}>{(invoice.invoice_lines as any[]).map((line) => (
                   <div key={line.id} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
                       <p className="line-clamp-2 text-[14px] font-medium text-ink">{line.description}</p>
@@ -98,7 +102,7 @@ export default async function InvoiceDetailPage({
                     </div>
                     <p className="shrink-0 text-[14px] font-semibold text-ink">{formatCurrency(line.amount_minor, line.currency)}</p>
                   </div>
-                ))
+                ))}</ProgressiveList>
               ) : (
                 <div className="p-4 text-[13px] text-ink-3">No line items found.</div>
               )}
@@ -108,16 +112,19 @@ export default async function InvoiceDetailPage({
           {(invoice.customer_payments as any[]) && (invoice.customer_payments as any[]).length > 0 && (
             <Card className="flex min-w-0 flex-col overflow-hidden">
               <div className="border-b border-line bg-surface-2 px-4 py-3">
-                <h3 className="text-[13px] font-semibold text-ink">Payment History</h3>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-[13px] font-semibold text-ink">Payment History</h3>
+                  <span className="text-[11.5px] text-ink-4">{(invoice.customer_payments as any[]).length}</span>
+                </div>
               </div>
               <div className="flex min-w-0 flex-col divide-y divide-line">
-                {(invoice.customer_payments as any[]).map((payment) => (
-                  <div key={payment.id} className="flex min-w-0 flex-col items-start gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <ProgressiveList initial={3}>{(invoice.customer_payments as any[]).map((payment) => (
+                  <div key={payment.id} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
                       <p className="text-[13px] font-medium text-ink">{payment.payment_date}</p>
                       <p className="text-[12px] capitalize text-ink-3">{payment.status}</p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-4">
                       <p className="text-[14px] font-medium text-ink">{formatCurrency(payment.amount_minor, payment.currency)}</p>
                       {payment.receipt_url && (
                         <a href={payment.receipt_url} target="_blank" rel="noreferrer" className="text-[13px] text-brand hover:underline">
@@ -126,7 +133,7 @@ export default async function InvoiceDetailPage({
                       )}
                     </div>
                   </div>
-                ))}
+                ))}</ProgressiveList>
               </div>
             </Card>
           )}

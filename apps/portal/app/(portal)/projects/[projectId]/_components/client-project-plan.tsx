@@ -109,7 +109,21 @@ function GanttView({ milestones }: { milestones: ClientSafeMilestone[] }) {
   });
 
   return (
-    <div className="overflow-x-auto pb-1">
+    <>
+      <div className="divide-y divide-line md:hidden" role="list" aria-label="Project schedule">
+        <ProgressiveList initial={4}>
+          {items.map((item) => (
+            <div key={item.id} role="listitem" className="flex min-h-11 items-center justify-between gap-3 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-medium text-ink">{item.phase ?? item.title}</p>
+                {item.phase && <p className="mt-0.5 truncate text-[11.5px] text-ink-4">{item.title}</p>}
+              </div>
+              <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium ${statusClasses(item.status)}`}>{formatDate(item.dueDate)}</span>
+            </div>
+          ))}
+        </ProgressiveList>
+      </div>
+      <div className="hidden overflow-x-auto pb-1 md:block">
       <div className="min-w-[680px]">
         <div className="grid grid-cols-[180px_1fr] gap-4 border-b border-line pb-2">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">Phase</span>
@@ -141,7 +155,8 @@ function GanttView({ milestones }: { milestones: ClientSafeMilestone[] }) {
           })}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -163,10 +178,23 @@ function CalendarView({ milestones }: { milestones: ClientSafeMilestone[] }) {
         <h3 className="font-display text-[18px] font-semibold text-ink">{new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(focusDate)}</h3>
         <p className="text-[11px] text-ink-4">Milestone dates</p>
       </div>
-      <div className="grid grid-cols-7 border-l border-t border-line text-center text-[10px] font-semibold uppercase tracking-wider text-ink-4">
+      <div className="divide-y divide-line md:hidden" role="list" aria-label="Milestones in this calendar month">
+        <ProgressiveList initial={4}>
+          {dated.filter((milestone) => parseDateOnly(milestone.dueDate).getMonth() === month && parseDateOnly(milestone.dueDate).getFullYear() === year).map((milestone) => (
+            <div key={milestone.id} role="listitem" className="flex min-h-11 items-center justify-between gap-3 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-medium text-ink">{milestone.phase ?? milestone.title}</p>
+                {milestone.phase && <p className="mt-0.5 truncate text-[11.5px] text-ink-4">{milestone.title}</p>}
+              </div>
+              <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium ${statusClasses(milestone.status)}`}>{formatDate(milestone.dueDate)}</span>
+            </div>
+          ))}
+        </ProgressiveList>
+      </div>
+      <div className="hidden grid-cols-7 border-l border-t border-line text-center text-[10px] font-semibold uppercase tracking-wider text-ink-4 md:grid">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <div key={day} className="border-b border-r border-line bg-surface-2 py-2">{day}</div>)}
       </div>
-      <div className="grid grid-cols-7 border-l border-line">
+      <div className="hidden grid-cols-7 border-l border-line md:grid">
         {cells.map((date) => {
           const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
           const dayMilestones = dated.filter((milestone) => milestone.dueDate === iso);
@@ -191,19 +219,35 @@ function CalendarView({ milestones }: { milestones: ClientSafeMilestone[] }) {
 
 function RoadmapView({ milestones }: { milestones: ClientSafeMilestone[] }) {
   return (
-    <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" aria-label="Project roadmap">
-      {milestones.map((milestone, index) => (
-        <li key={milestone.id} className="relative rounded-xl border border-line bg-surface p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <span className={`flex h-8 w-8 items-center justify-center rounded-full border text-[12px] font-semibold ${statusClasses(milestone.status)}`}>{index + 1}</span>
-            <span className="text-[11px] text-ink-4">{formatDate(milestone.dueDate)}</span>
-          </div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-4">{milestone.phase ?? `Stage ${index + 1}`}</p>
-          <p className="mt-1 text-[14px] font-medium text-ink">{milestone.title}</p>
-          <p className="mt-3 text-[11px] font-medium text-ink-3">{STATUS_LABEL[milestone.status]}</p>
-        </li>
-      ))}
-    </ol>
+    <>
+      <div className="divide-y divide-line md:hidden" role="list" aria-label="Project roadmap">
+        <ProgressiveList initial={4}>
+          {milestones.map((milestone, index) => (
+            <div key={milestone.id} role="listitem" className="grid min-h-11 grid-cols-[28px_1fr_auto] items-center gap-3 py-3">
+              <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-semibold ${statusClasses(milestone.status)}`}>{index + 1}</span>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-medium text-ink">{milestone.title}</p>
+                <p className="mt-0.5 truncate text-[11.5px] text-ink-4">{milestone.phase ?? `Stage ${index + 1}`}</p>
+              </div>
+              <span className="shrink-0 text-[11px] text-ink-4">{formatDate(milestone.dueDate)}</span>
+            </div>
+          ))}
+        </ProgressiveList>
+      </div>
+      <ol className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-4" aria-label="Project roadmap">
+        {milestones.map((milestone, index) => (
+          <li key={milestone.id} className="relative rounded-xl border border-line bg-surface p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full border text-[12px] font-semibold ${statusClasses(milestone.status)}`}>{index + 1}</span>
+              <span className="text-[11px] text-ink-4">{formatDate(milestone.dueDate)}</span>
+            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-4">{milestone.phase ?? `Stage ${index + 1}`}</p>
+            <p className="mt-1 text-[14px] font-medium text-ink">{milestone.title}</p>
+            <p className="mt-3 text-[11px] font-medium text-ink-3">{STATUS_LABEL[milestone.status]}</p>
+          </li>
+        ))}
+      </ol>
+    </>
   );
 }
 

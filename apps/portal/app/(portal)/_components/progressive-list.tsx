@@ -14,8 +14,9 @@ export function ProgressiveList({ children, initial = 4 }: { children: ReactNode
       {hidden > 0 && (
         <button
           type="button"
+          aria-expanded={expanded}
           onClick={() => setExpanded((value) => !value)}
-          className="w-full border-t border-line px-4 py-3 text-center text-[12.5px] font-semibold text-brand transition-colors hover:bg-surface-2"
+          className="min-h-11 w-full border-t border-line px-4 py-3 text-center text-[12.5px] font-semibold text-brand transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand"
         >
           {expanded ? 'Show less' : `Show ${hidden} more`}
         </button>
