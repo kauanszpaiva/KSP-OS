@@ -13,6 +13,16 @@ export interface PartnerAuthContext {
   mfa: boolean;
 }
 
+type PartnerOrganizationRow = {
+  display_name: string;
+  business_unit_id: string | null;
+  status: string;
+};
+
+function firstPartnerOrganization(value: PartnerOrganizationRow | PartnerOrganizationRow[] | null | undefined) {
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+}
+
 export async function getPartnerAuthContext(supabase: SupabaseClient): Promise<PartnerAuthContext | null> {
   const user = await getSessionUser(supabase);
   if (!user) return null;
@@ -25,14 +35,18 @@ export async function getPartnerAuthContext(supabase: SupabaseClient): Promise<P
     .lte('effective_from', now)
     .or(`effective_until.is.null,effective_until.gt.${now}`);
   if (error || !memberships?.length) return null;
-  const active = memberships.find((row: any) => row.partner_organizations?.status === 'active');
+
+  const active = memberships.find((row) => firstPartnerOrganization(row.partner_organizations)?.status === 'active');
   if (!active) return null;
+  const partnerOrganization = firstPartnerOrganization(active.partner_organizations);
+  if (!partnerOrganization) return null;
+
   return {
     user,
     organizationId: active.organization_id,
     partnerOrganizationId: active.partner_organization_id,
-    partnerOrganizationName: active.partner_organizations.display_name,
-    businessUnitId: active.partner_organizations.business_unit_id ?? null,
+    partnerOrganizationName: partnerOrganization.display_name,
+    businessUnitId: partnerOrganization.business_unit_id ?? null,
     role: active.role as PartnerRole,
     mfa: await getSessionAal(supabase)
   };
