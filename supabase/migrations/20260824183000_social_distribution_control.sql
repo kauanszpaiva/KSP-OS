@@ -40,6 +40,7 @@ create unique index if not exists social_profiles_identity_idx
     organization_id,
     lower(display_name),
     lower(platform),
+    coalesce(client_id, '00000000-0000-0000-0000-000000000000'::uuid),
     coalesce(project_id, '00000000-0000-0000-0000-000000000000'::uuid)
   );
 create index if not exists social_profiles_client_idx
@@ -106,7 +107,9 @@ create index if not exists social_distributions_version_idx
   on public.social_distributions (deliverable_version_id)
   where deliverable_version_id is not null;
 
--- Keep client/project scope coherent even for direct API callers.
+-- Keep client/project scope coherent even for direct API callers. A project-
+-- scoped profile inherits that project's client so application callers cannot
+-- accidentally create a project row whose client scope is ambiguous.
 create or replace function public.validate_social_profile_scope()
 returns trigger
 language plpgsql
@@ -132,7 +135,9 @@ begin
       raise exception 'social profile project must belong to the same organization';
     end if;
 
-    if new.client_id is not null and project_client_id is distinct from new.client_id then
+    if new.client_id is null then
+      new.client_id := project_client_id;
+    elsif project_client_id is distinct from new.client_id then
       raise exception 'social profile client must match the project client';
     end if;
   end if;
@@ -148,7 +153,9 @@ on public.social_profiles
 for each row execute function public.validate_social_profile_scope();
 
 -- The distribution relation is tenant- and content-bound. A same-org video is
--- still rejected when it belongs to a different content item.
+-- still rejected when it belongs to a different content item. Content client
+-- scope falls back to the project's client for older/internal rows that do not
+-- duplicate client_id directly on content_items.
 create or replace function public.validate_social_distribution_scope()
 returns trigger
 language plpgsql
@@ -160,9 +167,12 @@ declare
   profile_client_id uuid;
   version_content_item_id uuid;
 begin
-  select c.project_id, c.client_id
+  select c.project_id, coalesce(c.client_id, project.client_id)
     into content_project_id, content_client_id
     from public.content_items c
+    left join public.projects project
+      on project.id = c.project_id
+     and project.organization_id = c.organization_id
     where c.id = new.content_item_id
       and c.organization_id = new.organization_id;
 
