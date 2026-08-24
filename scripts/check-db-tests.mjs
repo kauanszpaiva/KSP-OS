@@ -318,8 +318,15 @@ const actorTests = `
     set local role anon;
     select set_config('request.jwt.claim.sub', '', true);
     do $$ declare c int; begin
-      select count(*) into c from founder_inbox_items; if c <> 0 then raise exception 'anon sees founder inbox: %', c; end if;
-      select count(*) into c from founder_tasks; if c <> 0 then raise exception 'anon sees founder tasks: %', c; end if;
+      begin
+        select count(*) into c from founder_inbox_items;
+        if c <> 0 then raise exception 'anon sees founder inbox: %', c; end if;
+      exception when insufficient_privilege then null; end;
+      begin
+        select count(*) into c from founder_tasks;
+        if c <> 0 then raise exception 'anon sees founder tasks: %', c; end if;
+      exception when insufficient_privilege then null; end;
+      if has_function_privilege('anon', 'is_founder(uuid)', 'execute') then raise exception 'anon can execute founder helper'; end if;
     end $$;
   rollback;
 
