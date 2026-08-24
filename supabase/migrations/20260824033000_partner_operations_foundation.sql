@@ -143,29 +143,50 @@ alter table public.partner_activity_events enable row level security;
 grant select,insert,update,delete on public.partner_organizations,public.partner_memberships,public.partner_assignments to authenticated;
 grant select on public.partner_activity_events to authenticated;
 
+-- Internal reads are scoped by executive authority, business-unit membership, or
+-- explicit project access. Being a generic KSP org member is not enough.
 create policy partner_org_read on public.partner_organizations for select to authenticated using (
-  organization_id in (select public.current_org_ids()) or partner_private.is_active_member(id)
+  public.is_executive(organization_id)
+  or (business_unit_id is not null and business_unit_private.can_access_business_unit(business_unit_id))
+  or partner_private.is_active_member(id)
 );
 create policy partner_org_ksp_insert on public.partner_organizations for insert to authenticated with check (public.is_executive(organization_id));
 create policy partner_org_ksp_update on public.partner_organizations for update to authenticated using (public.is_executive(organization_id)) with check (public.is_executive(organization_id));
 create policy partner_org_ksp_delete on public.partner_organizations for delete to authenticated using (public.is_executive(organization_id));
 
 create policy partner_membership_read on public.partner_memberships for select to authenticated using (
-  organization_id in (select public.current_org_ids()) or profile_id=auth.uid() or partner_private.is_partner_owner(partner_organization_id)
+  public.is_executive(organization_id)
+  or profile_id=auth.uid()
+  or partner_private.is_partner_owner(partner_organization_id)
+  or exists (
+    select 1 from public.partner_organizations po
+    where po.id=partner_memberships.partner_organization_id
+      and po.organization_id=partner_memberships.organization_id
+      and po.business_unit_id is not null
+      and business_unit_private.can_access_business_unit(po.business_unit_id)
+  )
 );
 create policy partner_membership_ksp_insert on public.partner_memberships for insert to authenticated with check (public.is_executive(organization_id));
 create policy partner_membership_ksp_update on public.partner_memberships for update to authenticated using (public.is_executive(organization_id)) with check (public.is_executive(organization_id));
 create policy partner_membership_ksp_delete on public.partner_memberships for delete to authenticated using (public.is_executive(organization_id));
 
 create policy partner_assignment_read on public.partner_assignments for select to authenticated using (
-  organization_id in (select public.current_org_ids()) or partner_private.is_active_member(partner_organization_id)
+  public.is_executive(organization_id)
+  or public.can_access_project(project_id)
+  or partner_private.is_active_member(partner_organization_id)
 );
 create policy partner_assignment_ksp_insert on public.partner_assignments for insert to authenticated with check (public.is_executive(organization_id));
 create policy partner_assignment_ksp_update on public.partner_assignments for update to authenticated using (public.is_executive(organization_id)) with check (public.is_executive(organization_id));
 create policy partner_assignment_ksp_delete on public.partner_assignments for delete to authenticated using (public.is_executive(organization_id));
 
 create policy partner_activity_read on public.partner_activity_events for select to authenticated using (
-  organization_id in (select public.current_org_ids()) or partner_private.is_active_member(partner_organization_id)
+  public.is_executive(organization_id)
+  or partner_private.is_active_member(partner_organization_id)
+  or exists (
+    select 1 from public.partner_assignments pa
+    where pa.id=partner_activity_events.assignment_id
+      and public.can_access_project(pa.project_id)
+  )
 );
 
 create or replace function public.respond_partner_assignment(p_assignment_id uuid,p_response text,p_note text default null)
