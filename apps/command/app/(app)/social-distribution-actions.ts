@@ -81,6 +81,7 @@ export async function createSocialProfile(_prev: SocialDistributionActionResult,
   const platform = String(form.get('platform') ?? '').trim().toLowerCase();
   const handle = String(form.get('handle') ?? '').trim() || null;
   const editorialRole = String(form.get('editorialRole') ?? '').trim() || null;
+  let clientId = String(form.get('clientId') ?? '').trim() || null;
   const projectId = String(form.get('projectId') ?? '').trim() || null;
   const controlMode = String(form.get('controlMode') ?? '').trim();
   const accountOwner = String(form.get('accountOwner') ?? '').trim() || null;
@@ -91,7 +92,17 @@ export async function createSocialProfile(_prev: SocialDistributionActionResult,
   if (displayName.length < 2 || platform.length < 2) return { ok: false, error: 'Profile name and platform are required.' };
   if (!validControlMode(controlMode)) return { ok: false, error: 'Choose who controls publication.' };
 
-  let clientId: string | null = null;
+  if (clientId) {
+    const { data: client } = await supabase
+      .from('client_organizations')
+      .select('id')
+      .eq('id', clientId)
+      .eq('organization_id', ctx.organizationId)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (!client) return { ok: false, error: 'Choose a client you can access.' };
+  }
+
   if (projectId) {
     const { data: project } = await supabase
       .from('projects')
@@ -100,7 +111,8 @@ export async function createSocialProfile(_prev: SocialDistributionActionResult,
       .eq('organization_id', ctx.organizationId)
       .maybeSingle();
     if (!project) return { ok: false, error: 'Choose a project you can access.' };
-    clientId = project.client_id ?? null;
+    if (clientId && project.client_id !== clientId) return { ok: false, error: 'The selected project belongs to a different client.' };
+    clientId = project.client_id ?? clientId;
   }
 
   const { data, error } = await supabase
@@ -147,8 +159,20 @@ export async function createSocialDistribution(_prev: SocialDistributionActionRe
     supabase.from('social_profiles').select('id, project_id, client_id, default_control_mode, default_publisher, default_approver').eq('id', socialProfileId).eq('organization_id', ctx.organizationId).eq('is_active', true).maybeSingle()
   ]);
   if (!item || !profile) return { ok: false, error: 'Content or destination profile is unavailable.' };
+
+  let itemClientId = item.client_id as string | null;
+  if (!itemClientId && item.project_id) {
+    const { data: itemProject } = await supabase
+      .from('projects')
+      .select('client_id')
+      .eq('id', item.project_id)
+      .eq('organization_id', ctx.organizationId)
+      .maybeSingle();
+    itemClientId = itemProject?.client_id ?? null;
+  }
+
   if (profile.project_id && profile.project_id !== item.project_id) return { ok: false, error: 'That profile is scoped to a different project.' };
-  if (profile.client_id && profile.client_id !== item.client_id) return { ok: false, error: 'That profile belongs to a different client.' };
+  if (profile.client_id && profile.client_id !== itemClientId) return { ok: false, error: 'That profile belongs to a different client.' };
 
   const controlMode = validControlMode(overrideMode) ? overrideMode : profile.default_control_mode as SocialControlMode;
   const scheduledFor = scheduledForRaw ? new Date(scheduledForRaw) : null;
