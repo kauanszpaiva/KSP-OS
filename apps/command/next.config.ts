@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import type { NextConfig } from 'next';
 
-const PREVIEW_SUPABASE_URL = 'https://yszxtinabzamsayfkymq.supabase.co';
-const PREVIEW_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_CaRrns_DFeUblNnyH8Fp5A_Rn2yy6Ww';
+const PREVIEW_SUPABASE_URL = 'https://qfnriufuahlcwbxgprmy.supabase.co';
+const PREVIEW_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_9cj39NCHGF-bQGy-1Fmyyg_7oEoz8kE';
 
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
