@@ -11,7 +11,7 @@ export interface SocialDistributionActionResult {
 }
 
 const CONTROL_MODES: SocialControlMode[] = ['controlled', 'shared', 'external', 'unknown'];
-const STATUSES: SocialStatus[] = ['planned', 'creating', 'internal_review', 'client_review', 'ready', 'delivered', 'awaiting_external', 'scheduled', 'published', 'skipped'];
+const STATUSES: SocialStatus[] = ['planned', 'creating', 'internal_review', 'client_review', 'ready', 'delivered', 'awaiting_external', 'scheduled', 'published', 'withdrawn', 'skipped'];
 const EVIDENCE_KINDS = ['none', 'owner_confirmation', 'publication_url', 'platform_api', 'manual'] as const;
 
 async function session() {
@@ -21,13 +21,13 @@ async function session() {
   return ctx ? { supabase, ctx } : null;
 }
 
-async function logEvent(supabase: any, ctx: any, verb: string, objectId: string, summary: string) {
+async function logEvent(supabase: any, ctx: any, table: 'social_profiles' | 'social_distributions', verb: string, objectId: string, summary: string) {
   await Promise.all([
     supabase.from('activity_events').insert({
       organization_id: ctx.organizationId,
       actor_id: ctx.user.id,
       verb,
-      object_table: 'social_distributions',
+      object_table: table,
       object_id: objectId,
       summary
     }),
@@ -35,7 +35,7 @@ async function logEvent(supabase: any, ctx: any, verb: string, objectId: string,
       organization_id: ctx.organizationId,
       actor_id: ctx.user.id,
       action: verb,
-      target_table: 'social_distributions',
+      target_table: table,
       target_id: objectId,
       classification: 'internal',
       metadata: { summary }
@@ -80,6 +80,7 @@ export async function createSocialProfile(_prev: SocialDistributionActionResult,
   const displayName = String(form.get('displayName') ?? '').trim();
   const platform = String(form.get('platform') ?? '').trim().toLowerCase();
   const handle = String(form.get('handle') ?? '').trim() || null;
+  const editorialRole = String(form.get('editorialRole') ?? '').trim() || null;
   const projectId = String(form.get('projectId') ?? '').trim() || null;
   const controlMode = String(form.get('controlMode') ?? '').trim();
   const accountOwner = String(form.get('accountOwner') ?? '').trim() || null;
@@ -111,6 +112,7 @@ export async function createSocialProfile(_prev: SocialDistributionActionResult,
       display_name: displayName,
       platform,
       handle,
+      editorial_role: editorialRole,
       account_owner: accountOwner,
       default_control_mode: controlMode,
       default_publisher: publisher,
@@ -122,7 +124,7 @@ export async function createSocialProfile(_prev: SocialDistributionActionResult,
     .single();
   if (error || !data) return { ok: false, error: 'Could not create this social profile. Check whether it already exists.' };
 
-  await logEvent(supabase, ctx, 'social_profile.created', data.id, `Created ${displayName} social profile with ${controlMode} publication control`);
+  await logEvent(supabase, ctx, 'social_profiles', 'social_profile.created', data.id, `Created ${displayName} social profile with ${controlMode} publication control`);
   revalidatePath('/content');
   return { ok: true };
 }
@@ -172,7 +174,7 @@ export async function createSocialDistribution(_prev: SocialDistributionActionRe
     .single();
   if (error || !data) return { ok: false, error: 'Could not route this content. It may already target that profile.' };
 
-  await logEvent(supabase, ctx, 'social_distribution.created', data.id, `Created ${controlMode} social distribution lane for content ${contentItemId}`);
+  await logEvent(supabase, ctx, 'social_distributions', 'social_distribution.created', data.id, `Created ${controlMode} social distribution lane for content ${contentItemId}`);
   revalidatePath('/content');
   return { ok: true };
 }
@@ -187,13 +189,12 @@ export async function updateSocialDistribution(_prev: SocialDistributionActionRe
   const scheduledForRaw = String(form.get('scheduledFor') ?? '').trim();
   const publicationUrlRaw = String(form.get('publicationUrl') ?? '').trim();
   const evidenceKindRaw = String(form.get('evidenceKind') ?? 'none').trim();
-  const evidenceNote = String(form.get('evidenceNote') ?? '').trim() || null;
   if (!distributionId || !validStatus(statusRaw)) return { ok: false, error: 'Choose a valid distribution state.' };
   if (!EVIDENCE_KINDS.includes(evidenceKindRaw as (typeof EVIDENCE_KINDS)[number])) return { ok: false, error: 'Choose a valid publication evidence type.' };
 
   const { data: current } = await supabase
     .from('social_distributions')
-    .select('id, content_item_id, deliverable_version_id, scheduled_for, delivered_at, published_at, publication_url, evidence_kind')
+    .select('id, content_item_id, deliverable_version_id, scheduled_for, delivered_at, published_at, publication_url, evidence_kind, evidence_note, confirmed_by, confirmed_at')
     .eq('id', distributionId)
     .eq('organization_id', ctx.organizationId)
     .maybeSingle();
@@ -204,15 +205,19 @@ export async function updateSocialDistribution(_prev: SocialDistributionActionRe
   if (statusRaw === 'scheduled' && !scheduledFor) return { ok: false, error: 'A scheduled item needs a scheduled date.' };
 
   const publicationUrl = publicationUrlRaw || current.publication_url || null;
+  const evidenceNote = String(form.get('evidenceNote') ?? '').trim() || current.evidence_note || null;
   let evidenceKind = evidenceKindRaw as (typeof EVIDENCE_KINDS)[number];
   if (statusRaw === 'published' && evidenceKind === 'none' && publicationUrl) evidenceKind = 'publication_url';
   if (statusRaw === 'published' && evidenceKind === 'none') return { ok: false, error: 'Published requires evidence: a link, owner confirmation, platform confirmation, or manual verification.' };
   if (statusRaw === 'published' && evidenceKind === 'publication_url' && !publicationUrl) return { ok: false, error: 'Publication URL evidence requires the published link.' };
+  if (statusRaw === 'published' && evidenceKind !== 'publication_url' && !evidenceNote) return { ok: false, error: 'This evidence type requires a note stating who or what confirmed publication.' };
 
   const deliverableVersionId = current.deliverable_version_id ?? await latestReadyVersion(supabase, ctx.organizationId, current.content_item_id);
   const now = new Date().toISOString();
-  const deliveredAt = ['delivered', 'awaiting_external', 'scheduled', 'published'].includes(statusRaw) ? current.delivered_at ?? now : current.delivered_at;
+  const deliveredAt = ['delivered', 'awaiting_external', 'scheduled', 'published', 'withdrawn'].includes(statusRaw) ? current.delivered_at ?? now : current.delivered_at;
   const publishedAt = statusRaw === 'published' ? current.published_at ?? now : current.published_at;
+  const confirmedBy = statusRaw === 'published' ? current.confirmed_by ?? ctx.user.id : current.confirmed_by;
+  const confirmedAt = statusRaw === 'published' ? current.confirmed_at ?? now : current.confirmed_at;
 
   const { error } = await supabase
     .from('social_distributions')
@@ -225,15 +230,22 @@ export async function updateSocialDistribution(_prev: SocialDistributionActionRe
       evidence_kind: evidenceKind,
       evidence_note: evidenceNote,
       deliverable_version_id: deliverableVersionId,
-      confirmed_by: statusRaw === 'published' ? ctx.user.id : null,
-      confirmed_at: statusRaw === 'published' ? now : null,
+      confirmed_by: confirmedBy,
+      confirmed_at: confirmedAt,
       updated_at: now
     })
     .eq('id', distributionId)
     .eq('organization_id', ctx.organizationId);
   if (error) return { ok: false, error: 'Could not update this distribution lane.' };
 
-  await logEvent(supabase, ctx, statusRaw === 'published' ? 'social_distribution.published_confirmed' : 'social_distribution.status_changed', distributionId, `Social distribution moved to ${statusRaw}`);
+  await logEvent(
+    supabase,
+    ctx,
+    'social_distributions',
+    statusRaw === 'published' ? 'social_distribution.published_confirmed' : statusRaw === 'withdrawn' ? 'social_distribution.withdrawn' : 'social_distribution.status_changed',
+    distributionId,
+    `Social distribution moved to ${statusRaw}`
+  );
   revalidatePath('/content');
   return { ok: true };
 }
