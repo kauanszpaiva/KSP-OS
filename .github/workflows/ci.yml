@@ -31,6 +31,9 @@ jobs:
       - run: pnpm test:rls
       - run: pnpm test:migrations
       - run: pnpm test:lineage
+      # Keep source schema parity blocking on every PR. Live/runtime parity is
+      # additionally required by the controlled promotion workflow/runbook.
+      - run: pnpm test:parity
       - run: pnpm security:secrets
       - run: pnpm build:command
       - run: pnpm build:portal

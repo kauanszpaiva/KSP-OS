@@ -6,6 +6,7 @@ export interface NavItem {
   status: 'live' | 'planned';
   icon: IconName;
   founderOnly?: boolean;
+  executiveOnly?: boolean;
 }
 
 export interface NavGroup { key: string; label: string; items: NavItem[]; }
@@ -38,6 +39,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Content', href: '/content', status: 'live', icon: 'content' }
   ]},
   { key: 'control', label: 'Control', items: [
+    { label: 'Control Center', href: '/control-center', status: 'live', icon: 'connections', executiveOnly: true },
     { label: 'Finance', href: '/finance', status: 'live', icon: 'finance' },
     { label: 'Software', href: '/software', status: 'live', icon: 'software' },
     { label: 'Knowledge', href: '/knowledge', status: 'live', icon: 'knowledge' },
