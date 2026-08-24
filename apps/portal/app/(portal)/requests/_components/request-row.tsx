@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge } from '@ksp/ui';
+import { Badge, ShapeMark } from '@ksp/ui';
 import { formatDate } from '../../../../lib/format';
 import type { ClientRequest, RequestComment, RequestStatusHistory } from '@ksp/database';
 
@@ -46,19 +46,18 @@ export function RequestRow({ request, comments, history }: { request: ClientRequ
   const hasDetail = comments.length > 0 || history.length > 0;
 
   return (
-    <div className="px-4 py-3">
-      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between gap-3 text-left">
+    <div className="border-t border-line px-4 py-3 first:border-t-0">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 text-left">
+        <ShapeMark shape="circle" icon="inbox" label="Request" tone={request.status === 'completed' ? 'good' : request.status.includes('client') ? 'warn' : 'brand'} size="sm" />
         <div className="min-w-0">
           <p className="truncate text-[14px] font-medium text-ink">{request.title}</p>
-          <p className="mt-0.5 line-clamp-1 text-[12.5px] text-ink-3">{request.body}</p>
+          <p className="mt-0.5 text-[12px] text-ink-4">{formatDate(request.created_at)}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="tnum text-[12px] text-ink-4">{formatDate(request.created_at)}</span>
-          <Badge tone={STATUS_TONE[request.status] ?? 'neutral'}>{STATUS_LABEL[request.status] ?? request.status}</Badge>
-        </div>
+        <Badge tone={STATUS_TONE[request.status] ?? 'neutral'}>{STATUS_LABEL[request.status] ?? request.status}</Badge>
       </button>
       {open && (
         <div className="mt-3 animate-fade-slide-up space-y-3 border-t border-line pt-3">
+          <p className="text-[13px] text-ink-2">{request.body}</p>
           {!hasDetail ? (
             <p className="text-[12.5px] text-ink-4">No updates yet.</p>
           ) : (

@@ -1,8 +1,9 @@
 import { requirePortalSession } from '../../../lib/session';
 import { createServerClient } from '@ksp/database';
-import { Card, Badge, cx } from '@ksp/ui';
+import { Card, Badge, ShapeMark, cx } from '@ksp/ui';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
+import { ProgressiveList } from '../_components/progressive-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,34 +128,21 @@ export default async function InvoicesPage({
           </p>
         </Card>
       ) : (
-        <div className="flex min-w-0 flex-col gap-3">
-          {invoices.map((invoice: any) => (
-            <Link key={invoice.id} href={`/invoices/${invoice.id}`} className="min-w-0">
-              <Card className="group flex min-w-0 flex-col gap-4 p-4 transition-colors hover:border-brand/30 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="break-all font-mono text-[13px] font-medium text-brand">{invoice.invoice_number}</span>
-                    <StatusBadge status={invoice.status} />
-                  </div>
-                  {invoice.projects && (
-                    <p className="mt-1 truncate text-[13px] text-ink-2">{invoice.projects.name}</p>
-                  )}
-                  <p className="mt-1 break-words text-[12px] text-ink-3">
-                    Issued: {invoice.issue_date || 'N/A'} {invoice.due_date && `• Due: ${invoice.due_date}`}
-                  </p>
+        <Card className="min-w-0 overflow-hidden">
+          <ProgressiveList initial={5}>{invoices.map((invoice: any) => (
+            <Link key={invoice.id} href={`/invoices/${invoice.id}`} className="grid min-w-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-t border-line px-4 py-3 first:border-t-0 hover:bg-surface-2">
+              <ShapeMark shape="circle" icon="finance" label="Invoice" tone={invoice.status === 'paid' ? 'good' : invoice.status === 'overdue' ? 'risk' : 'brand'} size="sm" />
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate font-mono text-[12.5px] font-medium text-brand">{invoice.invoice_number}</span>
+                  <StatusBadge status={invoice.status} />
                 </div>
-                <div className="flex shrink-0 items-end justify-between gap-4 sm:flex-col sm:items-end">
-                  <span className="text-[16px] font-semibold text-ink">
-                    {formatCurrency(invoice.amount_minor, invoice.currency)}
-                  </span>
-                  <span className="text-[13px] font-medium text-brand opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                    View details &rarr;
-                  </span>
-                </div>
-              </Card>
+                <p className="truncate text-[12px] text-ink-3">{invoice.projects?.name || 'General billing'}{invoice.due_date ? ` · Due ${invoice.due_date}` : ''}</p>
+              </div>
+              <span className="tnum shrink-0 text-[14px] font-semibold text-ink">{formatCurrency(invoice.amount_minor, invoice.currency)}</span>
             </Link>
-          ))}
-        </div>
+          ))}</ProgressiveList>
+        </Card>
       )}
     </div>
   );

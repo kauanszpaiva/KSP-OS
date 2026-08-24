@@ -1,9 +1,10 @@
-import { Card, EmptyState, Reveal } from '@ksp/ui';
+import { Card, EmptyState, Reveal, ShapeMark } from '@ksp/ui';
 import type { DocumentRecord } from '@ksp/database';
 import { requirePortalSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate } from '../../../lib/format';
 import { getClientDocuments, getPublishedProjects, latestPerProject } from '../data';
+import { ProgressiveList } from '../_components/progressive-list';
 
 interface FileGroup {
   key: string;
@@ -55,19 +56,20 @@ export default async function FilesPage() {
           {groups.map((group, i) => (
             <Reveal key={group.key} delay={i * 60}>
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">{group.title}</p>
-              <Card className="divide-y divide-line overflow-hidden">
-                {group.documents.map((doc) => (
+              <Card className="overflow-hidden">
+                <ProgressiveList initial={5}>{group.documents.map((doc) => (
                   <a
                     key={doc.id}
                     href={doc.storage_path}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-between gap-3 px-4 py-3 transition-colors duration-fast hover:bg-surface-2"
+                    className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-t border-line px-4 py-3 first:border-t-0 transition-colors duration-fast hover:bg-surface-2"
                   >
+                    <ShapeMark shape="diamond" icon="knowledge" label="Shared file" tone="accent" size="sm" />
                     <span className="min-w-0 truncate text-[14px] font-medium text-ink">{doc.title}</span>
                     <span className="shrink-0 text-[12px] text-ink-4">{formatDate(doc.created_at)}</span>
                   </a>
-                ))}
+                ))}</ProgressiveList>
               </Card>
             </Reveal>
           ))}

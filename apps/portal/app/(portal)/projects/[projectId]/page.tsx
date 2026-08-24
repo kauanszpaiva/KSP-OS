@@ -9,6 +9,7 @@ import { getChangeOrderDecisions, getChangeOrderVersions, getMilestonesForProjec
 import { DeliverableReview } from '../../_components/deliverable-review';
 import { ClientProjectPlan } from './_components/client-project-plan';
 import { postComment, recordDeliverableDecision } from '../../../actions';
+import { ProgressiveList } from '../../_components/progressive-list';
 
 /**
  * No RLS/policy check is needed here beyond the queries themselves — a
@@ -93,9 +94,10 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
           {activity.length === 0 ? (
             <EmptyState icon="inbox" title="No updates published yet." />
           ) : (
-            <ol className="space-y-0">
+            <div className="space-y-0" role="list">
+              <ProgressiveList initial={4}>
               {activity.map((event, index) => (
-                <li key={`${event.kind}-${event.id}`} className="flex gap-3 py-2">
+                <div key={`${event.kind}-${event.id}`} role="listitem" className="flex gap-3 py-2">
                   <div className="flex flex-col items-center">
                     <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-ink-4" />
                     {index < activity.length - 1 && <span className="w-px flex-1 bg-line" />}
@@ -107,9 +109,10 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
                     </p>
                     <p className="text-[11.5px] text-ink-4">{formatDate(event.at)}</p>
                   </div>
-                </li>
+                </div>
               ))}
-            </ol>
+              </ProgressiveList>
+            </div>
           )}
         </div>
       </Reveal>
@@ -121,7 +124,8 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
             <p className="text-[13px] text-ink-3">No deliverables published for this project yet.</p>
           </Card>
         ) : (
-          <div className="mb-8 space-y-4">
+          <Card className="mb-8 overflow-hidden">
+            <ProgressiveList initial={3}>
             {deliverableVersions.map((version, index) => {
               const request = approvalRequests.find((approval) => approval.deliverable_version_id === version.id) || null;
               const comments = sanitizeClientComments(deliverableComments[index] || []);
@@ -137,7 +141,8 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
                 />
               );
             })}
-          </div>
+            </ProgressiveList>
+          </Card>
         )}
 
         <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">Change orders</p>
@@ -147,7 +152,7 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
           </Card>
         ) : (
           <Card className="divide-y divide-line overflow-hidden">
-            {changeOrderVersions.map((version) => {
+            <ProgressiveList initial={4}>{changeOrderVersions.map((version) => {
               const decision = decisionByVersionId.get(version.id);
               return (
                 <div key={version.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -164,7 +169,7 @@ export default async function PortalProjectDetailPage({ params }: { params: Prom
                   )}
                 </div>
               );
-            })}
+            })}</ProgressiveList>
           </Card>
         )}
       </Reveal>

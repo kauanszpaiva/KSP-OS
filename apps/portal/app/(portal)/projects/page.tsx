@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Card, EmptyState, ProgressBar, Reveal } from '@ksp/ui';
+import { Card, EmptyState, Reveal, ShapeMark } from '@ksp/ui';
 import { getServerSupabase } from '../../../lib/supabase';
 import { requirePortalSession } from '../../../lib/session';
 import { formatDate } from '../../../lib/format';
 import { getMilestonesForProjects, getPublishedProjects, latestPerProject } from '../data';
+import { ProgressiveList } from '../_components/progressive-list';
 
 function progressPercent(projectId: string, milestones: Array<{ project_id: string; status: string }>): number | null {
   const own = milestones.filter((m) => m.project_id === projectId);
@@ -34,28 +35,25 @@ export default async function PortalProjectsPage() {
           <EmptyState icon="missions" title="No projects published yet." hint="Once KSP publishes an update about a project, it will appear here." />
         </div>
       ) : (
-        <Reveal delay={60} className="mt-7 grid gap-4 sm:grid-cols-2">
-          {projects.map((p) => {
+        <Reveal delay={60} className="mt-7">
+          <Card className="overflow-hidden">
+          <ProgressiveList initial={5}>{projects.map((p) => {
             const pct = p.project_id ? progressPercent(p.project_id, milestones) : null;
             return (
-              <Link key={p.id} href={`/projects/${p.project_id}`}>
-                <Card interactive className="p-5">
-                  <p className="truncate text-[15px] font-semibold text-ink">{p.title}</p>
-                  <p className="mt-1 line-clamp-2 text-[13px] text-ink-3">{p.summary}</p>
-                  {pct !== null && (
-                    <div className="mt-4">
-                      <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
-                        <span className="font-medium uppercase tracking-wide text-ink-4">Progress</span>
-                        <span className="tnum font-semibold text-ink-2">{pct}%</span>
-                      </div>
-                      <ProgressBar value={pct} />
-                    </div>
-                  )}
-                  <div className="mt-4 text-[12px] text-ink-4">Updated {formatDate(p.published_at)}</div>
-                </Card>
+              <Link key={p.id} href={`/projects/${p.project_id}`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-t border-line px-4 py-3 first:border-t-0 hover:bg-surface-2">
+                <ShapeMark shape="square" icon="missions" label="Project" tone={pct === 100 ? 'good' : 'brand'} size="sm" />
+                <div className="min-w-0">
+                  <p className="truncate text-[14px] font-semibold text-ink">{p.title}</p>
+                  <p className="truncate text-[12px] text-ink-4">Updated {formatDate(p.published_at)}</p>
+                </div>
+                <div className="flex min-w-[42px] flex-col items-end">
+                  <span className="tnum text-[13px] font-semibold text-ink">{pct === null ? '—' : `${pct}%`}</span>
+                  <span className="text-[10px] uppercase tracking-wide text-ink-4">progress</span>
+                </div>
               </Link>
             );
-          })}
+          })}</ProgressiveList>
+          </Card>
         </Reveal>
       )}
     </div>

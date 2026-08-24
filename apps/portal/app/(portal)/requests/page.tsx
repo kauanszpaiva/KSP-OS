@@ -1,4 +1,4 @@
-import { Badge, Card, EmptyState, Reveal } from '@ksp/ui';
+import { Badge, Card, EmptyState, Reveal, ShapeMark } from '@ksp/ui';
 import { requirePortalSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getClientMeetings, getClientRequests, getPublishedProjects, getRequestComments, getRequestStatusHistory, latestPerProject } from '../data';
@@ -6,6 +6,7 @@ import { formatDateTime } from '../../../lib/format';
 import { NewRequestForm } from './_components/new-request-form';
 import { RequestRow } from './_components/request-row';
 import type { SupabaseClient } from '@ksp/database';
+import { ProgressiveList } from '../_components/progressive-list';
 
 const MEETING_TONE: Record<string, 'brand' | 'good' | 'neutral'> = { scheduled: 'brand', completed: 'good', cancelled: 'neutral' };
 
@@ -43,21 +44,20 @@ export default async function PortalRequestsPage() {
         {meetings.length === 0 ? (
           <EmptyState icon="inbox" title="Nothing scheduled." hint="Meetings KSP schedules with you will appear here." />
         ) : (
-          <Card className="divide-y divide-line overflow-hidden">
-            {meetings.map((m) => (
-              <div key={m.id} className="px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className={`truncate text-[14px] font-medium ${m.status === 'cancelled' ? 'text-ink-4 line-through' : 'text-ink'}`}>{m.title}</p>
+          <Card className="overflow-hidden">
+            <ProgressiveList initial={3}>{meetings.map((m) => (
+              <details key={m.id} className="group border-t border-line first:border-t-0">
+                <summary className="grid cursor-pointer list-none grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 hover:bg-surface-2">
+                  <ShapeMark shape="diamond" icon="schedule" label="Meeting" tone={m.status === 'completed' ? 'good' : 'accent'} size="sm" />
+                  <div className="min-w-0">
+                    <p className={`truncate text-[14px] font-medium ${m.status === 'cancelled' ? 'text-ink-4 line-through' : 'text-ink'}`}>{m.title}</p>
+                    <p className="truncate text-[12px] text-ink-3">{formatDateTime(m.scheduled_at)}{m.duration_minutes != null ? ` · ${m.duration_minutes} min` : ''}</p>
+                  </div>
                   <Badge tone={MEETING_TONE[m.status] ?? 'neutral'}>{m.status}</Badge>
-                </div>
-                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-3">
-                  <span className="tnum">{formatDateTime(m.scheduled_at)}</span>
-                  {m.duration_minutes != null && <span>· {m.duration_minutes} min</span>}
-                  {m.location && <span>· {m.location}</span>}
-                </p>
-                {m.agenda && <p className="mt-1 line-clamp-2 text-[13px] text-ink-2">{m.agenda}</p>}
-              </div>
-            ))}
+                </summary>
+                {(m.location || m.agenda) && <div className="border-t border-line bg-surface px-4 py-3 text-[13px] text-ink-2">{m.location && <p className="font-medium">{m.location}</p>}{m.agenda && <p className="mt-1">{m.agenda}</p>}</div>}
+              </details>
+            ))}</ProgressiveList>
           </Card>
         )}
       </div>
@@ -65,7 +65,10 @@ export default async function PortalRequestsPage() {
       <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
         <div>
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">New request</p>
-          <NewRequestForm projects={projects} />
+          <details className="rounded-xl border border-line bg-surface shadow-card">
+            <summary className="cursor-pointer list-none px-4 py-3 text-[13px] font-semibold text-brand">+ Start a request</summary>
+            <div className="border-t border-line p-4"><NewRequestForm projects={projects} embedded /></div>
+          </details>
         </div>
 
         <div>
@@ -74,9 +77,9 @@ export default async function PortalRequestsPage() {
             <EmptyState icon="inbox" title="No requests yet." hint="Requests you submit to KSP will show up here." />
           ) : (
             <Card className="divide-y divide-line overflow-hidden">
-              {detail.map(({ request, comments, history }) => (
+              <ProgressiveList initial={4}>{detail.map(({ request, comments, history }) => (
                 <RequestRow key={request.id} request={request} comments={comments} history={history} />
-              ))}
+              ))}</ProgressiveList>
             </Card>
           )}
         </div>

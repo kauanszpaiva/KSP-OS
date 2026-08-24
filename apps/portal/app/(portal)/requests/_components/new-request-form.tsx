@@ -8,7 +8,7 @@ const initial: ActionResult = { ok: false };
 const field =
   'mt-1 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-sm text-ink transition-colors duration-fast focus:border-brand focus:outline-none focus:shadow-focus';
 
-export function NewRequestForm({ projects }: { projects: Array<{ id: string; title: string }> }) {
+export function NewRequestForm({ projects, embedded = false }: { projects: Array<{ id: string; title: string }>; embedded?: boolean }) {
   const [state, action, pending] = useActionState(submitClientRequest, initial);
   const formRef = useRef<HTMLFormElement>(null);
   useActionToast(state, 'Request submitted');
@@ -18,7 +18,7 @@ export function NewRequestForm({ projects }: { projects: Array<{ id: string; tit
   }, [state.ok]);
 
   return (
-    <form ref={formRef} action={action} className="space-y-4 rounded-xl border border-line bg-surface p-5 shadow-card">
+    <form ref={formRef} action={action} className={embedded ? 'space-y-4' : 'space-y-4 rounded-xl border border-line bg-surface p-5 shadow-card'}>
       <div>
         <label htmlFor="title" className="block text-[12px] font-medium text-ink-2">Title</label>
         <input id="title" name="title" required maxLength={200} className={field} />
