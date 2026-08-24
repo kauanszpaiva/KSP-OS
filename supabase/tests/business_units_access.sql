@@ -1,0 +1,73 @@
+-- KSP OS business-unit authorization regression plan.
+-- Run against a seeded Supabase preview/development branch after
+-- 20260824023000_business_units_access_foundation.sql is applied.
+--
+-- Required identities:
+--   OWNER_A   active founder_ceo
+--   OWNER_B   active executive_operations
+--   DEV_DOM   non-executive internal member assigned to Dominion
+--   DEV_AGY   non-executive internal member assigned to Agency
+--   DEV_NONE  non-executive internal member with no unit membership
+--   CLIENT_A  Portal-only user with a client membership/project entitlement
+--
+-- Seed projects:
+--   PROJ_DOM      business_unit_id = Dominion
+--   PROJ_AGY      business_unit_id = Agency
+--   PROJ_LEGACY   business_unit_id = null
+--
+-- Assertions:
+--
+-- Global owners
+--   - OWNER_A can select Dominion + Agency and all classified projects.
+--   - OWNER_B can select Dominion + Agency and all classified projects.
+--   - neither owner requires business_unit_memberships rows.
+--
+-- Unit catalog
+--   - DEV_DOM can select Dominion but not Agency.
+--   - DEV_AGY can select Agency but not Dominion.
+--   - DEV_NONE cannot select either unit.
+--   - non-executives cannot insert/update/delete business_units.
+--   - non-executives cannot grant/revoke business_unit_memberships.
+--
+-- Project boundary
+--   - with an active project_membership, DEV_DOM can_access_project(PROJ_DOM) = true.
+--   - with an active project_membership, DEV_DOM can_access_project(PROJ_AGY) = false.
+--   - with an active project_membership, DEV_AGY can_access_project(PROJ_DOM) = false.
+--   - a legacy project keeps old behavior: an assigned member can access PROJ_LEGACY.
+--   - DEV_NONE cannot insert a project classified into Dominion or Agency.
+--   - a Dominion member cannot insert/update a project into Agency.
+--
+-- Compatibility inheritance
+--   - when OWNER_A assigns PROJ_LEGACY to Dominion, its current non-executive
+--     project members receive active Dominion memberships.
+--   - founder_ceo/executive_operations project members do not require inherited
+--     business_unit_memberships rows.
+--   - inserting a new non-executive project_member on PROJ_DOM creates/refreshes
+--     that person's Dominion membership.
+--
+-- Revocation
+--   - after deleting/suspending DEV_DOM's Dominion membership,
+--     can_access_project(PROJ_DOM) = false even if project_memberships still has
+--     the old project row.
+--   - project-owned child tables whose RLS delegates to can_access_project()
+--     also become unreadable/unwritable to DEV_DOM by direct API query.
+--
+-- Cross-organization integrity
+--   - a project cannot reference a business_unit_id from another organization.
+--   - a business_unit_membership cannot pair an organization_id with a unit from
+--     another organization.
+--
+-- Portal isolation
+--   - CLIENT_A cannot select business_units or business_unit_memberships unless
+--     the account also has an internal organization membership that qualifies.
+--   - CLIENT_A's project visibility remains governed by portal project/publication
+--     policy; internal business-unit membership is not required for the client.
+--   - client grants do not expose classification != public or publication_state
+--     != published_to_client at the application permission layer.
+--
+-- Migration completion gate
+--   - before making projects.business_unit_id NOT NULL, assert:
+--       select count(*) from projects where status <> 'archived' and business_unit_id is null;
+--     returns 0 for all active operational projects.
+
+select 'business unit authorization regression plan present' as plan;
