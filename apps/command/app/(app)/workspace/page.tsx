@@ -1,3 +1,5 @@
+import { isExecutive } from '@ksp/auth';
+import { getScopedProjectIds, inProjectScope, resolveBusinessUnitScope } from '../../../lib/business-units';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getCommentsForObjects, getTaskDeliveryEvidenceForTasks, getTasks, type CommentView, type TaskDeliveryEvidenceView, type TaskView } from '../data';
@@ -7,10 +9,14 @@ import { TaskForm } from '../_components/mission-workspace-forms';
 import { WorkspaceView } from '../_components/workspace-view';
 
 export default async function WorkspacePage() {
-  await requireSession();
+  const ctx = await requireSession();
   const supabase = await getServerSupabase();
-  const [tasks, members] = supabase ? await Promise.all([getTasks(supabase), getInternalMembers(supabase)]) : [[], []];
-  const taskIds = (tasks as TaskView[]).map((task) => task.id);
+  const [allTasks, members, scope] = supabase
+    ? await Promise.all([getTasks(supabase), getInternalMembers(supabase), resolveBusinessUnitScope(supabase, isExecutive(ctx))])
+    : [[], [], { units: [], activeBusinessUnitId: null }];
+  const scopedProjectIds = supabase ? await getScopedProjectIds(supabase, scope.activeBusinessUnitId) : null;
+  const tasks = (allTasks as TaskView[]).filter((task) => inProjectScope(task.project_id, scopedProjectIds));
+  const taskIds = tasks.map((task) => task.id);
   const [commentsByTask, deliveryEvidenceByTask] = supabase
     ? await Promise.all([
         getCommentsForObjects(supabase, 'tasks', taskIds),
@@ -23,7 +29,7 @@ export default async function WorkspacePage() {
       <PageHeader
         eyebrow="Execution"
         title="Workspace"
-        description="The team's general task board — anything that isn't a company commitment but still needs to get done."
+        description="The task board for the active KSP division. Unattached legacy/shared tasks stay visible during migration."
       />
 
       <div className="mb-4 flex justify-end">
@@ -39,7 +45,7 @@ export default async function WorkspacePage() {
         </div>
       </details>
 
-      <WorkspaceView tasks={tasks as TaskView[]} members={members} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />
+      <WorkspaceView tasks={tasks} members={members} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />
     </div>
   );
 }

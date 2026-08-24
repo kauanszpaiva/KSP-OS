@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@ksp/database';
-import type { InternalRole, MembershipContext } from '@ksp/permissions';
+import type { InternalRole, MembershipContext, PermissionAction, ScopedPermissionGrant } from '@ksp/permissions';
 
 export interface SessionUser {
   id: string;
@@ -48,9 +48,11 @@ export async function getSessionAal(supabase: SupabaseClient): Promise<boolean> 
 
 /**
  * Build the full authorization context for the signed-in user: their org,
- * internal roles, MFA state, and a MembershipContext consumable by the
- * @ksp/permissions engine. Returns null when unauthenticated or without an
- * active internal membership.
+ * internal roles, MFA state, project assignments, and persisted grants.
+ *
+ * Only genuinely organization-wide grants are placed in `explicitGrants`.
+ * Resource-bound rows remain in `scopedGrants`; flattening them would turn a
+ * one-project entitlement into authority across the whole KSP organization.
  */
 export async function getAuthContext(supabase: SupabaseClient): Promise<AuthContext | null> {
   const user = await getSessionUser(supabase);
@@ -71,18 +73,85 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
   const internalRoles = [
     ...new Set(active.filter((m: any) => m.organization_id === organizationId).map((m: any) => m.internal_role as InternalRole))
   ];
+  const now = new Date().toISOString();
 
-  const { data: projectRows } = await supabase.from('project_memberships').select('project_id').eq('profile_id', user.id);
-  const projectIds = (projectRows ?? []).map((r: { project_id: string }) => r.project_id);
+  const [projectMembershipResult, internalGrantResult, projectGrantResult, temporaryGrantResult, mfa] = await Promise.all([
+    supabase
+      .from('project_memberships')
+      .select('project_id')
+      .eq('organization_id', organizationId)
+      .eq('profile_id', user.id)
+      .or(`effective_until.is.null,effective_until.gt.${now}`),
+    supabase
+      .from('internal_permission_grants')
+      .select('action, resource_type, resource_id')
+      .eq('organization_id', organizationId)
+      .eq('profile_id', user.id)
+      .is('revoked_at', null)
+      .lte('effective_from', now)
+      .or(`effective_until.is.null,effective_until.gt.${now}`),
+    supabase
+      .from('project_access_grants')
+      .select('project_id, action')
+      .eq('organization_id', organizationId)
+      .eq('profile_id', user.id)
+      .is('revoked_at', null)
+      .lte('effective_from', now)
+      .or(`effective_until.is.null,effective_until.gt.${now}`),
+    supabase
+      .from('temporary_access_grants')
+      .select('action, resource_type, resource_id')
+      .eq('organization_id', organizationId)
+      .eq('profile_id', user.id)
+      .is('revoked_at', null)
+      .lte('effective_from', now)
+      .gt('effective_until', now),
+    getSessionAal(supabase)
+  ]);
 
-  const mfa = await getSessionAal(supabase);
+  const projectIds = (projectMembershipResult.data ?? []).map((r: { project_id: string }) => r.project_id);
+  const explicitGrants: PermissionAction[] = [];
+  const scopedGrants: ScopedPermissionGrant[] = [];
+
+  for (const row of (internalGrantResult.data ?? []) as Array<{ action: PermissionAction; resource_type: string | null; resource_id: string | null }>) {
+    if (!row.resource_type && !row.resource_id) {
+      explicitGrants.push(row.action);
+      continue;
+    }
+    if (row.resource_type === 'project' && row.resource_id) {
+      scopedGrants.push({ action: row.action, projectId: row.resource_id });
+      continue;
+    }
+    scopedGrants.push({
+      action: row.action,
+      resourceType: row.resource_type ?? undefined,
+      resourceId: row.resource_id ?? undefined
+    });
+  }
+
+  for (const row of (projectGrantResult.data ?? []) as Array<{ project_id: string; action: PermissionAction }>) {
+    scopedGrants.push({ action: row.action, projectId: row.project_id });
+  }
+
+  for (const row of (temporaryGrantResult.data ?? []) as Array<{ action: PermissionAction; resource_type: string; resource_id: string }>) {
+    if (row.resource_type === 'project') {
+      scopedGrants.push({ action: row.action, projectId: row.resource_id });
+      continue;
+    }
+    scopedGrants.push({
+      action: row.action,
+      resourceType: row.resource_type,
+      resourceId: row.resource_id
+    });
+  }
 
   const membership: MembershipContext = {
     organizationId,
     internalRoles,
     clientMemberships: [],
-    projectIds,
-    explicitGrants: [],
+    projectIds: [...new Set(projectIds)],
+    explicitGrants: [...new Set(explicitGrants)],
+    scopedGrants,
     mfa
   };
 

@@ -17,6 +17,7 @@
     "test:db": "node scripts/check-db-tests-runner.mjs",
     "test:rls": "node scripts/check-rls.mjs",
     "test:migrations": "node scripts/check-migrations.mjs",
+    "test:lineage": "node scripts/check-database-lineage.mjs",
     "test:parity": "node scripts/check-schema-parity.mjs",
     "test:e2e": "node scripts/check-e2e-placeholders.mjs",
     "e2e": "playwright test --config e2e/playwright.config.ts",

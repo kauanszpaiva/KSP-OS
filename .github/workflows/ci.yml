@@ -30,6 +30,7 @@ jobs:
       - run: pnpm test:db
       - run: pnpm test:rls
       - run: pnpm test:migrations
+      - run: pnpm test:lineage
       - run: pnpm security:secrets
       - run: pnpm build:command
       - run: pnpm build:portal

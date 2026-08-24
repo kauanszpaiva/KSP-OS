@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { ConfirmProvider, ToastProvider } from '@ksp/ui';
-import { canManageOutcomes, canViewFounderVault } from '@ksp/auth';
+import { canManageOutcomes, canViewFounderVault, isExecutive } from '@ksp/auth';
 import { canPerform } from '@ksp/permissions';
 import { NAV_GROUPS, MOBILE_PRIMARY } from '../../lib/nav';
+import { resolveBusinessUnitScope } from '../../lib/business-units';
 import { requireSession } from '../../lib/session';
 import { getServerSupabase } from '../../lib/supabase';
 import { getNotifications } from './data';
+import { BusinessUnitScope } from './_components/business-unit-scope';
 import { Shell } from './_components/shell';
 
 export const dynamic = 'force-dynamic';
@@ -22,8 +24,11 @@ const ROLE_LABELS: Record<string, string> = {
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await requireSession();
   const showVault = canViewFounderVault(ctx);
+  const canUseGlobalScope = isExecutive(ctx);
   const supabase = await getServerSupabase();
-  const notifications = supabase ? await getNotifications(supabase) : [];
+  const [{ units, activeBusinessUnitId }, notifications] = supabase
+    ? await Promise.all([resolveBusinessUnitScope(supabase, canUseGlobalScope), getNotifications(supabase)])
+    : [{ units: [], activeBusinessUnitId: null }, []];
 
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
@@ -48,6 +53,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <ToastProvider>
       <ConfirmProvider>
         <Shell groups={groups} user={user} mobilePrimary={MOBILE_PRIMARY} notifications={notifications} palettePerms={palettePerms}>
+          <BusinessUnitScope units={units} activeBusinessUnitId={activeBusinessUnitId} canUseGlobalScope={canUseGlobalScope} />
           {children}
         </Shell>
       </ConfirmProvider>
