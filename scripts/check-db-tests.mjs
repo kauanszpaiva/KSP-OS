@@ -305,9 +305,15 @@ const backupRestoreTests = `
 const recoveryTests = `
   do $$ begin
     begin
-      insert into tasks (organization_id, project_id, title, item_type)
-      values ('10000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'bogus', 'x');
-      raise exception 'item_type constraint did not fire';
+      insert into tasks (organization_id, project_id, title, start_date, due_date)
+      values (
+        '10000000-0000-0000-0000-000000000001',
+        '40000000-0000-0000-0000-000000000001',
+        'invalid schedule probe',
+        current_date + 2,
+        current_date + 1
+      );
+      raise exception 'tasks_start_before_due constraint did not fire';
     exception when check_violation then null; end;
   end $$;
 `;
