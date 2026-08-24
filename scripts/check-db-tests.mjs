@@ -221,7 +221,7 @@ const actorTests = `
       select count(*) into c from documents; if c <> 1 then raise exception 'client document isolation failed: %', c; end if;
       select count(*) into c from change_orders; if c <> 1 then raise exception 'client change-order isolation failed: %', c; end if;
       select count(*) into c from client_meetings; if c <> 1 then raise exception 'client meeting isolation failed: %', c; end if;
-      select status into s from preview_portal_invitation('runtime-reconciliation-token-hash'); if s <> 'pending' then raise exception 'invitation preview failed: %', s; end if;
+      select status into s from preview_portal_invitation('runtime-reconciliation-token-hash'); if s <> 'ready' then raise exception 'invitation preview failed: %', s; end if;
     end $$;
   rollback;
 
