@@ -28,6 +28,7 @@ export interface ClientMediaVersionView {
   fileName: string | null;
   mimeType: string | null;
   fileSizeBytes: number | null;
+  storagePath: string | null;
   uploadState: 'pending' | 'ready' | 'failed';
   status: string;
   clientVisible: boolean;
@@ -121,6 +122,7 @@ export async function getClientMediaWorkspaceData(supabase: SupabaseClient): Pro
       fileName: version.file_name,
       mimeType: version.mime_type,
       fileSizeBytes: version.file_size_bytes,
+      storagePath: version.storage_path,
       uploadState: version.upload_state,
       status: version.status,
       clientVisible: version.client_visible,
