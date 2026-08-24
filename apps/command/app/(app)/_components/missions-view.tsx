@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { Badge, Icon, Reveal, Segmented, cx } from '@ksp/ui';
+import { Badge, Icon, Reveal, Segmented, ShapeMark, cx, type Tone } from '@ksp/ui';
 import { formatDate } from '../../../lib/format';
 import type { ClientRef, CommentView, MissionView } from '../data';
 import { EmptyState, Panel, StatePill } from './ui';
@@ -18,6 +18,13 @@ function DetailSection({ title, children }: { title: string; children: ReactNode
       {children}
     </section>
   );
+}
+
+function milestoneTone(status: string): Tone {
+  if (status === 'done') return 'good';
+  if (status === 'at_risk') return 'risk';
+  if (status === 'in_progress') return 'accent';
+  return 'neutral';
 }
 
 function MissionDetail({ mission, allMissions, clients, comments }: { mission: MissionView; allMissions: MissionView[]; clients: ClientRef[]; comments: CommentView[] }) {
@@ -60,14 +67,15 @@ function MissionDetail({ mission, allMissions, clients, comments }: { mission: M
         ) : (
           <ul className="space-y-2">
             {mission.milestones.map((milestone) => (
-              <li key={milestone.id} className="min-w-0 rounded-xl bg-surface-2/55 px-3 py-2.5 text-[12.5px] sm:flex sm:items-center sm:justify-between sm:gap-2">
+              <li key={milestone.id} className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl bg-surface-2/55 px-3 py-2.5 text-[12.5px]">
+                <ShapeMark shape="diamond" icon="schedule" label="Milestone" tone={milestoneTone(milestone.status)} size="sm" />
                 <div className="min-w-0 text-ink-2">
-                  <p className="font-medium leading-snug">{milestone.title}</p>
-                  <p className="mt-1 text-[10.5px] text-ink-4">
+                  <p className="truncate font-medium leading-snug">{milestone.title}</p>
+                  <p className="mt-0.5 truncate text-[10.5px] text-ink-4">
                     {[milestone.phase, milestone.due_date ? formatDate(milestone.due_date) : null].filter(Boolean).join(' · ') || 'No phase or date'}
                   </p>
                 </div>
-                <span className="mt-2 flex shrink-0 items-center gap-1 sm:mt-0">
+                <span className="flex shrink-0 items-center gap-1">
                   <MilestoneStatusForm id={milestone.id} currentStatus={milestone.status} />
                   <DeleteButton action={deleteMilestone} id={milestone.id} label="Delete milestone" iconOnly />
                 </span>

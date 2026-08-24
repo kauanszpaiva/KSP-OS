@@ -27,6 +27,7 @@ const config: Config = {
         canvas: withAlpha('--canvas'),
         surface: withAlpha('--surface'),
         'surface-2': withAlpha('--surface-2'),
+        'surface-3': withAlpha('--surface-3'),
         overlay: withAlpha('--overlay'),
         ink: {
           DEFAULT: withAlpha('--ink'),
