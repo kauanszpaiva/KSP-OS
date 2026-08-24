@@ -30,6 +30,7 @@ const statusLabels: Record<SocialStatus, string> = {
   awaiting_external: 'Aguardando publicação externa',
   scheduled: 'Agendado',
   published: 'Publicado',
+  withdrawn: 'Retirado do ar',
   skipped: 'Não publicar'
 };
 
@@ -41,6 +42,7 @@ function ControlBadge({ mode }: { mode: SocialControlMode }) {
 function ProfileForm({ projects }: { projects: ClientMediaProjectOption[] }) {
   const [state, action, pending] = useActionState(createSocialProfile, initial);
   useActionToast(state, 'Social profile added');
+
   return (
     <details className="rounded-xl border border-line bg-surface">
       <summary className="cursor-pointer list-none px-4 py-3 text-[12px] font-semibold text-brand marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">+ Add social profile</summary>
@@ -49,11 +51,12 @@ function ProfileForm({ projects }: { projects: ClientMediaProjectOption[] }) {
         <label className="text-[12px] font-medium text-ink-2">Platform<select name="platform" defaultValue="instagram" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]"><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="tiktok">TikTok</option><option value="youtube">YouTube</option><option value="linkedin">LinkedIn</option><option value="other">Other</option></select></label>
         <label className="text-[12px] font-medium text-ink-2">Handle<input name="handle" placeholder="@bezgroup" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
         <label className="text-[12px] font-medium text-ink-2">Project scope<select name="projectId" defaultValue="" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]"><option value="">KSP / global profile</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.clientName} · {project.name}</option>)}</select></label>
+        <label className="text-[12px] font-medium text-ink-2 sm:col-span-2">Editorial role<input name="editorialRole" placeholder="Institution/community, founder authority, podcast/cuts…" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
         <label className="text-[12px] font-medium text-ink-2">Publication control<select name="controlMode" defaultValue="unknown" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]"><option value="controlled">Controlled by KSP</option><option value="shared">Shared / collaboration</option><option value="external">External / client publishes</option><option value="unknown">Confirm responsibility</option></select></label>
         <label className="text-[12px] font-medium text-ink-2">Account owner<input name="accountOwner" placeholder="BEZ Group / Everton / KSP" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
         <label className="text-[12px] font-medium text-ink-2">Who publishes<input name="publisher" placeholder="KSP social / account owner" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
         <label className="text-[12px] font-medium text-ink-2">Approval owner<input name="approver" placeholder="Internal / client / owner" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
-        <input type="hidden" name="kpiOwner" value="" />
+        <label className="text-[12px] font-medium text-ink-2">KPI owner<input name="kpiOwner" placeholder="KSP / client / shared" className="mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2 text-[13px]" /></label>
         {!state.ok && state.error && <p className="text-[12px] text-risk sm:col-span-2 lg:col-span-3">{state.error}</p>}
         <div className="flex justify-end lg:col-span-4"><button type="submit" disabled={pending} className="rounded-lg bg-brand px-4 py-2 text-[12.5px] font-semibold text-on-brand hover:bg-brand-strong disabled:opacity-50">{pending ? 'Saving…' : 'Save profile'}</button></div>
       </form>
@@ -64,6 +67,7 @@ function ProfileForm({ projects }: { projects: ClientMediaProjectOption[] }) {
 function RouteForm({ profiles, contentItems }: { profiles: SocialProfileView[]; contentItems: SocialContentOption[] }) {
   const [state, action, pending] = useActionState(createSocialDistribution, initial);
   useActionToast(state, 'Content routed to social profile');
+
   return (
     <details className="rounded-xl border border-line bg-surface">
       <summary className="cursor-pointer list-none px-4 py-3 text-[12px] font-semibold text-brand marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">+ Route content to profile</summary>
@@ -84,6 +88,7 @@ function RouteForm({ profiles, contentItems }: { profiles: SocialProfileView[]; 
 function UpdateDistribution({ distribution }: { distribution: SocialDistributionView }) {
   const [state, action, pending] = useActionState(updateSocialDistribution, initial);
   useActionToast(state, 'Distribution updated');
+
   return (
     <details className="mt-3 rounded-lg border border-line-2">
       <summary className="cursor-pointer list-none px-3 py-2 text-[11.5px] font-medium text-brand marker:hidden hover:bg-surface-2 [&::-webkit-details-marker]:hidden">Update state / publication evidence</summary>
@@ -93,7 +98,7 @@ function UpdateDistribution({ distribution }: { distribution: SocialDistribution
         <label className="text-[11.5px] text-ink-2">Schedule / reschedule<input name="scheduledFor" type="datetime-local" className="mt-1 w-full rounded-md border border-line-2 bg-surface px-2.5 py-2 text-[12px]" /></label>
         <label className="text-[11.5px] text-ink-2">Evidence<select name="evidenceKind" defaultValue={distribution.evidenceKind} className="mt-1 w-full rounded-md border border-line-2 bg-surface px-2.5 py-2 text-[12px]"><option value="none">None yet</option><option value="publication_url">Publication URL</option><option value="owner_confirmation">Owner confirmation</option><option value="platform_api">Platform confirmation</option><option value="manual">Manual verification</option></select></label>
         <label className="text-[11.5px] text-ink-2">Published URL<input name="publicationUrl" type="url" defaultValue={distribution.publicationUrl ?? ''} placeholder="https://…" className="mt-1 w-full rounded-md border border-line-2 bg-surface px-2.5 py-2 text-[12px]" /></label>
-        <label className="text-[11.5px] text-ink-2">Evidence note<input name="evidenceNote" placeholder="Who confirmed / where checked" className="mt-1 w-full rounded-md border border-line-2 bg-surface px-2.5 py-2 text-[12px]" /></label>
+        <label className="text-[11.5px] text-ink-2">Evidence note<input name="evidenceNote" defaultValue={distribution.evidenceNote ?? ''} placeholder="Who confirmed / API reference" className="mt-1 w-full rounded-md border border-line-2 bg-surface px-2.5 py-2 text-[12px]" /></label>
         {!state.ok && state.error && <p className="text-[11.5px] text-risk lg:col-span-4">{state.error}</p>}
         <div className="flex justify-end lg:col-span-5"><button type="submit" disabled={pending} className="rounded-md bg-brand px-3 py-2 text-[12px] font-semibold text-on-brand disabled:opacity-50">{pending ? 'Saving…' : 'Save state'}</button></div>
       </form>
@@ -101,10 +106,40 @@ function UpdateDistribution({ distribution }: { distribution: SocialDistribution
   );
 }
 
+function DistributionRow({ distribution }: { distribution: SocialDistributionView }) {
+  const statusTone = distribution.status === 'published' ? 'good' : distribution.status === 'awaiting_external' ? 'warn' : distribution.status === 'withdrawn' ? 'risk' : 'neutral';
+
+  return (
+    <div className="p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2"><p className="text-[13.5px] font-semibold text-ink">{distribution.contentTitle}</p><Badge tone={statusTone}>{statusLabels[distribution.status]}</Badge><ControlBadge mode={distribution.controlMode} /></div>
+          <p className="mt-1 text-[12px] text-ink-3">→ {distribution.profileName} · {distribution.platform}{distribution.handle ? ` · ${distribution.handle}` : ''}{distribution.clientName ? ` · ${distribution.clientName}` : ''}{distribution.projectName ? ` · ${distribution.projectName}` : ''}</p>
+          <p className="mt-1 text-[11.5px] text-ink-4">Publisher: {distribution.publisher ?? 'unassigned'} · Approver: {distribution.approver ?? 'unassigned'} · Asset: {distribution.assetReady ? distribution.assetName ?? 'ready version linked' : 'not linked to a ready media version'}</p>
+          {distribution.scheduledFor && <p className="mt-1 text-[11.5px] text-ink-4">Target: {new Date(distribution.scheduledFor).toLocaleString()}</p>}
+          {distribution.publishedAt && <p className="mt-1 text-[11.5px] text-ink-4">Publication confirmed: {new Date(distribution.publishedAt).toLocaleString()} · evidence: {distribution.evidenceKind}</p>}
+        </div>
+        {distribution.publicationUrl && <a href={distribution.publicationUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-line-2 px-3 py-1.5 text-[12px] font-medium text-brand hover:bg-brand-tint">Open published post ↗</a>}
+      </div>
+      <UpdateDistribution distribution={distribution} />
+    </div>
+  );
+}
+
+function QueueSection({ title, description, items, empty }: { title: string; description: string; items: SocialDistributionView[]; empty: string }) {
+  return (
+    <div className="border-b border-line last:border-b-0">
+      <div className="px-4 py-3 sm:px-5"><div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-4">{title}</p><p className="mt-0.5 text-[11.5px] text-muted">{description}</p></div><Badge tone="neutral">{items.length}</Badge></div></div>
+      <div className="divide-y divide-line">{items.length === 0 ? <div className="px-5 py-5 text-[12px] text-muted">{empty}</div> : items.map((distribution) => <DistributionRow key={distribution.id} distribution={distribution} />)}</div>
+    </div>
+  );
+}
+
 export function SocialDistributionWorkspace({ profiles, contentItems, distributions, projects }: { profiles: SocialProfileView[]; contentItems: SocialContentOption[]; distributions: SocialDistributionView[]; projects: ClientMediaProjectOption[] }) {
-  const open = distributions.filter((item) => !['published', 'skipped'].includes(item.status));
-  const controlled = open.filter((item) => ['controlled', 'shared'].includes(item.controlMode)).length;
-  const external = open.filter((item) => ['external', 'unknown'].includes(item.controlMode)).length;
+  const active = distributions.filter((item) => !['published', 'withdrawn', 'skipped'].includes(item.status));
+  const controlledQueue = active.filter((item) => ['controlled', 'shared'].includes(item.controlMode));
+  const externalWatch = active.filter((item) => ['external', 'unknown'].includes(item.controlMode));
+  const history = distributions.filter((item) => ['published', 'withdrawn', 'skipped'].includes(item.status));
   const published = distributions.filter((item) => item.status === 'published').length;
 
   return (
@@ -114,9 +149,9 @@ export function SocialDistributionWorkspace({ profiles, contentItems, distributi
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">KSP Agency · Social distribution control</p>
             <h2 className="mt-1 text-[16px] font-semibold text-ink">One content source, separate publication responsibility per profile</h2>
-            <p className="mt-1 max-w-3xl text-[12.5px] leading-5 text-muted">Client delivery, Portal visibility and social publication are independent states. A video can be finished and delivered without being falsely counted as published.</p>
+            <p className="mt-1 max-w-3xl text-[12.5px] leading-5 text-muted">Profile defaults define the normal owner, publisher, approver and KPI owner. Each content item can override those defaults. Client delivery, Portal visibility and social publication remain independent states.</p>
           </div>
-          <div className="flex flex-wrap gap-2"><Badge tone="good">{controlled} KSP/shared open</Badge><Badge tone="warn">{external} external/confirm</Badge><Badge tone="brand">{published} published with evidence</Badge></div>
+          <div className="flex flex-wrap gap-2"><Badge tone="good">{controlledQueue.length} KSP/shared open</Badge><Badge tone="warn">{externalWatch.length} external/confirm</Badge><Badge tone="brand">{published} published with evidence</Badge></div>
         </div>
       </div>
 
@@ -126,25 +161,17 @@ export function SocialDistributionWorkspace({ profiles, contentItems, distributi
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-4">Profile responsibility matrix</p>
         <div className="mt-2 grid gap-2 lg:grid-cols-2">
           {profiles.length === 0 ? <p className="text-[12px] text-muted">No social profiles configured yet.</p> : profiles.map((profile) => (
-            <div key={profile.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-2 px-3 py-2.5">
-              <div><p className="text-[12.5px] font-semibold text-ink">{profile.displayName} <span className="font-normal text-ink-4">· {profile.platform}{profile.handle ? ` · ${profile.handle}` : ''}</span></p><p className="mt-0.5 text-[11px] text-ink-4">{profile.clientName ? `${profile.clientName}${profile.projectName ? ` · ${profile.projectName}` : ''}` : 'KSP / global'} · publishes: {profile.publisher ?? 'not assigned'} · approves: {profile.approver ?? 'not assigned'}</p></div>
+            <div key={profile.id} className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-line-2 px-3 py-2.5">
+              <div className="min-w-0"><p className="text-[12.5px] font-semibold text-ink">{profile.displayName} <span className="font-normal text-ink-4">· {profile.platform}{profile.handle ? ` · ${profile.handle}` : ''}</span></p>{profile.editorialRole && <p className="mt-0.5 text-[11.5px] text-ink-3">{profile.editorialRole}</p>}<p className="mt-0.5 text-[11px] text-ink-4">{profile.clientName ? `${profile.clientName}${profile.projectName ? ` · ${profile.projectName}` : ''}` : 'KSP / global'} · owner: {profile.accountOwner ?? 'not assigned'} · publishes: {profile.publisher ?? 'not assigned'} · approves: {profile.approver ?? 'not assigned'} · KPI: {profile.kpiOwner ?? 'not assigned'}</p></div>
               <ControlBadge mode={profile.controlMode} />
             </div>
           ))}
         </div>
       </div>
 
-      <div className="divide-y divide-line">
-        {distributions.length === 0 ? <div className="px-5 py-6 text-[13px] text-muted">No routed social content yet. Create a profile, then route an existing content item.</div> : distributions.map((distribution) => (
-          <div key={distribution.id} className="p-4 sm:p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-[13.5px] font-semibold text-ink">{distribution.contentTitle}</p><Badge tone={distribution.status === 'published' ? 'good' : distribution.status === 'awaiting_external' ? 'warn' : 'neutral'}>{statusLabels[distribution.status]}</Badge><ControlBadge mode={distribution.controlMode} /></div><p className="mt-1 text-[12px] text-ink-3">→ {distribution.profileName} · {distribution.platform}{distribution.handle ? ` · ${distribution.handle}` : ''}{distribution.clientName ? ` · ${distribution.clientName}` : ''}{distribution.projectName ? ` · ${distribution.projectName}` : ''}</p><p className="mt-1 text-[11.5px] text-ink-4">Publisher: {distribution.publisher ?? 'unassigned'} · Approver: {distribution.approver ?? 'unassigned'} · Asset: {distribution.assetReady ? distribution.assetName ?? 'ready version linked' : 'not linked to a ready media version'}</p>{distribution.scheduledFor && <p className="mt-1 text-[11.5px] text-ink-4">Target: {new Date(distribution.scheduledFor).toLocaleString()}</p>}</div>
-              {distribution.publicationUrl && <a href={distribution.publicationUrl} target="_blank" rel="noreferrer" className="rounded-lg border border-line-2 px-3 py-1.5 text-[12px] font-medium text-brand hover:bg-brand-tint">Open published post ↗</a>}
-            </div>
-            <UpdateDistribution distribution={distribution} />
-          </div>
-        ))}
-      </div>
+      <QueueSection title="Controlled publishing queue" description="KSP-controlled or shared lanes that the operating team can move through ready → scheduled → published." items={controlledQueue} empty="No open controlled/shared social distribution lanes." />
+      <QueueSection title="External publication watchlist" description="KSP can produce and deliver these, but publication stays pending until the external owner or evidence confirms it." items={externalWatch} empty="No external or unconfirmed publication lanes waiting on another owner." />
+      <QueueSection title="Publication history" description="Evidence-backed published items, withdrawn posts and intentionally skipped distribution lanes." items={history} empty="No completed publication history yet." />
     </section>
   );
 }
