@@ -216,7 +216,7 @@ with m as (
             '[[:space:]]+', ' ', 'g'
           )
         ),
-        '[[:space:]]*([(),=;])[[:space:]]*', '\\1', 'g'
+        '[[:space:]]*([(),=;])[[:space:]]*', E'\\\\1', 'g'
       )
     ) as punctuation_normalized_md5
   from m
