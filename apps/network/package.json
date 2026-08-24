@@ -1,0 +1,24 @@
+{
+  "name": "@ksp/network",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "node ../../scripts/check-source.mjs apps/network",
+    "format:check": "node ../../scripts/check-format.mjs apps/network"
+  },
+  "dependencies": {
+    "@ksp/observability": "workspace:*",
+    "@ksp/auth": "workspace:*",
+    "@ksp/database": "workspace:*",
+    "@ksp/permissions": "workspace:*",
+    "@ksp/ui": "workspace:*",
+    "@ksp/validation": "workspace:*",
+    "@supabase/ssr": "^0.5.2",
+    "next": "15.5.23",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "zod": "3.25.76"
+  }
+}

@@ -112,6 +112,42 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
 
+  apps/network:
+    dependencies:
+      '@ksp/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@ksp/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@ksp/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
+      '@ksp/permissions':
+        specifier: workspace:*
+        version: link:../../packages/permissions
+      '@ksp/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@ksp/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
+      '@supabase/ssr':
+        specifier: ^0.5.2
+        version: 0.5.2(@supabase/supabase-js@2.110.7)
+      next:
+        specifier: 15.5.23
+        version: 15.5.23(@playwright/test@1.62.1)(@types/node@22.10.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react:
+        specifier: 19.0.0
+        version: 19.0.0
+      react-dom:
+        specifier: 19.0.0
+        version: 19.0.0(react@19.0.0)
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
   apps/portal:
     dependencies:
       '@ksp/auth':
@@ -1292,6 +1328,7 @@ packages:
   eslint@9.18.0:
     resolution: {integrity: sha512-+waTfRWQlSbpt3KWE+CjrPPYnbq9kfZIYUqapc0uBXyjTp8aYXZDsUH16m39Ryq3NjAVP4tjuF7KaukeqoCoaA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
