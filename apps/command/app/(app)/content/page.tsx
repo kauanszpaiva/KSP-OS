@@ -24,7 +24,7 @@ export default async function ContentPage() {
         [],
         [],
         { projects: [], contentItems: [], versions: [] },
-        { profiles: [], contentItems: [], distributions: [] }
+        { clients: [], profiles: [], contentItems: [], distributions: [] }
       ];
 
   return (
@@ -56,6 +56,7 @@ export default async function ContentPage() {
 
       <ClientPostingPlanForm projects={media.projects} />
       <SocialDistributionWorkspace
+        clients={social.clients}
         profiles={social.profiles}
         contentItems={social.contentItems}
         distributions={social.distributions}
