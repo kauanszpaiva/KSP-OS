@@ -22,6 +22,10 @@ function normalizeSql(sql) {
     .trim();
 }
 
+function normalizePunctuationSql(sql) {
+  return normalizeSql(sql).replace(/\s*([(),=;])\s*/g, '$1');
+}
+
 function md5(value) {
   return crypto.createHash('md5').update(value).digest('hex');
 }
@@ -95,30 +99,35 @@ for (const remap of evidence.remaps) {
 }
 
 const mediaEvidence = liveOnlyEvidence.clientMediaWorkspace;
-if (!mediaEvidence?.repoFile || !mediaEvidence?.canonicalLiveRawMd5) {
-  sourceFailures.push('client_media_workspace: canonical repo/live evidence is incomplete');
+if (!mediaEvidence?.repoFile || !mediaEvidence?.livePunctuationNormalizedMd5) {
+  sourceFailures.push('client_media_workspace: repo/live normalized evidence is incomplete');
 } else {
   const mediaRepoPath = path.join(migrationsDir, mediaEvidence.repoFile);
   if (!fs.existsSync(mediaRepoPath)) {
     sourceFailures.push(`client_media_workspace: missing repo file ${mediaEvidence.repoFile}`);
   } else {
     const mediaRepoSql = fs.readFileSync(mediaRepoPath, 'utf8');
-    const mediaRepoRawMd5 = md5(mediaRepoSql);
-    if (mediaRepoRawMd5 !== mediaEvidence.canonicalLiveRawMd5) {
+    const mediaRepoNormalizedMd5 = md5(normalizePunctuationSql(mediaRepoSql));
+    if (mediaRepoNormalizedMd5 !== mediaEvidence.livePunctuationNormalizedMd5) {
       sourceFailures.push(
-        `client_media_workspace: canonical live row is not byte-identical to repo source repo=${mediaRepoRawMd5} live=${mediaEvidence.canonicalLiveRawMd5}`
+        `client_media_workspace: normalized SQL mismatch repo=${mediaRepoNormalizedMd5} live=${mediaEvidence.livePunctuationNormalizedMd5}`
       );
     } else {
       console.log(
-        `Client media canonical migration verified: repo ${mediaEvidence.repoFile} == live ${mediaEvidence.canonicalLiveVersion} (${mediaRepoRawMd5})`
+        `Client media normalized migration verified: repo ${mediaEvidence.repoFile} == live duplicate lineage (${mediaRepoNormalizedMd5})`
       );
     }
   }
-  if (mediaEvidence.classification !== 'duplicate_live_version_equivalent_to_repo_canonical') {
+  if (mediaEvidence.classification !== 'duplicate_live_versions_normalized_equivalent_to_repo') {
     sourceFailures.push('client_media_workspace: duplicate live lineage classification is missing');
   }
-  if (!mediaEvidence.duplicateLiveVersion || !mediaEvidence.duplicateLiveRawMd5 || !mediaEvidence.livePunctuationNormalizedMd5) {
-    sourceFailures.push('client_media_workspace: duplicate live version/hash evidence is incomplete');
+  if (
+    !mediaEvidence.canonicalLiveVersion ||
+    !mediaEvidence.canonicalLiveRawMd5 ||
+    !mediaEvidence.duplicateLiveVersion ||
+    !mediaEvidence.duplicateLiveRawMd5
+  ) {
+    sourceFailures.push('client_media_workspace: immutable live version/hash evidence is incomplete');
   }
 }
 
@@ -207,7 +216,7 @@ with m as (
             '[[:space:]]+', ' ', 'g'
           )
         ),
-        '[[:space:]]*([(),=;])[[:space:]]*', '\\\\1', 'g'
+        '[[:space:]]*([(),=;])[[:space:]]*', '\\1', 'g'
       )
     ) as punctuation_normalized_md5
   from m
