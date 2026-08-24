@@ -27,10 +27,26 @@ test('client can access their own project and review deliverables', async ({ pag
   await expect(page.getByText('Deliverables')).toBeVisible();
 });
 
-test('no horizontal scroll at 375px in portal home', async ({ page }) => {
+for (const route of ['/home', '/projects', '/files', '/requests', '/approvals', '/invoices']) {
+  test(`no horizontal scroll at 375px on ${route}`, async ({ page }) => {
+    await signIn(page, { email: clientEmail, password: clientPassword });
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(route);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    expect(overflow).toBeFalsy();
+  });
+}
+
+test('no horizontal scroll at 375px on project and invoice details', async ({ page }) => {
   await signIn(page, { email: clientEmail, password: clientPassword });
   await page.setViewportSize({ width: 375, height: 800 });
-  await page.goto('/home');
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-  expect(overflow).toBeFalsy();
+
+  for (const indexRoute of ['/projects', '/invoices']) {
+    await page.goto(indexRoute);
+    const detailLink = page.locator(`a[href^="${indexRoute}/"]`).first();
+    test.skip(await detailLink.count() === 0, `Seeded portal data needs a detail link under ${indexRoute}.`);
+    await detailLink.click();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    expect(overflow).toBeFalsy();
+  }
 });

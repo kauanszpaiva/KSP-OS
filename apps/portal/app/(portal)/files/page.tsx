@@ -52,28 +52,39 @@ export default async function FilesPage() {
       {groups.length === 0 ? (
         <EmptyState icon="knowledge" title="Nothing shared yet." hint="When KSP shares a document or deliverable with you, it will appear here." />
       ) : (
-        <div className="space-y-8">
-          {groups.map((group, i) => (
-            <Reveal key={group.key} delay={i * 60}>
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-4">{group.title}</p>
-              <Card className="overflow-hidden">
-                <ProgressiveList initial={5}>{group.documents.map((doc) => (
+        <Card className="overflow-hidden">
+          <ProgressiveList initial={3}>
+            {groups.map((group) => (
+              <details key={group.key} className="group border-t border-line first:border-t-0">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand [&::-webkit-details-marker]:hidden">
+                  <span className="min-w-0 truncate text-[14px] font-semibold text-ink">{group.title}</span>
+                  <span className="flex shrink-0 items-center gap-2 text-[12px] text-ink-4">
+                    {group.documents.length} {group.documents.length === 1 ? 'file' : 'files'}
+                    <span aria-hidden="true" className="text-brand transition-transform group-open:rotate-180">⌄</span>
+                  </span>
+                </summary>
+                <div className="border-t border-line bg-surface-2/40">
+                  <ProgressiveList initial={5}>{group.documents.map((doc) => (
                   <a
                     key={doc.id}
                     href={doc.storage_path}
                     target="_blank"
                     rel="noreferrer"
-                    className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-t border-line px-4 py-3 first:border-t-0 transition-colors duration-fast hover:bg-surface-2"
+                    className="grid min-h-11 grid-cols-[auto_1fr] items-center gap-3 border-t border-line px-4 py-3 first:border-t-0 transition-colors duration-fast hover:bg-surface-2 sm:grid-cols-[auto_1fr_auto]"
                   >
                     <ShapeMark shape="diamond" icon="knowledge" label="Shared file" tone="accent" size="sm" />
-                    <span className="min-w-0 truncate text-[14px] font-medium text-ink">{doc.title}</span>
-                    <span className="shrink-0 text-[12px] text-ink-4">{formatDate(doc.created_at)}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-medium text-ink">{doc.title}</span>
+                      <span className="mt-0.5 block text-[11.5px] text-ink-4 sm:hidden">{formatDate(doc.created_at)}</span>
+                    </span>
+                    <span className="hidden shrink-0 text-[12px] text-ink-4 sm:block">{formatDate(doc.created_at)}</span>
                   </a>
-                ))}</ProgressiveList>
-              </Card>
-            </Reveal>
-          ))}
-        </div>
+                  ))}</ProgressiveList>
+                </div>
+              </details>
+            ))}
+          </ProgressiveList>
+        </Card>
       )}
     </div>
   );
