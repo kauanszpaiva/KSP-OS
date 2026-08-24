@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "targetProjectRef": "tqwnsxjrlomosfblleqy",
-  "capturedAt": "2026-08-24T19:31:00Z",
-  "normalization": "strip SQL block comments, strip line comments, lowercase, collapse whitespace, trim, MD5",
+  "capturedAt": "2026-08-24T19:35:00Z",
+  "normalization": "strip SQL block comments, strip line comments, lowercase, collapse POSIX whitespace, trim, MD5",
   "classificationRule": "A remap is normalized_sql_equivalent only when the repository migration normalizes to the same MD5 captured from supabase_migrations.schema_migrations for the live migration.",
   "remaps": [
     {
@@ -10,49 +10,56 @@
       "repoVersion": "202607230001",
       "name": "signals_decisions",
       "liveVersion": "20260803203802",
-      "liveNormalizedMd5": "d51effad5c6fa106b225986e877a764b"
+      "liveNormalizedMd5": "699e8201915dd72fc688e2f4ba73b965",
+      "classification": "normalized_sql_equivalent"
     },
     {
       "repoFile": "202607230002_missions.sql",
       "repoVersion": "202607230002",
       "name": "missions",
       "liveVersion": "20260803203935",
-      "liveNormalizedMd5": "6fe58090eaff5b0f62ed895ce3ff2f6b"
+      "liveNormalizedMd5": "7e59481f428e124e7db8d7b61ba3e6f8",
+      "classification": "normalized_sql_equivalent"
     },
     {
       "repoFile": "202607230003_growth.sql",
       "repoVersion": "202607230003",
       "name": "growth",
       "liveVersion": "20260803204027",
-      "liveNormalizedMd5": "f04b48a59a6508c607c5d7c8878101bf"
+      "liveNormalizedMd5": "fdf2f19f67c4f91686e3ad95ea2567ce",
+      "classification": "normalized_sql_equivalent"
     },
     {
       "repoFile": "202607230004_control.sql",
       "repoVersion": "202607230004",
       "name": "control",
       "liveVersion": "20260803204116",
-      "liveNormalizedMd5": "afd47c190d0317893689723b046fc6b5"
+      "liveNormalizedMd5": "b3e74d6e5ef3ad05fa0216a00741dd62",
+      "classification": "normalized_sql_equivalent"
     },
     {
       "repoFile": "202607230005_cross_cutting.sql",
       "repoVersion": "202607230005",
       "name": "cross_cutting",
       "liveVersion": "20260803204417",
-      "liveNormalizedMd5": "d0690436dadd16961d77c2edde2a9dcc"
+      "liveNormalizedMd5": "ae9aa793c23d3e0cd9cbaa30c109023a",
+      "classification": "normalized_sql_equivalent"
     },
     {
       "repoFile": "202607230006_portal_foundation.sql",
       "repoVersion": "202607230006",
       "name": "portal_foundation",
       "liveVersion": "20260803204430",
-      "liveNormalizedMd5": "f05199d1e6a069d49758ac50ab5e74e9"
+      "liveNormalizedMd5": "3978c729f7711dd952bf97832bd2e8bd",
+      "classification": "normalized_sql_equivalent"
     },
     {
       "repoFile": "202607230007_portal_home_projects.sql",
       "repoVersion": "202607230007",
       "name": "portal_home_projects",
       "liveVersion": "20260803204937",
-      "liveNormalizedMd5": "51a1856a2e5523fb20378080bfe39f06"
+      "liveNormalizedMd5": "ff198e769060b0736c8c23af430c1fb5",
+      "classification": "normalized_sql_equivalent"
     }
   ]
 }
