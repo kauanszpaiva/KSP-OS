@@ -40,14 +40,70 @@ CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 CREATE SCHEMA IF NOT EXISTS vault;
-CREATE TABLE IF NOT EXISTS vault.decrypted_secrets (
-  name text PRIMARY KEY,
-  decrypted_secret text
+CREATE TABLE IF NOT EXISTS vault.secrets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text UNIQUE,
+  secret text NOT NULL,
+  description text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
-INSERT INTO vault.decrypted_secrets (name, decrypted_secret) VALUES
-  ('ksp_resend_api_key', 'ci_test_resend_key_not_real'),
-  ('ksp_portal_base_url', 'https://portal.ci.test')
-ON CONFLICT (name) DO UPDATE SET decrypted_secret = EXCLUDED.decrypted_secret;
+
+CREATE OR REPLACE VIEW vault.decrypted_secrets AS
+SELECT
+  id,
+  name,
+  secret AS decrypted_secret,
+  description,
+  created_at,
+  updated_at
+FROM vault.secrets;
+
+CREATE OR REPLACE FUNCTION vault.create_secret(
+  new_secret text,
+  new_name text DEFAULT NULL,
+  new_description text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  created_id uuid;
+BEGIN
+  INSERT INTO vault.secrets (secret, name, description)
+  VALUES (new_secret, new_name, new_description)
+  RETURNING id INTO created_id;
+  RETURN created_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION vault.update_secret(
+  secret_id uuid,
+  new_secret text DEFAULT NULL,
+  new_name text DEFAULT NULL,
+  new_description text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE vault.secrets
+  SET
+    secret = COALESCE(new_secret, secret),
+    name = COALESCE(new_name, name),
+    description = COALESCE(new_description, description),
+    updated_at = now()
+  WHERE id = secret_id;
+END;
+$$;
+
+INSERT INTO vault.secrets (name, secret, description) VALUES
+  ('ksp_resend_api_key', 'ci_test_resend_key_not_real', 'CI-only Resend credential placeholder'),
+  ('ksp_portal_base_url', 'https://portal.ci.test', 'CI-only Portal URL placeholder')
+ON CONFLICT (name) DO UPDATE SET
+  secret = EXCLUDED.secret,
+  description = EXCLUDED.description,
+  updated_at = now();
 
 CREATE TYPE extensions.http_method AS ENUM ('GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'PATCH');
 CREATE TYPE extensions.http_header AS (
