@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { BusinessUnitRef } from '../../../lib/business-units';
-import { ALL_BUSINESS_UNITS, BUSINESS_UNIT_COOKIE } from '../../../lib/business-units';
+import {
+  ALL_BUSINESS_UNITS,
+  BUSINESS_UNIT_COOKIE,
+  type BusinessUnitRef
+} from '../../../lib/business-unit-shared';
 
 export function BusinessUnitScope({
   units,
