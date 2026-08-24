@@ -2,54 +2,71 @@
 
 ## Purpose
 
-Capture the currently observable GitHub, Vercel, and Supabase environment topology before any staging database creation or production DDL.
+Capture the currently observable GitHub, Vercel, and Supabase environment topology during the P0 reconciliation. This document is evidence, not authorization to promote production database DDL.
 
 ## GitHub
 
 - Repository: `kauanszpaiva/KSP-OS`
 - Production branch: `main`
-- Main commit observed after PR #118 merge: `2041aae67e946bd3c266df72bc2754fad523ddbf`
-- Active lineage branch: `fix/p0-lineage-classification`
-- No branch named `staging` was found.
-- No branch named `develop` was found.
-- No branch named `preview` was found.
-
-GitHub feature/PR branches are therefore the current source of Vercel Preview deployments; there is no dedicated Git staging branch.
+- Main commit observed after PR #125 merge: `588b360637e7e1d5103bf17ba072772edb882928`
+- `main` is still unprotected. Issue #119 tracks required branch protection and required CI contexts.
+- Feature/PR branches remain the source of Vercel Preview deployments; there is no dedicated Git `staging` branch.
 
 ## Vercel
 
-The GitHub Vercel bot for PR #120 confirms three active Preview deployments, all reported Ready:
+The GitHub Vercel integration confirms three Preview deployment projects:
 
-| Surface | Vercel project | Project ID | Root directory | PR #120 Preview |
-| --- | --- | --- | --- | --- |
-| Command | `ksp-os-command` | `prj_Ajm8CXfHQEdsC6LtMN6gayR9mi7r` | `apps/command` | `https://ksp-os-command-git-fix-p0-lineage-cla-bd8ce5-ksp-dominion-group.vercel.app` |
-| Portal | `ksp-os-portal` | `prj_nn06qnwA5kFwq0y2UBF74xcdK2TP` | `apps/portal` | `https://ksp-os-portal-git-fix-p0-lineage-clas-a6d562-ksp-dominion-group.vercel.app` |
-| Network | `kspnetwork` | `prj_fJtKOFCzofQPvkop1QDGr8qiZyXq` | `apps/network` | `https://kspnetwork-git-fix-p0-lineage-classification-ksp-dominion-group.vercel.app` |
+| Surface | Vercel project | Project ID | Root directory |
+| --- | --- | --- | --- |
+| Command | `ksp-os-command` | `prj_Ajm8CXfHQEdsC6LtMN6gayR9mi7r` | `apps/command` |
+| Portal | `ksp-os-portal` | `prj_nn06qnwA5kFwq0y2UBF74xcdK2TP` | `apps/portal` |
+| Network | `kspnetwork` | `prj_fJtKOFCzofQPvkop1QDGr8qiZyXq` | `apps/network` |
 
-The connected Vercel team is `ksp-dominion-group` (`team_8ywOglpfLhAvtIzGNRmAAPhg`). The direct Vercel connector currently cannot enumerate these projects: team project listing returns no projects, direct project lookup returns 404 for known IDs, and deployment listing returns 403. This is a connector/API permission mismatch, not evidence that the projects are absent, because the GitHub Vercel integration is actively deploying them.
+The connected Vercel team is `ksp-dominion-group` (`team_8ywOglpfLhAvtIzGNRmAAPhg`). Direct Vercel API access available to this audit still cannot read the Preview environment-variable values. Therefore the exact `NEXT_PUBLIC_SUPABASE_URL` used by each Preview is not yet proven.
 
-The repository's older Vercel documentation is stale: it describes two projects named `ksp-command-os` and `ksp-client-portal`, while current deployment evidence shows three projects named `ksp-os-command`, `ksp-os-portal`, and `kspnetwork`.
+A Vercel Preview must not be treated as an isolated staging environment until its Supabase binding is verified.
 
-## Supabase
+## Supabase production
 
-- Production project: `appkspos`
+- Project: `appkspos`
 - Project ref: `tqwnsxjrlomosfblleqy`
 - Organization: `knbfinjubtemqhoiocvj`
-- Current branch inventory: only the default branch `main`.
-- No non-default Supabase Development Branch / staging database is currently present.
+- Status observed: `ACTIVE_HEALTHY`
+- Production Business Units / Partner Operations DDL is still blocked.
+- Seven July repository migrations whose live versions were recorded under August timestamps have now been classified as `normalized_sql_equivalent`; see `LIVE_MIGRATION_REMAPS_2026-08-24.json`.
+- Four acknowledged live-only Portfolio OS migrations and the duplicate `client_media_workspace` history remain part of the unresolved lineage classification.
 
-## Critical interpretation
+Production runtime hardening completed without database DDL:
 
-A Vercel Preview already exists for every KSP OS surface, but that is not the same as a complete staging environment. The repository's intended promotion path is:
+- `ksp-provision-bruno-once` is inert, JWT-protected, and now source-controlled.
+- `ksp-portal-synthetic-setup` was a consumed BEZ TEAM one-time activation flow. The Portal activation route/UI was retired in PR #125 and production Edge Function version 3 now returns HTTP 410 `activation_retired` with JWT verification enabled.
 
-`Pull Request -> Vercel Preview -> Staging Supabase -> Production approval -> Production Supabase`
+## Supabase staging
 
-At the time of this capture, the Vercel Preview layer exists and the Staging Supabase layer does not.
+A paid Supabase Development Branch now exists and is the isolated database rehearsal target:
 
-The available Vercel access does not expose Preview environment-variable values, so the exact `NEXT_PUBLIC_SUPABASE_URL` target used by these previews is not yet proven. Do not assume the previews are safely isolated from production until that target is verified.
+- Staging project ref: `yszxtinabzamsayfkymq`
+- Production data was not copied into the branch.
+- Canonical repository replay is currently **partial**, not complete.
+- Business Units foundation, Partner Operations foundation, Business Unit brand alignment, and function-security hardening were applied to staging only.
+- Positive and negative behavioral checks passed for business-unit isolation, cross-unit denial, global executive access, future grants, revocation, cross-organization classification, partner isolation, cross-partner denial, cross-vertical denial, partner offboarding, and the approval-decision trigger after direct RPC revocation.
 
-## Release gate
+Do not merge the Supabase Development Branch into production. The branch is evidence/rehearsal infrastructure until the remaining lineage and environment gates close.
 
-- Do not apply Business Units or Partner Operations DDL to production.
-- Do not treat a Vercel Preview as database staging.
-- Before database rollout, verify Preview environment variables point to a non-production Supabase target, replay canonical migrations in an isolated Supabase Development Branch, and execute positive/negative RLS persona tests there.
+## Promotion path
+
+The intended promotion path is:
+
+`Pull Request -> Vercel Preview -> isolated Supabase staging -> lineage/RLS/security evidence -> production approval -> production runtime/database`
+
+The application Preview and isolated database staging layers both exist now, but their binding to one another is not yet proven through the available Vercel API access.
+
+## Remaining release gates
+
+- Classify the four acknowledged live-only Portfolio OS migrations and the duplicate `client_media_workspace` lineage anomaly.
+- Verify Vercel Preview environment variables target the staging Supabase project before using Preview as a full-stack rehearsal.
+- Complete the canonical staging replay through the full repository migration chain or document an approved equivalent forward plan.
+- Classify remaining authenticated `SECURITY DEFINER` functions before changing execution grants.
+- Enable leaked-password protection through Supabase Auth configuration when an authorized configuration path is available.
+- Protect GitHub `main` and require the canonical CI contexts; issue #119 tracks this because the current connector has no branch-protection/ruleset mutation action.
+- Keep production Business Units, Partner Operations, and staging security-hardening DDL blocked until these gates are closed.
