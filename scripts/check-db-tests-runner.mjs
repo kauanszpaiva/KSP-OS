@@ -25,8 +25,11 @@ try {
   await import('./check-db-tests.mjs');
   await import('./check-social-distribution-db.mjs');
 } catch (err) {
+  if (process.env.CI) {
+    throw err;
+  }
   if (err.message.includes('docker') || err.message.includes('operation not permitted')) {
-    console.log('Docker is not fully supported in this environment, skipping full DB test.');
+    console.log('Docker is not fully supported in this environment, skipping full DB test outside CI.');
     process.exitCode = 0;
   } else {
     throw err;
