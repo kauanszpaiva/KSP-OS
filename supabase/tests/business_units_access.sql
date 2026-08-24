@@ -9,6 +9,7 @@
 --   DEV_AGY   non-executive internal member assigned to Agency
 --   DEV_NONE  non-executive internal member with no unit membership
 --   CLIENT_A  Portal-only user with a client membership/project entitlement
+--   CLIENT_B  Portal-only user for a different client organization
 --
 -- Seed projects:
 --   PROJ_DOM      business_unit_id = Dominion
@@ -33,6 +34,7 @@
 --   - with an active project_membership, DEV_DOM can_access_project(PROJ_DOM) = true.
 --   - with an active project_membership, DEV_DOM can_access_project(PROJ_AGY) = false.
 --   - with an active project_membership, DEV_AGY can_access_project(PROJ_DOM) = false.
+--   - an expired project_membership is excluded from effective application scope.
 --   - a legacy project keeps old behavior: an assigned member can access PROJ_LEGACY.
 --   - DEV_NONE cannot insert a project classified into Dominion or Agency.
 --   - a Dominion member cannot insert/update a project into Agency.
@@ -60,8 +62,13 @@
 -- Portal isolation
 --   - CLIENT_A cannot select business_units or business_unit_memberships unless
 --     the account also has an internal organization membership that qualifies.
---   - CLIENT_A's project visibility remains governed by portal project/publication
---     policy; internal business-unit membership is not required for the client.
+--   - CLIENT_A's project visibility remains governed by portal_visible_projects /
+--     project_access_grants + active client membership; internal project membership
+--     must not widen Portal projectIds for a dual-role identity.
+--   - CLIENT_A can select only CLIENT_A's own active client_permission_grants when
+--     CLIENT_A has the matching active client membership.
+--   - CLIENT_A cannot read CLIENT_B's grants, revoked grants, expired grants, or a
+--     grant for a client organization where CLIENT_A has no active membership.
 --   - client grants do not expose classification != public or publication_state
 --     != published_to_client at the application permission layer.
 --
