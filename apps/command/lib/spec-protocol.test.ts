@@ -14,10 +14,15 @@ describe('repository Spec protocol', () => {
     expect(repoFile('.github/pull_request_template.md')).toContain('## Spec compliance');
   });
 
-  it('keeps conflict handling and release severity explicit', () => {
+  it('keeps conflict handling, module evidence, and release severity explicit', () => {
     const protocol = repoFile('docs/spec/README.md');
+    const matrix = repoFile('docs/spec/MODULE_MATRIX_TEMPLATE.md');
+
     expect(protocol).toContain('When two sources conflict');
     expect(protocol).toContain('Critical/High divergences must be fixed');
     expect(protocol).toContain('Current KSP INC visual precedence');
+    expect(matrix).toContain('Cross-client/project/org isolation');
+    expect(matrix).toContain('Exact-head CI/builds pass');
+    expect(matrix).toContain('Error/stale state is recoverable');
   });
 });
