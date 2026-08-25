@@ -52,5 +52,22 @@ describe('KSP INC owner access mutation contract', () => {
     expect(overview).toContain("['Access', '/access'");
     expect(shell).toContain("['People', '/people']");
     expect(shell).toContain("['Network', '/network']");
+    expect(shell).toContain("['Work', '/work']");
+  });
+
+  it('lets owners assign and mention exact tasks from INC without widening project scope', () => {
+    const source = read('apps/inc/app/work/actions.ts');
+    const page = read('apps/inc/app/work/page.tsx');
+    const migration = read('supabase/migrations/20260825060000_access_graph_v3_task_windows.sql');
+    expect(source).toContain('createIncTask');
+    expect(source).toContain('reassignIncTask');
+    expect(source).toContain('commentOnIncTask');
+    expect(source).toContain('isKspIncOwner(ctx)');
+    expect(source).toContain('if (!ctx.mfa)');
+    expect(source).toContain("object_table: 'tasks'");
+    expect(source).toContain('resolveMentions');
+    expect(page).toContain('WorkAdminPanel');
+    expect(migration).toContain("reason text not null check (reason in ('mention', 'manual'))");
+    expect(migration).toContain('access_graph_private.can_share_task_access');
   });
 });
