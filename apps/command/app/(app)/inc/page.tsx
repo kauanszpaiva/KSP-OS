@@ -11,8 +11,8 @@ const surfaces = [
     role: 'Owner plane',
     description: 'Cross-company visibility, access governance, approvals, audit, platform health and control over every KSP operating surface.',
     boundary: 'Global owner roles only',
-    href: '/control-center',
-    action: 'Open owner control',
+    href: '/inc/access',
+    action: 'Open access directory',
     external: false
   },
   {
@@ -41,13 +41,18 @@ const surfaces = [
     role: 'Partner operations',
     description: 'Assignments, project handoffs, required materials and partner collaboration without broad KSP or client visibility.',
     boundary: 'Partner organization + assignment scope',
-    href: '/control-center',
+    href: '/inc/access',
     action: 'Manage Network access',
     external: false
   }
 ] as const;
 
 const ownerControls = [
+  {
+    title: 'Access directory',
+    description: 'See every identity across INC, Command, Portal and Network, understand why access exists, and manage audited grants from one owner workspace.',
+    href: '/inc/access'
+  },
   {
     title: 'Structure & access',
     description: 'Create operating divisions, classify projects and grant or revoke scoped internal access.',
