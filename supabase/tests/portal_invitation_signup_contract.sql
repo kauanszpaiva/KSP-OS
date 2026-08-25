@@ -1,0 +1,17 @@
+-- Contract test placeholder for the browser/auth portion of the portal invite flow.
+-- Database invitation acceptance behavior remains covered by portal_foundation.sql
+-- and portal_invitation_preview.sql. This file intentionally performs no DDL/DML;
+-- the signup callback itself is a Next.js + Supabase Auth browser journey and must
+-- be exercised by the portal preview/e2e gate.
+--
+-- Expected browser contract:
+--   /invite/<token>
+--     -> signUp({ options.emailRedirectTo = /auth/callback?next=/invite/<token> })
+--     -> email confirmation
+--     -> /auth/callback exchanges code
+--     -> /invite/<token>
+--     -> accept_portal_invitation(hash(token))
+--
+-- Security assertions continue to live in the executable DB tests:
+-- invalid / expired / revoked / accepted / email-mismatch invitations fail closed.
+select 1 as portal_invitation_signup_contract_documented;
