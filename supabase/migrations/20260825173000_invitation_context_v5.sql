@@ -89,7 +89,7 @@ create table if not exists public.partner_invitations (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   partner_organization_id uuid not null,
   email text not null,
-  role text not null check (role in ('partner_owner','partner_coordinator','editor','uploader','viewer')),
+  role text not null constraint partner_invitations_role_check check (role in ('partner_owner','partner_coordinator','editor','uploader','viewer')),
   surface text not null default 'network' check (surface = 'network'),
   context_version integer not null default 1 check (context_version = 1),
   scope jsonb not null default '{}'::jsonb,
