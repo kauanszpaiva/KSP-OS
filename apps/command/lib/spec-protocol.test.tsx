@@ -1,0 +1,40 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+function repoFile(path: string): string {
+  return readFileSync(resolve(process.cwd(), path), 'utf8');
+}
+
+describe('repository Spec protocol', () => {
+  it('keeps the protocol wired into agent and PR entry points', () => {
+    expect(repoFile('docs/spec/README.md')).toContain('`Spec` is the mandatory KSP-OS plan-to-code compliance gate');
+    expect(repoFile('AGENTS.md')).toContain('## Spec compliance gate');
+    expect(repoFile('reference/CLAUDE.md')).toContain('## Spec compliance gate');
+    expect(repoFile('.github/pull_request_template.md')).toContain('## Spec compliance');
+  });
+
+  it('keeps conflict handling, module evidence, and release severity explicit', () => {
+    const protocol = repoFile('docs/spec/README.md');
+    const matrix = repoFile('docs/spec/MODULE_MATRIX_TEMPLATE.md');
+
+    expect(protocol).toContain('When two sources conflict');
+    expect(protocol).toContain('Critical/High divergences must be fixed');
+    expect(protocol).toContain('Current KSP INC visual precedence');
+    expect(matrix).toContain('Cross-client/project/org isolation');
+    expect(matrix).toContain('Exact-head CI/builds pass');
+    expect(matrix).toContain('Error/stale state is recoverable');
+  });
+
+  it('keeps Command and Portal route errors recoverable without rendering raw errors', () => {
+    const commandError = repoFile('apps/command/app/(app)/error.tsx');
+    const portalError = repoFile('apps/portal/app/(portal)/error.tsx');
+
+    for (const source of [commandError, portalError]) {
+      expect(source).toContain('onClick={reset}');
+      expect(source).toContain('href="/home"');
+      expect(source).not.toContain('error.message');
+      expect(source).not.toContain('error.digest');
+    }
+  });
+});

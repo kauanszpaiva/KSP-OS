@@ -11,10 +11,31 @@ Claude is not an executive approver, finance approver, security exception author
 ## Start every task
 
 - Confirm the current branch/worktree and linked issue.
-- Read this file, the linked spec, relevant ADRs/policies, and existing tests.
+- Read this file, `docs/spec/README.md`, the linked spec, relevant ADRs/policies, and existing tests.
 - Identify the target domain, data classification, permissions, migrations, and release risk.
 - State assumptions and stop on material conflict.
 - Inspect before editing; preserve established patterns unless the task includes an approved change.
+
+## Spec compliance gate
+
+`Spec` is the mandatory KSP-OS plan-to-code compliance protocol. It applies to plans, implementation, review, remediation, and release readiness.
+
+Before implementation:
+
+- name the authoritative source documents;
+- derive explicit, testable requirements for the affected scope;
+- record conflicts instead of silently resolving them.
+
+Before Ready for review:
+
+- compare each affected requirement against code, database/RLS, permissions, tests, CI, and docs as applicable;
+- record concrete evidence and searches;
+- classify each requirement as `implemented`, `partial`, `absent`, `contradicted`, or `undecidable`;
+- assign consequence-based severity to divergences;
+- state whether the required fix belongs in code, tests, configuration, or documentation;
+- leave material unresolved items as explicit release gates.
+
+A green UI or build is not sufficient proof of compliance. Never weaken a control to improve the Spec score. The detailed protocol and source-precedence rules live in `docs/spec/README.md`.
 
 ## Non-negotiable controls
 
@@ -86,3 +107,4 @@ Provide:
 6. Manual verification.
 7. Release/rollback considerations.
 8. Remaining risks or decisions.
+9. Spec matrix delta and unresolved compliance gates.
