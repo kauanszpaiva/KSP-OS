@@ -14,6 +14,7 @@ export const CLIENT_INVITATION_ROLES = [
 export const PARTNER_INVITATION_ROLES = [
   'partner_owner',
   'partner_coordinator',
+  'billing',
   'editor',
   'uploader',
   'viewer'
