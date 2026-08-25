@@ -9,7 +9,9 @@ const accepted = manifest.acceptedLiveOnlyMigrations ?? [];
 const classifications = manifest.liveOnlyClassifications ?? {};
 const releaseBlockers = manifest.productionReleaseBlockers ?? [];
 
-if (manifest.schemaVersion !== 2) throw new Error('unsupported database-lineage manifest version');
+if (![2, 3].includes(manifest.schemaVersion)) {
+  throw new Error('unsupported database-lineage manifest version');
+}
 if (!manifest.targetProjectRef) throw new Error('database-lineage manifest is missing targetProjectRef');
 if (new Set(accepted).size !== accepted.length) throw new Error('duplicate accepted live-only migration');
 
@@ -66,6 +68,26 @@ if (!manifest.versionRemapEvidence || !fs.existsSync(manifest.versionRemapEviden
 const remapEvidence = JSON.parse(fs.readFileSync(manifest.versionRemapEvidence, 'utf8'));
 if (remapEvidence.targetProjectRef !== manifest.targetProjectRef) {
   throw new Error('version-remap evidence targets the wrong Supabase project');
+}
+
+if (manifest.schemaVersion >= 3) {
+  if (!manifest.currentStagingEvidence || !fs.existsSync(manifest.currentStagingEvidence)) {
+    throw new Error('current staging evidence file is missing');
+  }
+  const previewBinding = manifest.previewStagingBinding ?? {};
+  if (!previewBinding.stagingProjectRef || !previewBinding.stagingBranchId) {
+    throw new Error('lineage manifest v3 is missing current staging binding identifiers');
+  }
+  const stagingReplay = manifest.stagingForwardReplay ?? {};
+  if (stagingReplay.status !== 'completed_for_current_target_state') {
+    throw new Error('lineage manifest v3 must record a completed current staging forward replay');
+  }
+  if (!Array.isArray(stagingReplay.migrations) || stagingReplay.migrations.length === 0) {
+    throw new Error('lineage manifest v3 staging replay is missing migration evidence');
+  }
+  if (!stagingReplay.repositoryValidationMerge || !stagingReplay.ciRun) {
+    throw new Error('lineage manifest v3 staging replay is missing repository/CI evidence');
+  }
 }
 
 if (!manifest.productionDdlBlocked && releaseBlockers.length) {
