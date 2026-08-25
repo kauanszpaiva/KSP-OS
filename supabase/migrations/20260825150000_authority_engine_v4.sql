@@ -60,7 +60,8 @@ create index if not exists internal_permission_denies_resource_idx
 alter table public.internal_permission_denies enable row level security;
 revoke all on public.internal_permission_denies from anon;
 revoke all on public.internal_permission_denies from authenticated;
-grant select, insert, update on public.internal_permission_denies to authenticated;
+grant select, insert on public.internal_permission_denies to authenticated;
+grant update (revoked_at, updated_at) on public.internal_permission_denies to authenticated;
 
 drop policy if exists internal_permission_denies_read on public.internal_permission_denies;
 create policy internal_permission_denies_read on public.internal_permission_denies
@@ -97,7 +98,7 @@ using (public.is_executive(organization_id))
 with check (public.is_executive(organization_id));
 
 comment on table public.internal_permission_denies is
-  'Explicit authorization denies. Active matching rows override ordinary role/grant/relationship allows.';
+  'Explicit authorization denies. Active matching rows override ordinary role/grant/relationship allows. Authenticated updates are limited to revocation metadata so history cannot be rewritten.';
 
 create table if not exists public.authority_relationships (
   id uuid primary key default gen_random_uuid(),
@@ -137,7 +138,8 @@ create index if not exists authority_relationships_resource_idx
 alter table public.authority_relationships enable row level security;
 revoke all on public.authority_relationships from anon;
 revoke all on public.authority_relationships from authenticated;
-grant select, insert, update on public.authority_relationships to authenticated;
+grant select, insert on public.authority_relationships to authenticated;
+grant update (revoked_at, updated_at) on public.authority_relationships to authenticated;
 
 drop policy if exists authority_relationships_read on public.authority_relationships;
 create policy authority_relationships_read on public.authority_relationships
@@ -186,7 +188,7 @@ using (public.is_executive(organization_id))
 with check (public.is_executive(organization_id));
 
 comment on table public.authority_relationships is
-  'Directional authority edges. Supervision grants bounded downward operational context; it never implies upward or financial inheritance.';
+  'Directional authority edges. Supervision grants bounded downward operational context; it never implies upward or financial inheritance. Authenticated updates are limited to revocation metadata.';
 
 create table if not exists public.access_break_glass_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -214,7 +216,8 @@ create index if not exists access_break_glass_active_idx
 alter table public.access_break_glass_sessions enable row level security;
 revoke all on public.access_break_glass_sessions from anon;
 revoke all on public.access_break_glass_sessions from authenticated;
-grant select, insert, update on public.access_break_glass_sessions to authenticated;
+grant select, insert on public.access_break_glass_sessions to authenticated;
+grant update (revoked_at) on public.access_break_glass_sessions to authenticated;
 
 drop policy if exists access_break_glass_read on public.access_break_glass_sessions;
 create policy access_break_glass_read on public.access_break_glass_sessions
@@ -231,7 +234,10 @@ with check (
   public.is_executive(organization_id)
   and profile_id = (select auth.uid())
   and created_by = (select auth.uid())
-  and coalesce((select auth.jwt() ->> 'aal'), '') = 'aal2'
+  and coalesce(
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'aal',
+    ''
+  ) = 'aal2'
   and revoked_at is null
   and effective_from <= now()
   and effective_until > now()
@@ -252,4 +258,4 @@ with check (
 );
 
 comment on table public.access_break_glass_sessions is
-  'Short owner-only AAL2 emergency override records. Application logic may use them only to override an explicit deny in the same action/resource scope.';
+  'Short owner-only AAL2 emergency override records. Application logic may use them only to override an explicit deny in the same action/resource scope. Authenticated updates are limited to revoked_at.';
