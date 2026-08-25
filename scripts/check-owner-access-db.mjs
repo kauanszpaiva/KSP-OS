@@ -26,6 +26,7 @@ const db = 'owner_access';
 const migrations = fs.readdirSync('supabase/migrations').filter((file) => file.endsWith('.sql')).sort();
 const accessGraphTest = fs.readFileSync('supabase/tests/access_graph_v3.test.sql', 'utf8');
 const ownerBoundaryTest = fs.readFileSync('supabase/tests/owner_access_boundary.test.sql', 'utf8');
+const suspendedNotificationTest = fs.readFileSync('supabase/tests/suspended_notification_boundary.test.sql', 'utf8');
 
 function dockerExec(args, options = {}) {
   return run('docker', ['exec', ...args], options);
@@ -105,7 +106,8 @@ try {
 
   psql(db, accessGraphTest);
   psql(db, ownerBoundaryTest);
-  console.log('Owner access DB rehearsal passed: exact task assignment/mention isolation, anti-fan-out, revoke behavior, and owner-only temporary grant mutations.');
+  psql(db, suspendedNotificationTest);
+  console.log('Owner access DB rehearsal passed: exact task assignment/mention isolation, anti-fan-out, revoke behavior, owner-only temporary grants, and suspended notification denial.');
 } finally {
   run('docker', ['rm', '-f', containerName], { allowFailure: true });
 }
