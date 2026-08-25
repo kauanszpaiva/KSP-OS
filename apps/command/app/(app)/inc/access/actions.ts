@@ -238,17 +238,14 @@ export async function setPartnerMembership(
     return { ok: false, error: 'Choose a valid identity, partner organization and Network role.' };
   }
 
-  const [{ data: profile }, { data: partnerOrganization }] = await Promise.all([
-    supabase.from('profiles').select('id, display_name').eq('id', profileId).maybeSingle(),
-    supabase
-      .from('partner_organizations')
-      .select('id, display_name')
-      .eq('id', partnerOrganizationId)
-      .eq('organization_id', ctx.organizationId)
-      .eq('status', 'active')
-      .maybeSingle()
-  ]);
-  if (!profile || !partnerOrganization) return { ok: false, error: 'Identity or active partner organization was not found.' };
+  const { data: partnerOrganization } = await supabase
+    .from('partner_organizations')
+    .select('id, display_name')
+    .eq('id', partnerOrganizationId)
+    .eq('organization_id', ctx.organizationId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (!partnerOrganization) return { ok: false, error: 'Active partner organization was not found.' };
 
   const { error } = await supabase.from('partner_memberships').upsert(
     {
@@ -270,7 +267,7 @@ export async function setPartnerMembership(
     'network.membership.granted',
     'partner_memberships',
     profileId,
-    `Granted ${role} Network access for ${profile.display_name} to ${partnerOrganization.display_name}`
+    `Granted ${role} Network access to ${profileId} for ${partnerOrganization.display_name}`
   );
   revalidatePath('/inc/access');
   revalidatePath('/inc');
