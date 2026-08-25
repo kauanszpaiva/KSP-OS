@@ -126,6 +126,32 @@ Deno.serve(async (req: Request) => {
     return json(req, { ok: false, error: "invitation_not_available" }, 400);
   }
 
+  // Create the user explicitly first. This makes rollback ownership unambiguous:
+  // if this call fails because the email already exists, the relay never mutates
+  // or deletes that pre-existing account.
+  const { data: createdData, error: createError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: false,
+  });
+
+  if (createError || !createdData?.user?.id) {
+    return json(req, { ok: false, error: "account_could_not_be_created" }, 409);
+  }
+
+  const createdUserId = createdData.user.id;
+
+  const rollbackCreatedUser = async () => {
+    const { error } = await admin.auth.admin.deleteUser(createdUserId);
+    if (error) {
+      console.error("KSP portal invite signup rollback failed", {
+        invitation_id: invitation.id,
+        user_id: createdUserId,
+        message: error.message,
+      });
+    }
+  };
+
   const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
     type: "signup",
     email,
@@ -133,16 +159,16 @@ Deno.serve(async (req: Request) => {
     options: { redirectTo: `${PORTAL_ORIGIN}/invite/${inviteToken}` },
   });
 
-  if (linkError || !linkData?.user?.id || !linkData.properties?.hashed_token) {
-    return json(req, { ok: false, error: "account_could_not_be_created" }, 409);
+  if (linkError || !linkData.properties?.hashed_token) {
+    await rollbackCreatedUser();
+    return json(req, { ok: false, error: "confirmation_link_unavailable" }, 503);
   }
 
-  const createdUserId = linkData.user.id;
   const { data: resendKeyData, error: resendKeyError } = await admin.rpc("ksp_get_resend_api_key");
   const resendKey = typeof resendKeyData === "string" ? resendKeyData.trim() : "";
 
   if (resendKeyError || resendKey.length < 10) {
-    await admin.auth.admin.deleteUser(createdUserId).catch(() => undefined);
+    await rollbackCreatedUser();
     return json(req, { ok: false, error: "confirmation_email_unavailable" }, 503);
   }
 
@@ -165,7 +191,7 @@ Deno.serve(async (req: Request) => {
 
     if (sendError || !sent?.id) throw new Error("confirmation_email_delivery_failed");
   } catch {
-    await admin.auth.admin.deleteUser(createdUserId).catch(() => undefined);
+    await rollbackCreatedUser();
     return json(req, { ok: false, error: "confirmation_email_unavailable" }, 503);
   }
 
