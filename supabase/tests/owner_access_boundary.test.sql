@@ -1,6 +1,23 @@
 -- Issue #142 executable RLS matrix for temporary_access_grants.
 -- Run after the repository migration chain. All fixtures roll back.
 
+-- The final lineage must have one canonical SELECT/INSERT/UPDATE set and no
+-- DELETE policy. This catches permissive-policy accumulation across migrations.
+do $$ declare c int; begin
+  select count(*) into c
+  from pg_policies
+  where schemaname='public'
+    and tablename='temporary_access_grants'
+    and cmd='DELETE';
+  if c<>0 then raise exception 'temporary access DELETE policy still exists: %',c; end if;
+
+  select count(*) into c
+  from pg_policies
+  where schemaname='public'
+    and tablename='temporary_access_grants';
+  if c<>3 then raise exception 'temporary access policy set is not canonical: %',c; end if;
+end $$;
+
 begin;
 
 insert into public.organizations(id,name,slug) values
@@ -30,6 +47,16 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub','e1000000-0000-0000-0000-000000000001',true);
 insert into public.temporary_access_grants(id,organization_id,profile_id,action,resource_type,resource_id,effective_until,created_by)
 values('e2000000-0000-0000-0000-000000000001','e0000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000003','project.read','project','e3000000-0000-0000-0000-000000000001',now()+interval '2 hours','e1000000-0000-0000-0000-000000000001');
+
+-- Even an owner cannot hard-delete access history.
+do $$ declare c int; begin
+ with deleted as (
+  delete from public.temporary_access_grants
+  where id='e2000000-0000-0000-0000-000000000001'
+  returning 1
+ ) select count(*) into c from deleted;
+ if c<>0 then raise exception 'owner hard-delete unexpectedly allowed: %',c; end if;
+end $$;
 reset role;
 
 -- executive_operations allowed
