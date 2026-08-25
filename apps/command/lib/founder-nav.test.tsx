@@ -4,7 +4,7 @@ import type { InternalRole } from '@ksp/permissions';
 import { NAV_GROUPS, FOUNDER_MOBILE_PRIMARY, FOUNDER_NAV, FOUNDER_NAV_GROUPS } from './nav';
 
 /**
- * Founder/Control Center access-layer regression tests (Layers 1 & 2 —
+ * Founder/KSP INC access-layer regression tests (Layers 1 & 2 —
  * navigation + routing decision). The DB layer (RLS) is proven separately by
  * SQL matrices; here we lock the app-side visibility gates.
  */
@@ -92,28 +92,34 @@ describe('Founder OS navigation isolation', () => {
   });
 });
 
-describe('Control Center navigation isolation', () => {
-  it('marks Control Center executiveOnly', () => {
-    const entry = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.href === '/control-center');
+describe('KSP INC navigation isolation', () => {
+  it('marks KSP INC executiveOnly and points it at the owner headquarters', () => {
+    const entry = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.href === '/inc');
     expect(entry).toBeDefined();
+    expect(entry?.label).toBe('KSP INC');
     expect(entry?.executiveOnly).toBe(true);
   });
 
-  it('shows Control Center to founder and executive operations', () => {
+  it('shows KSP INC to founder and executive operations', () => {
     for (const roles of [['founder_ceo'], ['executive_operations']] as InternalRole[][]) {
       const ctx = ctxWith(roles);
       expect(isExecutive(ctx)).toBe(true);
       const visible = visibleNav(isFounder(ctx), isExecutive(ctx)).flatMap((g) => g.items);
-      expect(visible.some((i) => i.href === '/control-center')).toBe(true);
+      expect(visible.some((i) => i.href === '/inc')).toBe(true);
     }
   });
 
-  it('hides Control Center from non-executive roles', () => {
+  it('hides KSP INC from non-executive roles', () => {
     for (const roles of [['developer'], ['designer'], ['sales_specialist'], ['contractor'], []] as InternalRole[][]) {
       const ctx = ctxWith(roles);
       expect(isExecutive(ctx)).toBe(false);
       const visible = visibleNav(isFounder(ctx), isExecutive(ctx)).flatMap((g) => g.items);
-      expect(visible.some((i) => i.href === '/control-center')).toBe(false);
+      expect(visible.some((i) => i.href === '/inc')).toBe(false);
     }
+  });
+
+  it('does not keep the legacy Control Center route in primary navigation', () => {
+    const all = NAV_GROUPS.flatMap((g) => g.items);
+    expect(all.some((i) => i.href === '/control-center')).toBe(false);
   });
 });
