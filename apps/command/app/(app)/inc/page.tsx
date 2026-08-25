@@ -103,17 +103,17 @@ export default async function KspIncPage() {
   if (!isExecutive(ctx)) redirect('/home');
 
   const supabase = await getServerSupabase();
-  const [members, unitResult, projectResult, clientResult, unitMembershipResult] = supabase
-    ? await Promise.all([
-        getMembersAdmin(supabase),
-        supabase.from('business_units').select('id, status'),
-        supabase.from('projects').select('id, business_unit_id'),
-        supabase.from('client_organizations').select('id, status'),
-        supabase
-          .from('business_unit_memberships')
-          .select('profile_id, effective_from, effective_until, suspended_at')
-      ])
-    : [[], { data: null, error: null }, { data: null, error: null }, { data: null, error: null }, { data: null, error: null }];
+  if (!supabase) redirect('/home');
+
+  const [members, unitResult, projectResult, clientResult, unitMembershipResult] = await Promise.all([
+    getMembersAdmin(supabase),
+    supabase.from('business_units').select('id, status'),
+    supabase.from('projects').select('id, business_unit_id'),
+    supabase.from('client_organizations').select('id, status'),
+    supabase
+      .from('business_unit_memberships')
+      .select('profile_id, effective_from, effective_until, suspended_at')
+  ]);
 
   const owners = members.filter((member) => OWNER_ROLES.has(member.role));
   const activeUnitMemberships = ((unitMembershipResult.data ?? []) as Array<{
@@ -216,11 +216,9 @@ export default async function KspIncPage() {
       </section>
 
       <section>
-        <div className="mb-3 flex items-end justify-between gap-4">
-          <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-4">Apps</p>
-            <h2 className="mt-1 text-[17px] font-semibold text-ink">One owner layer, separate operating surfaces</h2>
-          </div>
+        <div className="mb-3">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-4">Apps</p>
+          <h2 className="mt-1 text-[17px] font-semibold text-ink">One owner layer, separate operating surfaces</h2>
         </div>
         <div className="grid gap-3 lg:grid-cols-3">
           {apps.map((app) => (
