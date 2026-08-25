@@ -35,6 +35,10 @@ The standalone app provides:
 
 The app deliberately does **not** duplicate privileged mutations from Command. Existing governed workflows remain canonical while the standalone shell is introduced.
 
+## CI contract
+
+The repository keeps its existing blocking release checks and adds `pnpm build:inc` after the Command, Portal, and Network builds. The standalone workspace is registered in the frozen pnpm lockfile; CI must continue to pass the same audit, E2E contract, formatting, lint, typecheck, unit, database, RLS, migration, lineage, parity, and secret-scan gates before this PR can leave draft.
+
 ## Deployment gate
 
 This source slice does not authorize or create a production Vercel project, public domain, Supabase migration, RLS relaxation, production data mutation, or legal/public naming change.
