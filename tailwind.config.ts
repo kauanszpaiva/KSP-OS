@@ -57,10 +57,14 @@ const config: Config = {
         good: { DEFAULT: withAlpha('--good'), tint: withAlpha('--good-tint') },
         warn: { DEFAULT: withAlpha('--warn'), tint: withAlpha('--warn-tint') },
         risk: { DEFAULT: withAlpha('--risk'), tint: withAlpha('--risk-tint') },
-        'ksp-carbon': '#17181D',
-        'ksp-graphite': '#2A2C33',
-        'ksp-paper': '#F4F5F7',
-        'ksp-signal': '#B6FF41',
+        // Fixed KSP INC identity colors, calibrated to the approved 2026-08-24
+        // brand boards. `ksp-carbon` remains as a compatibility alias for Onyx.
+        'ksp-onyx': '#0D0D0D',
+        'ksp-carbon': '#0D0D0D',
+        'ksp-graphite': '#1E1E1E',
+        'ksp-steel': '#575757',
+        'ksp-paper': '#F2F2F2',
+        'ksp-signal': '#A6C63A',
         // Legacy KSP names kept for the auth/setup screens — remapped onto the
         // current semantic variables until those surfaces move to the new shell.
         executive: withAlpha('--brand'),

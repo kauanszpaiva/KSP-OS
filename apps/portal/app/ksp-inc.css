@@ -1,0 +1,79 @@
+/*
+ * KSP INC operating identity override.
+ *
+ * Imported after the legacy semantic theme so Command/Portal converge on one
+ * institutional black / paper / signal system even when an older palette
+ * preference remains in local storage. Functional good/warn/risk tokens are
+ * deliberately untouched.
+ */
+:root,
+:root[data-palette] {
+  --canvas: 242 242 242;
+  --surface: 255 255 255;
+  --surface-2: 247 247 245;
+  --surface-3: 238 238 235;
+  --overlay: 13 13 13;
+
+  --ink: 13 13 13;
+  --ink-2: 30 30 30;
+  --ink-3: 87 87 87;
+  --ink-4: 128 128 124;
+
+  --line: 226 226 222;
+  --line-2: 207 207 201;
+
+  /* `brand` stays dark enough for accessible text on paper. The exact KSP
+     signal green remains `accent` / `ksp-signal` for selection and actions. */
+  --brand: 90 111 30;
+  --brand-strong: 68 84 20;
+  --brand-tint: 243 247 230;
+  --on-brand: 255 255 255;
+
+  --accent: 166 198 58;
+  --accent-strong: 126 153 39;
+  --accent-tint: 242 247 224;
+  --on-accent: 13 13 13;
+
+  --shadow-card: 0 1px 2px rgb(13 13 13 / 0.035);
+  --shadow-pop: 0 8px 24px -8px rgb(13 13 13 / 0.16), 0 2px 8px -4px rgb(13 13 13 / 0.08);
+  --shadow-brand: 0 4px 16px -8px rgb(166 198 58 / 0.42);
+}
+
+:root[data-theme='dark'],
+:root[data-theme='dark'][data-palette] {
+  --canvas: 13 13 13;
+  --surface: 20 20 20;
+  --surface-2: 30 30 30;
+  --surface-3: 42 42 42;
+  --overlay: 0 0 0;
+
+  --ink: 246 246 243;
+  --ink-2: 221 221 216;
+  --ink-3: 171 171 165;
+  --ink-4: 125 125 120;
+
+  --line: 46 46 46;
+  --line-2: 68 68 68;
+
+  --brand: 166 198 58;
+  --brand-strong: 187 213 91;
+  --brand-tint: 38 43 22;
+  --on-brand: 13 13 13;
+
+  --accent: 166 198 58;
+  --accent-strong: 187 213 91;
+  --accent-tint: 38 43 22;
+  --on-accent: 13 13 13;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-pop: 0 10px 30px -8px rgb(0 0 0 / 0.65);
+  --shadow-brand: 0 4px 18px -8px rgb(166 198 58 / 0.35);
+}
+
+body {
+  background: rgb(var(--canvas));
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.3);
+}
