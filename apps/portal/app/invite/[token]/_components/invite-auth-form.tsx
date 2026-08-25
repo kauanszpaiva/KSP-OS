@@ -6,11 +6,10 @@ import { createBrowserClient, isSupabaseConfigured } from '@ksp/database';
 
 /**
  * Sign-in-or-sign-up form shown on the invite page when there is no active
- * session yet. Signup preserves the current invitation path through Supabase's
- * email-confirmation callback so the user returns to the same invite after
- * verifying their email instead of losing the invitation context.
+ * session yet. Invite-only signup is relayed through a token-gated Edge
+ * Function so confirmation email delivery does not depend on hosted Auth SMTP.
  */
-export function InviteAuthForm() {
+export function InviteAuthForm({ token }: { token: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -45,22 +44,13 @@ export function InviteAuthForm() {
       return;
     }
 
-    const callbackUrl = new URL('/auth/callback', window.location.origin);
-    callbackUrl.searchParams.set('next', `${window.location.pathname}${window.location.search}`);
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-      options: { emailRedirectTo: callbackUrl.toString() }
+    const { data: relayData, error: relayError } = await supabase.functions.invoke('ksp-portal-invite-signup', {
+      body: { token, email: normalizedEmail, password }
     });
     setPending(false);
 
-    if (signUpError) {
-      setError(signUpError.message);
-      return;
-    }
-
-    if (data.session) {
-      router.refresh();
+    if (relayError || !relayData?.ok) {
+      setError('We could not create this account from the invitation. If you already created an account, switch to Sign in.');
       return;
     }
 
