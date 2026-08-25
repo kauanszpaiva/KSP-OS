@@ -40,10 +40,22 @@ This file is an implementation contract. It does not promote UPD-0051 to Canon, 
 | AUTH-V4-020 | Cross-user policy rows cannot be enumerated by non-executives | Implemented in migration source | self/source-only SELECT policies + SQL actor-matrix test |
 | AUTH-V4-021 | Existing Access Graph V3 remains additive/compatible | Designed / pending CI proof | no destructive changes to V3 tables; new tables/actions only |
 | AUTH-V4-022 | Configurable role-template registry | Partial | current internal/client roles remain default templates; generic data-driven template registry is not introduced in this slice |
-| AUTH-V4-023 | Invite payload carries surface/org/role/scope/team/expiry | Partial / existing invitation system only | requires a separate invitation compatibility retrofit across Portal + Network rather than coupling it into this migration |
+| AUTH-V4-023 | Invite payload carries surface/org/role/scope/team/expiry | Implemented as a bounded V5 contract | shared `@ksp/validation` schema, Portal persistence/acceptance, MFA-gated Network issuance, Network signup/callback/acceptance, and negative SQL plan. Network project/team scopes fail closed until a dedicated ledger exists |
 | AUTH-V4-024 | Finance endpoints enforce the new granular capability names | Partial | capability vocabulary exists; existing finance handlers still require a bounded migration from legacy `finance.*` checks |
 | AUTH-V4-025 | Partner/Network runtime consumes relationship policy directly | Partial | shared package supports it; Network-specific subject-context loader is a separate follow-on integration |
 | AUTH-V4-026 | Production schema/data unchanged by branch creation | Verified | only GitHub branch writes and read-only Supabase inspection were performed |
+
+## Invitation context V5
+
+The invitation is a server-authored context envelope, not a client-supplied permission claim. It is persisted with `surface`, `context_version`, `organization_id`, surface-specific tenant scope, optional `team_key`, explicit `projectIds`, expiry and a one-time token hash.
+
+- Portal issuance is executive-gated and rejects a client organization outside the current KSP organization. Client owners receive the bounded list of current non-archived project ids; other roles begin with an empty project list and require later explicit grants.
+- Network issuance is owner-only with AAL2. It creates a `partner_invitations` row and returns a one-time link; it does not create membership before acceptance.
+- Portal and Network preview functions expose only workspace/partner name, role, expiry and derived status. They never expose email, ids or token material to the browser.
+- Acceptance revalidates the token hash, status, expiry, profile email, surface and tenant scope inside a `SECURITY DEFINER` transaction. Duplicate acceptance and membership collisions fail closed and are audited.
+- Network project/team scopes are rejected until the runtime has a dedicated scope ledger; carrying an unsupported scope can never silently widen partner visibility.
+- The real provider email, callback, owner session and cross-tenant E2E proof remain release gates; this branch does not publish a migration or send an invitation.
+
 
 ## Policy order
 
