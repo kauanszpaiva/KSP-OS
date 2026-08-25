@@ -58,7 +58,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <p className="mb-6 mt-2 max-w-sm text-[13px] leading-5 text-ksp-steel">
           Secure access to the KSP OS Client Portal. Sign in or create your account with the email that received this invitation.
         </p>
-        {user ? <AcceptInviteForm token={token} email={user.email ?? ''} preview={preview} /> : <InviteAuthForm />}
+        {user ? <AcceptInviteForm token={token} email={user.email ?? ''} preview={preview} /> : <InviteAuthForm token={token} />}
         <p className="mt-5 text-[11px] leading-5 text-ksp-steel/75">KSP INC. · Systems. Execution. Impact.</p>
       </div>
     </main>
