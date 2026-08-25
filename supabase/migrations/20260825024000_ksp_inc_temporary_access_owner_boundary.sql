@@ -44,3 +44,70 @@ on public.temporary_access_grants
 for delete
 to authenticated
 using (public.is_executive(organization_id));
+
+-- Migration-level contract checks. The repository DB harness applies every
+-- migration against fresh PostgreSQL and production-like drift databases, so
+-- these assertions make the existing `pnpm test:db` gate fail if the broad
+-- mutation policy survives or any owner-only mutation policy is missing.
+do $$
+begin
+  if exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'temporary_access_grants'
+      and policyname = 'temporary_access_internal'
+  ) then
+    raise exception 'temporary_access_internal broad mutation policy still exists';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'temporary_access_grants'
+      and policyname = 'temporary_access_self_or_owner_read'
+      and cmd = 'SELECT'
+      and qual like '%is_executive%'
+      and qual like '%auth.uid%'
+  ) then
+    raise exception 'temporary access self/owner read policy contract missing';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'temporary_access_grants'
+      and policyname = 'temporary_access_owner_insert'
+      and cmd = 'INSERT'
+      and with_check like '%is_executive%'
+  ) then
+    raise exception 'temporary access owner insert policy contract missing';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'temporary_access_grants'
+      and policyname = 'temporary_access_owner_update'
+      and cmd = 'UPDATE'
+      and qual like '%is_executive%'
+      and with_check like '%is_executive%'
+  ) then
+    raise exception 'temporary access owner update policy contract missing';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'temporary_access_grants'
+      and policyname = 'temporary_access_owner_delete'
+      and cmd = 'DELETE'
+      and qual like '%is_executive%'
+  ) then
+    raise exception 'temporary access owner delete policy contract missing';
+  end if;
+end $$;
