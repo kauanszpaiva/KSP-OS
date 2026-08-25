@@ -93,7 +93,7 @@ describe('Founder OS navigation isolation', () => {
 });
 
 describe('KSP INC owner-plane isolation', () => {
-  const ownerRoutes = ['/inc', '/divisions', '/control-center'];
+  const ownerRoutes = ['/inc', '/inc/access', '/divisions', '/control-center'];
 
   it('maps the KSP INC owner guard to the global executive boundary', () => {
     for (const roles of [['founder_ceo'], ['executive_operations']] as InternalRole[][]) {
