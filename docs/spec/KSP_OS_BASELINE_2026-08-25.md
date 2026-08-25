@@ -60,11 +60,13 @@ The old rebuild plan says purple is primary. The current KSP INC operating-exper
 ### SPEC-MODULE-001 — “fully functional” acceptance criteria
 
 **Severity:** Medium  
-**State:** open spec-quality gate
+**State:** framework remediation in this PR; module-by-module closure still required
 
 The master requirement that every module be “fully functional” is not sufficiently measurable on its own. A module can have live navigation and still lack depth states/integrations.
 
-**Required follow-up:** each module/epic must carry explicit acceptance criteria and its own affected-requirement matrix before being declared complete.
+**This PR:** adds `docs/spec/MODULE_MATRIX_TEMPLATE.md`, a mandatory baseline matrix covering happy path, data scope, authorization, validation, audit, empty/loading/error/no-permission/immutable states, accessibility/theme, cross-boundary isolation, lineage, exact-head CI, and rollback. Domain-specific requirements must be added per module.
+
+**Remaining closure:** existing modules still need to be reconciled against this matrix before their historical “done” claims can be treated as current Spec evidence.
 
 ### SPEC-AUDIT-001 — Founder Vault audit exception
 
