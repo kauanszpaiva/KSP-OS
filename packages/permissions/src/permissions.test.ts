@@ -254,6 +254,36 @@ describe('central permission engine', () => {
     ).toBe(false);
   });
 
+  it('uses least-privilege role templates instead of blanket project authority', () => {
+    const editor = actor({ internalRoles: ['editor'], projectIds: ['project-a'] });
+    const manager = actor({ internalRoles: ['project_manager'], projectIds: ['project-a'] });
+    const resource = { organizationId: 'org', projectId: 'project-a', classification: 'internal' as const };
+
+    expect(canPerform(editor, 'project.read', resource)).toMatchObject({
+      allowed: true,
+      reason: 'assigned_project_role_template'
+    });
+    expect(canPerform(editor, 'document.upload', resource).allowed).toBe(true);
+    expect(canPerform(editor, 'project.manage', resource)).toMatchObject({
+      allowed: false,
+      reason: 'role_template_action_denied'
+    });
+    expect(canPerform(editor, 'deliverable.approve', resource).allowed).toBe(false);
+    expect(canPerform(manager, 'project.manage', resource).allowed).toBe(true);
+    expect(canPerform(manager, 'work.assign', resource).allowed).toBe(true);
+  });
+
+  it('requires step-up before restricted data even when the ordinary action is not sensitive', () => {
+    const developer = actor({ internalRoles: ['developer'], projectIds: ['project-a'], mfa: false });
+    expect(
+      canPerform(developer, 'project.read', {
+        organizationId: 'org',
+        projectId: 'project-a',
+        classification: 'security_restricted'
+      })
+    ).toMatchObject({ allowed: false, reason: 'mfa_required', outcome: 'require_mfa' });
+  });
+
   it('enforces delegation ceiling and keeps protected actions in the owner workflow', () => {
     const manager = actor({
       internalRoles: ['project_manager'],
