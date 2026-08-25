@@ -14,7 +14,7 @@ export interface IncAccessActionResult {
 }
 
 const OWNER_ROLES = new Set(['founder_ceo', 'executive_operations']);
-const PARTNER_ROLES = new Set(['partner_owner', 'partner_coordinator', 'editor', 'uploader', 'viewer']);
+const PARTNER_ROLES = new Set(['partner_owner', 'partner_coordinator', 'billing', 'editor', 'uploader', 'viewer']);
 const UNIT_ACCESS_LEVELS = new Set(['admin', 'member', 'viewer']);
 const PERMISSION_ACTIONS = new Set<PermissionAction>([
   'client.read',
