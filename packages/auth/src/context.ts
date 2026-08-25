@@ -1,5 +1,13 @@
 import type { SupabaseClient } from '@ksp/database';
-import type { InternalRole, MembershipContext, PermissionAction, ScopedPermissionGrant } from '@ksp/permissions';
+import type {
+  AuthorityRelationship,
+  BreakGlassGrant,
+  InternalRole,
+  MembershipContext,
+  PermissionAction,
+  ScopedPermissionDeny,
+  ScopedPermissionGrant
+} from '@ksp/permissions';
 
 export interface SessionUser {
   id: string;
@@ -46,9 +54,17 @@ export async function getSessionAal(supabase: SupabaseClient): Promise<boolean> 
   return data.currentLevel === 'aal2';
 }
 
+function scopedResource(resourceType: string | null, resourceId: string | null): Partial<ScopedPermissionGrant> {
+  if (!resourceType || !resourceId) return {};
+  if (resourceType === 'project') return { projectId: resourceId };
+  if (resourceType === 'client_organization') return { clientOrganizationId: resourceId };
+  return { resourceType, resourceId };
+}
+
 /**
  * Build the full authorization context for the signed-in user: their org,
- * internal roles, MFA state, project assignments, and persisted grants.
+ * internal roles, MFA state, project assignments, persisted grants, explicit
+ * denies and directional authority relationships.
  *
  * Only genuinely organization-wide grants are placed in `explicitGrants`.
  * Resource-bound rows remain in `scopedGrants`; flattening them would turn a
@@ -84,7 +100,16 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     ...new Set(active.filter((m: any) => m.organization_id === organizationId).map((m: any) => m.internal_role as InternalRole))
   ];
 
-  const [projectMembershipResult, internalGrantResult, projectGrantResult, temporaryGrantResult, mfa] = await Promise.all([
+  const [
+    projectMembershipResult,
+    internalGrantResult,
+    projectGrantResult,
+    temporaryGrantResult,
+    denyResult,
+    relationshipResult,
+    breakGlassResult,
+    mfa
+  ] = await Promise.all([
     supabase
       .from('project_memberships')
       .select('project_id')
@@ -115,6 +140,32 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
       .is('revoked_at', null)
       .lte('effective_from', now)
       .gt('effective_until', now),
+    supabase
+      .from('internal_permission_denies')
+      .select('action, resource_type, resource_id, effective_from, effective_until, reason')
+      .eq('organization_id', organizationId)
+      .eq('profile_id', user.id)
+      .is('revoked_at', null)
+      .lte('effective_from', now)
+      .or(`effective_until.is.null,effective_until.gt.${now}`),
+    supabase
+      .from('authority_relationships')
+      .select(
+        'relationship_type, target_profile_id, action, resource_type, resource_id, effective_from, effective_until, reason'
+      )
+      .eq('organization_id', organizationId)
+      .eq('source_profile_id', user.id)
+      .is('revoked_at', null)
+      .lte('effective_from', now)
+      .or(`effective_until.is.null,effective_until.gt.${now}`),
+    supabase
+      .from('access_break_glass_sessions')
+      .select('id, action, resource_type, resource_id, effective_until, reason')
+      .eq('organization_id', organizationId)
+      .eq('profile_id', user.id)
+      .is('revoked_at', null)
+      .lte('effective_from', now)
+      .gt('effective_until', now),
     getSessionAal(supabase)
   ]);
 
@@ -131,15 +182,7 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
       explicitGrants.push(row.action);
       continue;
     }
-    if (row.resource_type === 'project' && row.resource_id) {
-      scopedGrants.push({ action: row.action, projectId: row.resource_id });
-      continue;
-    }
-    scopedGrants.push({
-      action: row.action,
-      resourceType: row.resource_type ?? undefined,
-      resourceId: row.resource_id ?? undefined
-    });
+    scopedGrants.push({ action: row.action, ...scopedResource(row.resource_type, row.resource_id) });
   }
 
   for (const row of (projectGrantResult.data ?? []) as Array<{ project_id: string; action: PermissionAction }>) {
@@ -151,16 +194,34 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     resource_type: string;
     resource_id: string;
   }>) {
-    if (row.resource_type === 'project') {
-      scopedGrants.push({ action: row.action, projectId: row.resource_id });
-      continue;
-    }
-    scopedGrants.push({
-      action: row.action,
-      resourceType: row.resource_type,
-      resourceId: row.resource_id
-    });
+    scopedGrants.push({ action: row.action, ...scopedResource(row.resource_type, row.resource_id) });
   }
+
+  const explicitDenies: ScopedPermissionDeny[] = (denyResult.data ?? []).map((row: any) => ({
+    action: row.action as PermissionAction,
+    ...scopedResource(row.resource_type, row.resource_id),
+    effectiveFrom: row.effective_from ? new Date(row.effective_from) : undefined,
+    effectiveUntil: row.effective_until ? new Date(row.effective_until) : undefined,
+    reason: row.reason ?? undefined
+  }));
+
+  const authorityRelationships: AuthorityRelationship[] = (relationshipResult.data ?? []).map((row: any) => ({
+    type: row.relationship_type as AuthorityRelationship['type'],
+    targetProfileId: row.target_profile_id ?? undefined,
+    action: row.action ? (row.action as PermissionAction) : undefined,
+    ...scopedResource(row.resource_type, row.resource_id),
+    effectiveFrom: row.effective_from ? new Date(row.effective_from) : undefined,
+    effectiveUntil: row.effective_until ? new Date(row.effective_until) : undefined,
+    reason: row.reason ?? undefined
+  }));
+
+  const breakGlassGrants: BreakGlassGrant[] = (breakGlassResult.data ?? []).map((row: any) => ({
+    id: String(row.id),
+    action: row.action as PermissionAction,
+    ...scopedResource(row.resource_type, row.resource_id),
+    effectiveUntil: new Date(row.effective_until),
+    reason: String(row.reason)
+  }));
 
   const membership: MembershipContext = {
     organizationId,
@@ -169,6 +230,9 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     projectIds: [...new Set(projectIds)],
     explicitGrants: [...new Set(explicitGrants)],
     scopedGrants,
+    explicitDenies,
+    authorityRelationships,
+    breakGlassGrants,
     mfa
   };
 
