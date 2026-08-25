@@ -12,7 +12,8 @@ const surfaces = [
     description: 'Cross-company visibility, access governance, approvals, audit, platform health and control over every KSP operating surface.',
     boundary: 'Global owner roles only',
     href: '/control-center',
-    action: 'Open owner control'
+    action: 'Open owner control',
+    external: false
   },
   {
     name: 'Command',
@@ -21,7 +22,8 @@ const surfaces = [
     description: 'Projects, execution, team, delivery, finance, content, software and day-to-day internal operations.',
     boundary: 'Business unit + project + permission scope',
     href: '/home',
-    action: 'Open Command'
+    action: 'Open Command',
+    external: false
   },
   {
     name: 'Portal',
@@ -40,7 +42,8 @@ const surfaces = [
     description: 'Assignments, project handoffs, required materials and partner collaboration without broad KSP or client visibility.',
     boundary: 'Partner organization + assignment scope',
     href: '/control-center',
-    action: 'Manage Network access'
+    action: 'Manage Network access',
+    external: false
   }
 ] as const;
 
