@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ConfirmProvider, ToastProvider } from '@ksp/ui';
-import { canManageOutcomes, canViewFounderVault, isExecutive } from '@ksp/auth';
+import { canManageOutcomes, canViewFounderVault, isKspIncOwner } from '@ksp/auth';
 import { canPerform } from '@ksp/permissions';
 import { NAV_GROUPS, MOBILE_PRIMARY } from '../../lib/nav';
 import { resolveBusinessUnitScope } from '../../lib/business-units';
@@ -24,7 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await requireSession();
   const showVault = canViewFounderVault(ctx);
-  const canUseGlobalScope = isExecutive(ctx);
+  const canUseGlobalScope = isKspIncOwner(ctx);
   const supabase = await getServerSupabase();
   const [{ units, activeBusinessUnitId }, notifications] = supabase
     ? await Promise.all([resolveBusinessUnitScope(supabase, canUseGlobalScope), getNotifications(supabase)])

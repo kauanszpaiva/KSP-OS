@@ -12,6 +12,18 @@ export function isExecutive(ctx: AuthContext): boolean {
   return ctx.internalRoles.some((r) => EXECUTIVE_ROLES.includes(r));
 }
 
+/**
+ * KSP INC is the owner control plane above Command, Portal and Network.
+ *
+ * Keep this role-based rather than binding authorization to personal names or
+ * emails. Today the two global-owner roles are founder_ceo and
+ * executive_operations; changes to who occupies those roles remain an audited
+ * identity/access operation.
+ */
+export function isKspIncOwner(ctx: AuthContext): boolean {
+  return isExecutive(ctx);
+}
+
 /** Founder Vault is visible only to the founder. */
 export function canViewFounderVault(ctx: AuthContext): boolean {
   return isFounder(ctx);

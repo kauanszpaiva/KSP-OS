@@ -12,6 +12,12 @@ export interface NavItem {
 export interface NavGroup { key: string; label: string; items: NavItem[]; }
 
 export const NAV_GROUPS: NavGroup[] = [
+  { key: 'inc', label: 'KSP INC', items: [
+    { label: 'Owner Plane', href: '/inc', status: 'live', icon: 'connections', executiveOnly: true },
+    { label: 'Access Directory', href: '/inc/access', status: 'live', icon: 'team', executiveOnly: true },
+    { label: 'Structure & Access', href: '/divisions', status: 'live', icon: 'team', executiveOnly: true },
+    { label: 'Control Center', href: '/control-center', status: 'live', icon: 'software', executiveOnly: true }
+  ]},
   { key: 'start', label: 'Start here', items: [
     { label: 'Home', href: '/home', status: 'live', icon: 'home' },
     { label: 'Today', href: '/today', status: 'live', icon: 'focus' },
@@ -39,7 +45,6 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Content', href: '/content', status: 'live', icon: 'content' }
   ]},
   { key: 'control', label: 'Control', items: [
-    { label: 'Control Center', href: '/control-center', status: 'live', icon: 'connections', executiveOnly: true },
     { label: 'Finance', href: '/finance', status: 'live', icon: 'finance' },
     { label: 'Software', href: '/software', status: 'live', icon: 'software' },
     { label: 'Knowledge', href: '/knowledge', status: 'live', icon: 'knowledge' },
