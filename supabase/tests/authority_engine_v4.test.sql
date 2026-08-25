@@ -210,6 +210,47 @@ begin
 end $$;
 reset role;
 
+-- Even an AAL2 owner cannot rewrite historical policy meaning through direct SQL.
+-- The only authenticated update surface is revocation metadata.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', true);
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"d1000000-0000-0000-0000-000000000001","aal":"aal2"}',
+  true
+);
+do $$
+begin
+  begin
+    update public.internal_permission_denies
+      set action = 'project.manage'
+      where organization_id = 'd0000000-0000-0000-0000-000000000001'
+        and profile_id = 'd1000000-0000-0000-0000-000000000002';
+    raise exception 'explicit deny history was rewritten';
+  exception when sqlstate '42501' then
+    null;
+  end;
+
+  begin
+    update public.authority_relationships
+      set relationship_type = 'billing_for', action = 'finance.read'
+      where organization_id = 'd0000000-0000-0000-0000-000000000001';
+    raise exception 'authority relationship history was rewritten';
+  exception when sqlstate '42501' then
+    null;
+  end;
+
+  begin
+    update public.access_break_glass_sessions
+      set action = 'project.manage'
+      where organization_id = 'd0000000-0000-0000-0000-000000000001';
+    raise exception 'break-glass scope was rewritten';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end $$;
+reset role;
+
 -- No authenticated actor receives DELETE privilege on the policy-history tables.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', 'd1000000-0000-0000-0000-000000000001', true);
