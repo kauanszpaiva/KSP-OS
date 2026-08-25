@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { isExecutive } from '@ksp/auth';
+import { isKspIncOwner } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
 import { PageHeader } from '../_components/ui';
 
@@ -38,12 +38,12 @@ const modules = [
 
 export default async function ControlCenterPage() {
   const ctx = await requireSession();
-  if (!isExecutive(ctx)) redirect('/home');
+  if (!isKspIncOwner(ctx)) redirect('/home');
 
   return (
     <div className="min-w-0 space-y-6">
       <PageHeader
-        eyebrow="Owner control"
+        eyebrow="KSP INC · Owner control"
         title="KSP Control Center"
         description="One executive surface for structure, identities, access, KSP Network, clients, audit and platform readiness. Security remains enforced by server authorization and database RLS, not by this UI."
       />
