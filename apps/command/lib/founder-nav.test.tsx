@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { isExecutive, isFounder, canViewFounderVault, type AuthContext } from '@ksp/auth';
+import { isExecutive, isFounder, isKspIncOwner, canViewFounderVault, type AuthContext } from '@ksp/auth';
 import type { InternalRole } from '@ksp/permissions';
 import { NAV_GROUPS, FOUNDER_MOBILE_PRIMARY, FOUNDER_NAV, FOUNDER_NAV_GROUPS } from './nav';
 
 /**
- * Founder/Control Center access-layer regression tests (Layers 1 & 2 —
- * navigation + routing decision). The DB layer (RLS) is proven separately by
- * SQL matrices; here we lock the app-side visibility gates.
+ * Founder/KSP INC access-layer regression tests (Layers 1 & 2 — navigation +
+ * routing decision). The DB layer (RLS) is proven separately by SQL matrices;
+ * here we lock the app-side visibility gates.
  */
 
 function ctxWith(roles: InternalRole[]): AuthContext {
@@ -92,28 +92,51 @@ describe('Founder OS navigation isolation', () => {
   });
 });
 
-describe('Control Center navigation isolation', () => {
-  it('marks Control Center executiveOnly', () => {
-    const entry = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.href === '/control-center');
-    expect(entry).toBeDefined();
-    expect(entry?.executiveOnly).toBe(true);
-  });
+describe('KSP INC owner-plane isolation', () => {
+  const ownerRoutes = ['/inc', '/divisions', '/control-center'];
 
-  it('shows Control Center to founder and executive operations', () => {
+  it('maps the KSP INC owner guard to the global executive boundary', () => {
     for (const roles of [['founder_ceo'], ['executive_operations']] as InternalRole[][]) {
       const ctx = ctxWith(roles);
       expect(isExecutive(ctx)).toBe(true);
-      const visible = visibleNav(isFounder(ctx), isExecutive(ctx)).flatMap((g) => g.items);
-      expect(visible.some((i) => i.href === '/control-center')).toBe(true);
+      expect(isKspIncOwner(ctx)).toBe(true);
     }
-  });
 
-  it('hides Control Center from non-executive roles', () => {
     for (const roles of [['developer'], ['designer'], ['sales_specialist'], ['contractor'], []] as InternalRole[][]) {
       const ctx = ctxWith(roles);
       expect(isExecutive(ctx)).toBe(false);
-      const visible = visibleNav(isFounder(ctx), isExecutive(ctx)).flatMap((g) => g.items);
-      expect(visible.some((i) => i.href === '/control-center')).toBe(false);
+      expect(isKspIncOwner(ctx)).toBe(false);
     }
+  });
+
+  it('keeps the KSP INC navigation in one executive-only group', () => {
+    const group = NAV_GROUPS.find((item) => item.key === 'inc');
+    expect(group).toBeDefined();
+    expect(group?.label).toBe('KSP INC');
+    expect(group?.items.map((item) => item.href)).toEqual(ownerRoutes);
+    for (const item of group?.items ?? []) expect(item.executiveOnly).toBe(true);
+  });
+
+  it('shows KSP INC controls to both global-owner roles', () => {
+    for (const roles of [['founder_ceo'], ['executive_operations']] as InternalRole[][]) {
+      const ctx = ctxWith(roles);
+      const visible = visibleNav(isFounder(ctx), isKspIncOwner(ctx)).flatMap((g) => g.items);
+      for (const route of ownerRoutes) expect(visible.some((item) => item.href === route)).toBe(true);
+    }
+  });
+
+  it('hides every KSP INC route from non-executive roles', () => {
+    for (const roles of [['developer'], ['designer'], ['sales_specialist'], ['contractor'], []] as InternalRole[][]) {
+      const ctx = ctxWith(roles);
+      const visible = visibleNav(isFounder(ctx), isKspIncOwner(ctx)).flatMap((g) => g.items);
+      for (const route of ownerRoutes) expect(visible.some((item) => item.href === route)).toBe(false);
+    }
+  });
+
+  it('does not grant Founder OS to executive_operations', () => {
+    const executive = ctxWith(['executive_operations']);
+    expect(isKspIncOwner(executive)).toBe(true);
+    expect(isFounder(executive)).toBe(false);
+    expect(canViewFounderVault(executive)).toBe(false);
   });
 });
