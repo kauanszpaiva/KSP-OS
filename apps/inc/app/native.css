@@ -142,6 +142,119 @@
 .surfaceStatus.ok {
   border-left: 3px solid var(--success);
 }
+.adminStack {
+  display: grid;
+  gap: 16px;
+}
+.adminPanel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 18px;
+}
+.adminPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+.adminPanelHeader small,
+.adminPanelHeader span,
+.adminHint,
+.adminFootnote {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.adminPanelHeader h3 {
+  margin: 3px 0 0;
+  font-size: 18px;
+  letter-spacing: -0.025em;
+}
+.adminForms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.adminForm {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  padding: 14px;
+  background: rgba(255, 254, 250, 0.6);
+}
+.adminForm.horizontalForm {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+}
+.adminForm label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.adminForm input,
+.adminForm select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+.adminForm input:focus,
+.adminForm select:focus {
+  border-color: var(--accent);
+}
+.adminForm button {
+  min-height: 38px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: white;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.adminForm button.secondaryAction {
+  background: transparent;
+  color: var(--ink);
+}
+.adminForm button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+.formResult {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.formResult.ok {
+  color: var(--success);
+}
+.formResult.error {
+  color: var(--danger);
+}
+.adminFootnote {
+  margin: 12px 0 0;
+}
+.unitChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.unitChips span {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
 
 @media (max-width: 900px) {
   .ownerHero {
@@ -158,6 +271,10 @@
   }
   .metricCard:nth-child(n + 3) {
     border-top: 1px solid var(--line);
+  }
+  .adminForms,
+  .adminForm.horizontalForm {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -183,5 +300,8 @@
   }
   .ownerListRow small {
     text-align: left;
+  }
+  .adminPanelHeader {
+    flex-direction: column;
   }
 }
