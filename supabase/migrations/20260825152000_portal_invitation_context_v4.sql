@@ -150,7 +150,9 @@ on public.portal_invitations
 for each row execute function portal_private.validate_portal_invitation_scope();
 
 -- The invitation email must describe the same selected project scope that will
--- later be granted. Patch only the existing reviewed project-list predicate.
+-- later be granted. Patch the reviewed predicate from either the original
+-- trigger or a later presentation-only replacement. The operation is
+-- idempotent so migration replay never silently drifts the email scope.
 do $do$
 declare
   ddl text;
@@ -158,17 +160,36 @@ declare
 begin
   select pg_get_functiondef('public.ksp_portal_invitation_email_before_insert()'::regprocedure) into ddl;
   original := ddl;
-  ddl := replace(
-    ddl,
-    '    and new.initial_role = ''client_owner''::public.client_role;',
-    '    and p.id::text in (' || chr(10) ||
-    '      select jsonb_array_elements_text(coalesce(new.scope -> ''projectIds'', ''[]''::jsonb))' || chr(10) ||
-    '    );'
-  );
-  if ddl = original then
-    raise exception 'expected safe invitation email project predicate not found';
+
+  if position(
+    'jsonb_array_elements_text(coalesce(new.scope -> ''projectIds'', ''[]''::jsonb))'
+    in ddl
+  ) = 0 then
+    ddl := replace(
+      ddl,
+      '    and new.initial_role = ''client_owner''::public.client_role;',
+      '    and p.id::text in (' || chr(10) ||
+      '      select jsonb_array_elements_text(coalesce(new.scope -> ''projectIds'', ''[]''::jsonb))' || chr(10) ||
+      '    );'
+    );
+
+    if ddl = original then
+      ddl := replace(
+        ddl,
+        '    and p.status <> ''archived'';',
+        '    and p.status <> ''archived''' || chr(10) ||
+        '    and p.id::text in (' || chr(10) ||
+        '      select jsonb_array_elements_text(coalesce(new.scope -> ''projectIds'', ''[]''::jsonb))' || chr(10) ||
+        '    );'
+      );
+    end if;
+
+    if ddl = original then
+      raise exception 'expected safe invitation email project predicate not found';
+    end if;
+
+    execute ddl;
   end if;
-  execute ddl;
 end
 $do$;
 
