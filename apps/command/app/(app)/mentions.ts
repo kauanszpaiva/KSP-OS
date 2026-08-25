@@ -6,26 +6,28 @@ export interface MentionProfile {
 /**
  * Resolve `@handle` tokens in a comment body to profile ids. A handle is a
  * contiguous run of word characters after `@` (no spaces), matched
- * case-insensitively against each profile's first name (first token of the
- * display name) or its full display name with spaces removed — so both
- * `@kauan` and `@KauanPaiva` resolve to "Kauan Paiva". Returns unique ids and
- * excludes `authorId` (you never notify yourself for your own mention).
+ * case-insensitively against a profile's first name or compact full display name.
  *
- * This is derived server-side from the stored profile list, never trusted from
- * the client — the comment form only submits free text.
+ * Access-impacting mentions fail closed when a token is ambiguous: a first name
+ * shared by multiple active profiles grants access to none of them until the
+ * author uses a unique compact full name. The author is always excluded.
  */
 export function resolveMentions(body: string, profiles: MentionProfile[], authorId?: string): string[] {
-  const tokens = [...body.matchAll(/@([a-zA-Z0-9._-]+)/g)].map((m) => m[1].toLowerCase());
+  const tokens = [...body.matchAll(/@([a-zA-Z0-9._-]+)/g)].map((match) => match[1].toLowerCase());
   if (tokens.length === 0) return [];
-  const tokenSet = new Set(tokens);
+
   const ids = new Set<string>();
-  for (const p of profiles) {
-    const dn = p.display_name.trim().toLowerCase();
-    if (!dn) continue;
-    const first = dn.split(/\s+/)[0];
-    const compact = dn.replace(/\s+/g, '');
-    if (tokenSet.has(first) || tokenSet.has(compact)) ids.add(p.id);
+  for (const token of new Set(tokens)) {
+    const matches = profiles.filter((profile) => {
+      const displayName = profile.display_name.trim().toLowerCase();
+      if (!displayName) return false;
+      const first = displayName.split(/\s+/)[0];
+      const compact = displayName.replace(/\s+/g, '');
+      return token === first || token === compact;
+    });
+    if (matches.length === 1) ids.add(matches[0].id);
   }
+
   if (authorId) ids.delete(authorId);
   return [...ids];
 }
