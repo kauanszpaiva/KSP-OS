@@ -1,0 +1,33 @@
+name: format-inc-source
+
+on:
+  push:
+    branches: [feat/ksp-inc-standalone-app]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/ksp-inc-standalone-app
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prettier --write apps/inc
+      - name: Commit formatted source and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/inc
+          git rm .github/workflows/inc-format-fix.yml
+          git commit -m "style(inc): format standalone owner app"
+          git push origin HEAD:feat/ksp-inc-standalone-app
