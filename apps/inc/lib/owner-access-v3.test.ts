@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const repoRoot = path.resolve(process.cwd(), '../..');
+const repoRoot = path.resolve(process.cwd());
 
 function read(relativePath: string) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
