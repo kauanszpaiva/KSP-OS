@@ -6,8 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings=0",
-    "format:check": "prettier --check ."
+    "lint": "node ../../scripts/check-source.mjs apps/inc",
+    "format:check": "node ../../scripts/check-format.mjs apps/inc"
   },
   "dependencies": {
     "@ksp/auth": "workspace:*",
