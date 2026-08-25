@@ -1,3 +1,5 @@
+import { roleTemplateAllows } from './role-templates';
+
 export type InternalRole =
   | 'founder_ceo'
   | 'executive_operations'
@@ -227,6 +229,13 @@ const sensitiveActions: readonly PermissionAction[] = [
   'production.deploy'
 ];
 
+const mfaClassifications: readonly Classification[] = [
+  'restricted',
+  'finance_restricted',
+  'legal_restricted',
+  'security_restricted'
+];
+
 const supervisorOperationalActions: readonly PermissionAction[] = [
   'project.read',
   'project.manage',
@@ -376,7 +385,7 @@ export function canPerform(
     return allow('break_glass_override', [...trace, `break_glass:${breakGlass.id}`], true);
   }
 
-  if (sensitiveActions.includes(action) && !actor.mfa) {
+  if ((sensitiveActions.includes(action) || mfaClassifications.includes(resource.classification)) && !actor.mfa) {
     return deny('mfa_required', [...trace, 'aal2_required'], 'require_mfa');
   }
   if (resource.recordState === 'posted' && ['project.manage', 'finance.post', 'document.publish'].includes(action)) {
@@ -400,32 +409,20 @@ export function canPerform(
     if (isExecutive(actor)) {
       const approvalRequired =
         sensitiveActions.includes(action) ||
-        ['restricted', 'finance_restricted', 'legal_restricted', 'security_restricted'].includes(
-          resource.classification
-        ) ||
+        mfaClassifications.includes(resource.classification) ||
         (resource.amountMinor ?? 0) >= 500000;
       return allow('executive_internal_scope', [...trace, 'executive_scope'], approvalRequired);
     }
 
     if (
-      action.startsWith('client.') ||
-      action.startsWith('project.') ||
-      action.startsWith('work.') ||
-      action.startsWith('deliverable.') ||
-      action.startsWith('document.')
+      resource.projectId &&
+      actor.projectIds.includes(resource.projectId) &&
+      !mfaClassifications.includes(resource.classification)
     ) {
-      if (
-        resource.projectId &&
-        actor.projectIds.includes(resource.projectId) &&
-        !['restricted', 'finance_restricted', 'legal_restricted', 'security_restricted'].includes(
-          resource.classification
-        )
-      ) {
-        const forbidden = ['client.internal_note.read', 'access.grant', 'access.revoke'];
-        return forbidden.includes(action)
-          ? deny('assigned_project_action_denied', [...trace, 'assigned_project_forbidden_action'])
-          : allow('assigned_project_internal_scope', [...trace, 'assigned_project_scope']);
+      if (!roleTemplateAllows(actor.internalRoles, action)) {
+        return deny('role_template_action_denied', [...trace, 'assigned_project_scope', 'role_template_denied']);
       }
+      return allow('assigned_project_role_template', [...trace, 'assigned_project_scope', 'role_template_allowed']);
     }
   }
 
