@@ -187,6 +187,27 @@
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   align-items: end;
 }
+.adminForm.workTaskForm {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+}
+.adminForm.commentForm {
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 2fr) auto;
+  align-items: end;
+}
+.adminForm .wideField {
+  grid-column: span 2;
+}
+.adminForm .checkField {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+}
+.adminForm .checkField input {
+  width: auto;
+}
 .adminForm label {
   display: grid;
   gap: 5px;
@@ -195,7 +216,8 @@
   font-weight: 700;
 }
 .adminForm input,
-.adminForm select {
+.adminForm select,
+.adminForm textarea {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--line);
@@ -206,8 +228,13 @@
   font-size: 12px;
   outline: none;
 }
+.adminForm textarea {
+  min-height: 80px;
+  resize: vertical;
+}
 .adminForm input:focus,
-.adminForm select:focus {
+.adminForm select:focus,
+.adminForm textarea:focus {
   border-color: var(--accent);
 }
 .adminForm button {
@@ -238,7 +265,7 @@
   color: var(--success);
 }
 .formResult.error {
-  color: var(--danger);
+  color: var(--accent);
 }
 .adminFootnote {
   margin: 12px 0 0;
@@ -273,8 +300,13 @@
     border-top: 1px solid var(--line);
   }
   .adminForms,
-  .adminForm.horizontalForm {
+  .adminForm.horizontalForm,
+  .adminForm.workTaskForm,
+  .adminForm.commentForm {
     grid-template-columns: 1fr;
+  }
+  .adminForm .wideField {
+    grid-column: auto;
   }
 }
 
