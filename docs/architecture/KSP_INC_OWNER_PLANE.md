@@ -68,18 +68,51 @@ This prevents a company-wide owner role from accidentally becoming access to a p
 
 ## Current owner UX
 
-The first owner-plane slice is available inside Command at `/inc` and exposes:
+The owner-plane experience is available inside Command at `/inc` and exposes:
 
 - the four-surface system map;
+- Access Directory (`/inc/access`);
 - Structure & Access (`/divisions`);
 - People (`/team`);
 - Clients (`/clients`);
 - Finance & approvals (`/finance`);
-- Platform / audit / Network governance (`/control-center`).
+- Platform / audit (`/control-center`).
 
-The normal Command navigation now has a dedicated **KSP INC** group that is omitted for every non-owner identity.
+The normal Command navigation has a dedicated **KSP INC** group that is omitted for every non-owner identity.
 
 This route is the compatibility-safe first slice because it reuses the proven Command session, shared auth package and existing owner RLS foundation without creating duplicate credentials or a new database boundary.
+
+### Access Directory
+
+`/inc/access` is the central owner view for effective access. It intentionally composes the existing authorization sources instead of creating a second entitlement store.
+
+For each resolved identity it shows:
+
+- KSP INC / Command / Portal / Network surface access;
+- the concrete reason that access exists;
+- internal role and suspension state;
+- business-unit scopes;
+- internal project memberships;
+- Portal client memberships plus client-safe project visibility counts;
+- Network partner memberships and assignment counts;
+- active permanent `internal_permission_grants`;
+- active `temporary_access_grants` as audit evidence.
+
+The first write-capable slice adds:
+
+- owner-only, MFA-gated permanent internal permission grants and revocation using `internal_permission_grants`;
+- owner-only, MFA-gated Network membership grant/update/revocation using `partner_memberships`;
+- audit events for those privileged changes.
+
+Internal role/suspension, division access, and Portal client/project access continue to use their existing governed owner workflows. The Access Directory links those controls rather than duplicating their authorization logic.
+
+### Temporary grant safety gate
+
+Temporary grants are deliberately read-only in the owner UI in this slice.
+
+Staging inspection found the current `temporary_access_grants` RLS mutation policy uses `is_internal_member(organization_id)` for `ALL`, which is broader than the KSP INC owner boundary. No new mutation UI should be enabled over that policy.
+
+Before temporary-grant writes are exposed from KSP INC, a reviewed migration must narrow the database mutation boundary, add negative tests for non-owner internal users, and pass the normal database-lineage/release gates. This finding is a release blocker for that specific capability, not a reason to weaken the owner-plane design.
 
 ## Deployment boundary
 
