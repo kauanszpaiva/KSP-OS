@@ -1,5 +1,6 @@
 import { AccessAdminPanel } from '../../components/access-admin-panel';
 import { AuthorityAdminPanel } from '../../components/authority-admin-panel';
+import { AuthoritySimulatorPanel } from '../../components/authority-simulator-panel';
 import { IncShell, ownerRoleLabel } from '../../components/inc-shell';
 import { OwnerList, OwnerPageHeader, SurfaceStatus } from '../../components/owner-surface';
 import { getIncAccessAdminData } from '../../lib/inc-admin-data';
@@ -51,6 +52,13 @@ export default async function IncAccessPage() {
         body="Roles are defaults, not blanket authority. Explicit denies win, supervision flows downward without financial inheritance, and emergency override is short-lived and audited."
         tone="ok"
       />
+      <section className="section">
+        <div className="sectionHeader">
+          <h2>Access Explorer</h2>
+          <p>safe view-as · decision trace</p>
+        </div>
+        <AuthoritySimulatorPanel people={admin.people} projects={admin.projects} />
+      </section>
       <section className="section">
         <div className="sectionHeader">
           <h2>Authority engine</h2>
