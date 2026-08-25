@@ -16,6 +16,7 @@ export interface NetworkInvitationPreview {
 const ROLE_LABELS: Record<string, string> = {
   partner_owner: 'Partner owner',
   partner_coordinator: 'Partner coordinator',
+  billing: 'Billing contact',
   editor: 'Editor',
   uploader: 'Uploader',
   viewer: 'Viewer'
