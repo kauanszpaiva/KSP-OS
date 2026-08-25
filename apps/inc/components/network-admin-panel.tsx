@@ -2,10 +2,16 @@
 
 import { useActionState } from 'react';
 import type { IncAdminPartner, IncAdminPerson, IncPartnerMembership } from '../lib/inc-admin-data';
-import { revokePartnerMembership, type IncAccessActionResult } from '../app/access/actions';
+import {
+  createPartnerInvitation,
+  revokePartnerMembership,
+  type IncAccessActionResult,
+  type PartnerInvitationActionResult
+} from '../app/access/actions';
 import { setPartnerMembershipV4 } from '../app/access/network-membership-actions';
 
 const initial: IncAccessActionResult = { ok: false };
+const inviteInitial: PartnerInvitationActionResult = { ok: false };
 const roles = ['partner_owner', 'partner_coordinator', 'billing', 'editor', 'uploader', 'viewer'] as const;
 
 function Result({ state }: { state: IncAccessActionResult }) {
@@ -27,6 +33,7 @@ export function NetworkAdminPanel({
 }) {
   const [state, action, pending] = useActionState(setPartnerMembershipV4, initial);
   const [revokeState, revokeAction, revokePending] = useActionState(revokePartnerMembership, initial);
+  const [inviteState, inviteAction, invitePending] = useActionState(createPartnerInvitation, inviteInitial);
 
   if (!available) {
     return <div className="emptyPanel">Network partner tables are not promoted in this environment yet.</div>;
@@ -52,6 +59,17 @@ export function NetworkAdminPanel({
             <label>Active membership<select name="membershipId" required>{memberships.map((membership) => <option key={membership.id} value={membership.id}>{membership.role} · profile {membership.profileId}</option>)}</select></label>
             <button className="secondaryAction" disabled={revokePending || memberships.length === 0} type="submit">{revokePending ? 'Revoking…' : 'Revoke Network access'}</button>
             <Result state={revokeState} />
+          </form>
+          <form action={inviteAction} className="adminForm">
+            <label>Email<input name="email" type="email" required placeholder="worker@partner.com" /></label>
+            <label>Partner organization<select name="partnerOrganizationId" required>{partners.map((partner) => <option key={partner.id} value={partner.id}>{partner.displayName}</option>)}</select></label>
+            <label>Network role<select name="role" defaultValue="viewer">{roles.map((role) => <option key={role} value={role}>{role}</option>)}</select></label>
+            <label>Expires in days<input name="expiresInDays" type="number" min="1" max="90" defaultValue="14" /></label>
+            <button disabled={invitePending} type="submit">{invitePending ? 'Creating…' : 'Create one-time invitation'}</button>
+            {inviteState.error && <p className="formResult error">{inviteState.error}</p>}
+            {inviteState.ok && inviteState.invitePath && (
+              <p className="formResult ok">One-time link: <a href={inviteState.invitePath}>{inviteState.invitePath}</a></p>
+            )}
           </form>
         </div>
       ) : <p className="adminHint">Create a partner organization before assigning a Network identity.</p>}
