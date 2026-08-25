@@ -14,6 +14,7 @@ export interface NavGroup { key: string; label: string; items: NavItem[]; }
 export const NAV_GROUPS: NavGroup[] = [
   { key: 'inc', label: 'KSP INC', items: [
     { label: 'Owner Plane', href: '/inc', status: 'live', icon: 'connections', executiveOnly: true },
+    { label: 'Access Directory', href: '/inc/access', status: 'live', icon: 'team', executiveOnly: true },
     { label: 'Structure & Access', href: '/divisions', status: 'live', icon: 'team', executiveOnly: true },
     { label: 'Control Center', href: '/control-center', status: 'live', icon: 'software', executiveOnly: true }
   ]},
