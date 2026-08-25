@@ -64,7 +64,7 @@ function scopedResource(resourceType: string | null, resourceId: string | null):
 /**
  * Build the full authorization context for the signed-in user: their org,
  * internal roles, MFA state, project assignments, persisted grants, explicit
- * denies and directional authority relationships.
+ * denies, directional authority relationships and canonical scoped delegations.
  *
  * Only genuinely organization-wide grants are placed in `explicitGrants`.
  * Resource-bound rows remain in `scopedGrants`; flattening them would turn a
@@ -107,6 +107,7 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     temporaryGrantResult,
     denyResult,
     relationshipResult,
+    delegationResult,
     breakGlassResult,
     mfa
   ] = await Promise.all([
@@ -159,6 +160,16 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
       .lte('effective_from', now)
       .or(`effective_until.is.null,effective_until.gt.${now}`),
     supabase
+      .from('delegations')
+      .select('delegator_id, action, resource_type, resource_id, effective_from, effective_until')
+      .eq('organization_id', organizationId)
+      .eq('delegate_id', user.id)
+      .not('resource_type', 'is', null)
+      .not('resource_id', 'is', null)
+      .is('revoked_at', null)
+      .lte('effective_from', now)
+      .gt('effective_until', now),
+    supabase
       .from('access_break_glass_sessions')
       .select('id, action, resource_type, resource_id, effective_until, reason')
       .eq('organization_id', organizationId)
@@ -205,15 +216,26 @@ export async function getAuthContext(supabase: SupabaseClient): Promise<AuthCont
     reason: row.reason ?? undefined
   }));
 
-  const authorityRelationships: AuthorityRelationship[] = (relationshipResult.data ?? []).map((row: any) => ({
-    type: row.relationship_type as AuthorityRelationship['type'],
-    targetProfileId: row.target_profile_id ?? undefined,
-    action: row.action ? (row.action as PermissionAction) : undefined,
-    ...scopedResource(row.resource_type, row.resource_id),
-    effectiveFrom: row.effective_from ? new Date(row.effective_from) : undefined,
-    effectiveUntil: row.effective_until ? new Date(row.effective_until) : undefined,
-    reason: row.reason ?? undefined
-  }));
+  const authorityRelationships: AuthorityRelationship[] = [
+    ...(relationshipResult.data ?? []).map((row: any) => ({
+      type: row.relationship_type as AuthorityRelationship['type'],
+      targetProfileId: row.target_profile_id ?? undefined,
+      action: row.action ? (row.action as PermissionAction) : undefined,
+      ...scopedResource(row.resource_type, row.resource_id),
+      effectiveFrom: row.effective_from ? new Date(row.effective_from) : undefined,
+      effectiveUntil: row.effective_until ? new Date(row.effective_until) : undefined,
+      reason: row.reason ?? undefined
+    })),
+    ...(delegationResult.data ?? []).map((row: any) => ({
+      type: 'delegated_by' as const,
+      targetProfileId: row.delegator_id ? String(row.delegator_id) : undefined,
+      action: row.action as PermissionAction,
+      ...scopedResource(row.resource_type, row.resource_id),
+      effectiveFrom: row.effective_from ? new Date(row.effective_from) : undefined,
+      effectiveUntil: row.effective_until ? new Date(row.effective_until) : undefined,
+      reason: 'canonical_delegation'
+    }))
+  ];
 
   const breakGlassGrants: BreakGlassGrant[] = (breakGlassResult.data ?? []).map((row: any) => ({
     id: String(row.id),
