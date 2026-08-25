@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { KspSignalLine, KspWordmark } from '@ksp/ui';
 import { getServerSupabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { InviteAuthForm } from './_components/invite-auth-form';
 import { AcceptInviteForm, type InvitationPreview } from './_components/accept-invite-form';
@@ -19,8 +20,8 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   if (!isSupabaseConfigured()) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-canvas px-4">
-        <p className="text-[14px] text-ink-2">Supabase is not configured in this environment.</p>
+      <main className="flex min-h-screen items-center justify-center bg-ksp-paper px-4">
+        <p className="text-[14px] text-ksp-steel">Supabase is not configured in this environment.</p>
       </main>
     );
   }
@@ -46,22 +47,19 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-canvas px-4">
-      <div className="w-full max-w-sm animate-fade-slide-up">
-        <div className="mb-6 flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-brand-strong text-on-brand shadow-card">
-            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" aria-hidden>
-              <path d="M6 3v18M6 12l7-9M6 12l7 9" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M14 8l-3.5 4L14 16" stroke="rgb(var(--accent))" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold tracking-tight text-ink">KSP</span>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">Client Portal</span>
-          </div>
+    <main className="min-h-screen bg-ksp-paper px-4 py-10 text-ksp-carbon sm:flex sm:items-center sm:justify-center sm:py-14">
+      <div className="mx-auto w-full max-w-md animate-fade-slide-up">
+        <div className="mb-7">
+          <KspWordmark product="INC." descriptor="KSP OS · CLIENT PORTAL" />
+          <KspSignalLine className="mt-4 w-28" />
         </div>
-        <h1 className="mb-4 font-display text-[20px] font-semibold text-ink">You've been invited</h1>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-ksp-steel">Private workspace invitation</p>
+        <h1 className="mt-2 font-display text-[30px] font-bold tracking-[-0.035em] text-ksp-carbon">You’ve been invited.</h1>
+        <p className="mb-6 mt-2 max-w-sm text-[13px] leading-5 text-ksp-steel">
+          Secure access to the KSP OS Client Portal. Sign in or create your account with the email that received this invitation.
+        </p>
         {user ? <AcceptInviteForm token={token} email={user.email ?? ''} preview={preview} /> : <InviteAuthForm />}
+        <p className="mt-5 text-[11px] leading-5 text-ksp-steel/75">KSP INC. · Systems. Execution. Impact.</p>
       </div>
     </main>
   );
