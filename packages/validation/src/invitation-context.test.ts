@@ -35,6 +35,26 @@ describe('invitation context contract', () => {
     expect(payload.expiresAt).toBeTruthy();
   });
 
+  it('accepts a billing-only Network invitation role without client scope', () => {
+    const payload = buildInvitationPayload({
+      surface: 'network',
+      organizationId: ORG,
+      email: ' BILLING@VENDOR.COM ',
+      role: 'billing',
+      scope: {
+        organizationId: ORG,
+        partnerOrganizationId: PARTNER,
+        projectIds: [],
+        teamKey: null
+      },
+      expiresInDays: 14
+    });
+
+    expect(payload.email).toBe('billing@vendor.com');
+    expect(payload.role).toBe('billing');
+    expect(payload.scope.partnerOrganizationId).toBe(PARTNER);
+  });
+
   it('rejects a Portal payload carrying a partner scope', () => {
     const result = invitationPayloadSchema.safeParse({
       version: 1,
