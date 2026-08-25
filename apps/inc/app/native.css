@@ -1,0 +1,187 @@
+.ownerNav {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  padding: 10px clamp(20px, 4vw, 56px);
+  scrollbar-width: thin;
+}
+.ownerNav a {
+  flex: 0 0 auto;
+  padding: 8px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+.ownerNav a:hover {
+  color: var(--ink);
+  border-color: var(--line);
+  background: white;
+}
+.ownerHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.7fr);
+  gap: 32px;
+  align-items: end;
+  margin-bottom: 30px;
+}
+.ownerHero h1 {
+  margin: 10px 0 14px;
+  font-size: clamp(38px, 5vw, 62px);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+.ownerHero p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.ownerHero .heroAside {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.metricCard {
+  min-height: 145px;
+  padding: 20px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.metricCard:nth-child(4n) {
+  border-right: 0;
+}
+.metricCard:nth-child(n + 5) {
+  border-top: 1px solid var(--line);
+}
+.metricCard small,
+.metricCard span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.metricCard strong {
+  margin: 12px 0;
+  font-size: 34px;
+  letter-spacing: -0.045em;
+}
+.ownerList {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.ownerListRow {
+  min-height: 66px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+}
+.ownerListRow:last-child {
+  border-bottom: 0;
+}
+.ownerListRow div {
+  min-width: 0;
+}
+.ownerListRow strong {
+  display: block;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.ownerListRow span,
+.ownerListRow small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.ownerListRow small {
+  margin-top: 0;
+  text-align: right;
+}
+.emptyPanel {
+  border: 1px dashed var(--line);
+  background: rgba(255, 254, 250, 0.58);
+  color: var(--muted);
+  padding: 26px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.surfaceStatus {
+  margin: 22px 0 8px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  display: grid;
+  gap: 5px;
+}
+.surfaceStatus strong {
+  font-size: 13px;
+}
+.surfaceStatus span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.surfaceStatus.attention {
+  border-left: 3px solid var(--warning);
+}
+.surfaceStatus.ok {
+  border-left: 3px solid var(--success);
+}
+
+@media (max-width: 900px) {
+  .ownerHero {
+    grid-template-columns: 1fr;
+  }
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metricCard:nth-child(4n) {
+    border-right: 1px solid var(--line);
+  }
+  .metricCard:nth-child(2n) {
+    border-right: 0;
+  }
+  .metricCard:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 620px) {
+  .ownerNav {
+    padding-inline: 14px;
+  }
+  .metricGrid {
+    grid-template-columns: 1fr;
+  }
+  .metricCard,
+  .metricCard:nth-child(2n),
+  .metricCard:nth-child(4n) {
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+  .metricCard:first-child {
+    border-top: 0;
+  }
+  .ownerListRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .ownerListRow small {
+    text-align: left;
+  }
+}
