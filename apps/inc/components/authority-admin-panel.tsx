@@ -136,7 +136,7 @@ export function AuthorityAdminPanel({
           <span>{relationships.length} active</span>
         </div>
         <p className="adminHint">
-          Supervision flows downward to bounded operational work only. It never grants finance, owner controls or upward visibility.
+          Supervision flows downward to bounded operational work only. It never grants finance, owner controls or upward visibility. Delegation is managed separately so it cannot bypass the delegation ceiling.
         </p>
         {activePeople.length > 1 ? (
           <div className="adminForms">
@@ -157,7 +157,6 @@ export function AuthorityAdminPanel({
                   <option value="supervises">Supervises</option>
                   <option value="approver_for">Approver for</option>
                   <option value="billing_for">Billing for</option>
-                  <option value="delegated_by">Delegated authority</option>
                 </select>
               </label>
               <label>
