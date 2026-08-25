@@ -2,10 +2,11 @@
 
 import { useActionState } from 'react';
 import type { IncAdminPartner, IncAdminPerson, IncPartnerMembership } from '../lib/inc-admin-data';
-import { revokePartnerMembership, setPartnerMembership, type IncAccessActionResult } from '../app/access/actions';
+import { revokePartnerMembership, type IncAccessActionResult } from '../app/access/actions';
+import { setPartnerMembershipV4 } from '../app/access/network-membership-actions';
 
 const initial: IncAccessActionResult = { ok: false };
-const roles = ['partner_owner', 'partner_coordinator', 'editor', 'uploader', 'viewer'] as const;
+const roles = ['partner_owner', 'partner_coordinator', 'billing', 'editor', 'uploader', 'viewer'] as const;
 
 function Result({ state }: { state: IncAccessActionResult }) {
   if (state.ok) return <p className="formResult ok">Saved.</p>;
@@ -24,7 +25,7 @@ export function NetworkAdminPanel({
   memberships: IncPartnerMembership[];
   available: boolean;
 }) {
-  const [state, action, pending] = useActionState(setPartnerMembership, initial);
+  const [state, action, pending] = useActionState(setPartnerMembershipV4, initial);
   const [revokeState, revokeAction, revokePending] = useActionState(revokePartnerMembership, initial);
 
   if (!available) {
@@ -37,6 +38,7 @@ export function NetworkAdminPanel({
         <div><small>Partner identity</small><h3>Network membership</h3></div>
         <span>{memberships.length} active</span>
       </div>
+      <p className="adminHint">Billing is intentionally separate from operational roles. A billing identity can receive financial capabilities without inheriting assignment visibility.</p>
       {partners.length > 0 && people.length > 0 ? (
         <div className="adminForms">
           <form action={action} className="adminForm">
