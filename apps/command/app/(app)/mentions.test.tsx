@@ -34,6 +34,12 @@ describe('resolveMentions', () => {
     expect(resolveMentions('@nobody here', PROFILES)).toEqual([]);
   });
 
+  it('fails closed when a first-name mention is ambiguous', () => {
+    const profiles = [...PROFILES, { id: 'u-eric-2', display_name: 'Eric Lima' }];
+    expect(resolveMentions('@eric please review', profiles)).toEqual([]);
+    expect(resolveMentions('@EricSouza please review', profiles)).toEqual(['u-eric']);
+  });
+
   it('does not treat an email address as a mention of a different person', () => {
     // "@eric" inside an email local part still parses as a handle token — but a
     // domain like "acme.com" must not resolve anyone.
