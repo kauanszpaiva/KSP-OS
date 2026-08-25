@@ -121,7 +121,7 @@ begin
   for project_text in
     select value from jsonb_array_elements_text(new.scope -> 'projectIds') as t(value)
   loop
-    if project_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+    if project_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
       raise exception 'invalid_portal_invitation_project_id';
     end if;
     project_uuid := project_text::uuid;
@@ -242,7 +242,7 @@ begin
   for v_project_text in
     select value from jsonb_array_elements_text(v_invitation.scope -> 'projectIds') as t(value)
   loop
-    if v_project_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+    if v_project_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
       raise exception 'invalid_invitation_project_id';
     end if;
     v_project_id := v_project_text::uuid;
