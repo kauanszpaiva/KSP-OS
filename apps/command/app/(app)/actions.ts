@@ -14,6 +14,7 @@ import {
   createClientMeetingSchema,
   createClientSchema,
   createPortalInvitationSchema,
+  invitationPayloadSchema,
   updateMeetingStatusSchema,
   createCommitmentSchema,
   createConnectionSchema,
@@ -1242,26 +1243,76 @@ export async function createPortalInvitation(_prev: InviteActionResult, form: Fo
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
+  const { data: clientOrganization } = await supabase
+    .from('client_organizations')
+    .select('id')
+    .eq('id', parsed.data.clientOrganizationId)
+    .eq('organization_id', ctx.organizationId)
+    .maybeSingle();
+  if (!clientOrganization) return { ok: false, error: 'The client organization is outside your KSP organization.' };
+
   const token = randomBytes(32).toString('base64url');
   const tokenHash = createHash('sha256').update(token).digest('hex');
   const expiresAt = new Date(Date.now() + parsed.data.expiresInDays * 86_400_000).toISOString();
+
+  const { data: projects, error: projectError } =
+    parsed.data.initialRole === 'client_owner'
+      ? await supabase
+          .from('projects')
+          .select('id')
+          .eq('organization_id', ctx.organizationId)
+          .eq('client_id', parsed.data.clientOrganizationId)
+          .neq('status', 'archived')
+          .limit(501)
+      : { data: [], error: null };
+  if (projectError || (projects?.length ?? 0) > 500) {
+    return { ok: false, error: 'Could not establish a bounded project scope for this invitation.' };
+  }
+
+  const payloadResult = invitationPayloadSchema.safeParse({
+    version: 1,
+    surface: 'portal',
+    organizationId: ctx.organizationId,
+    email: parsed.data.email,
+    role: parsed.data.initialRole,
+    scope: {
+      organizationId: ctx.organizationId,
+      clientOrganizationId: parsed.data.clientOrganizationId,
+      projectIds: parsed.data.initialRole === 'client_owner' ? (projects ?? []).map((project) => project.id) : [],
+      teamKey: null
+    },
+    expiresAt
+  });
+  if (!payloadResult.success) return { ok: false, error: 'Could not establish a valid invitation context.' };
+  const payload = payloadResult.data;
 
   const { data, error } = await supabase
     .from('portal_invitations')
     .insert({
       organization_id: ctx.organizationId,
       client_organization_id: parsed.data.clientOrganizationId,
-      email: parsed.data.email,
-      initial_role: parsed.data.initialRole,
+      email: payload.email,
+      initial_role: payload.role,
       invited_by: ctx.user.id,
       token_hash: tokenHash,
-      expires_at: expiresAt
+      expires_at: payload.expiresAt,
+      surface: payload.surface,
+      context_version: payload.version,
+      scope: payload.scope,
+      team_key: payload.scope.teamKey
     })
     .select('id')
     .single();
   if (error) return { ok: false, error: 'Could not create the invitation. Check the client and try again.' };
 
-  await record(supabase, ctx, 'portal_invitation.created', 'portal_invitations', data.id, `Invited ${parsed.data.email} as ${parsed.data.initialRole}`);
+  await record(
+    supabase,
+    ctx,
+    'portal_invitation.created',
+    'portal_invitations',
+    data.id,
+    `Invited ${payload.email} as ${payload.role} with ${payload.scope.projectIds.length} project scopes`
+  );
   revalidatePath('/clients');
   // Return an absolute, ready-to-send link when the portal's base URL is
   // configured (NEXT_PUBLIC_PORTAL_BASE_URL, e.g. https://portal.kspdominion.group);
