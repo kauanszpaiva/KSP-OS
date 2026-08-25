@@ -115,7 +115,11 @@ Break-glass is not a permanent God Mode.
 
 Migration source:
 
-`supabase/migrations/20260825150000_authority_engine_v4.sql`
+- `supabase/migrations/20260825150000_authority_engine_v4.sql` — authority policy, relationships and break-glass primitives.
+- `supabase/migrations/20260825152000_portal_invitation_context_v4.sql` — Portal invitation scope persistence, project validation and acceptance.
+- `supabase/migrations/20260825173000_invitation_context_v5.sql` — Network invitation primitives, preview/accept RPCs and shared context checks.
+- `supabase/migrations/20260825174000_invitation_context_v5_hardening.sql` — final Network/Portal acceptance hardening, RLS and fail-closed scope rules.
+- `supabase/tests/invitation_context_v5.test.sql` — negative actor/RLS/concurrency-oriented SQL test plan.
 
 The normal Supabase CLI migration-name generator was unavailable in the execution environment, so the repository's timestamp naming convention was used manually. This is a source-only change until a separate authorized non-production migration run proves it.
 
@@ -124,6 +128,7 @@ New tables:
 - `internal_permission_denies`
 - `authority_relationships`
 - `access_break_glass_sessions`
+- `partner_invitations`
 
 No existing user, membership, grant, invoice, payment, project or production data is modified by the migration body.
 
