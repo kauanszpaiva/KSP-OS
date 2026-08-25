@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { getBrowserSupabase } from '../lib/supabase-browser';
+import { useState } from "react";
+import { getBrowserSupabase } from "../lib/supabase-browser";
 
 export function SignOutButton() {
   const [busy, setBusy] = useState(false);
@@ -15,11 +15,11 @@ export function SignOutButton() {
         if (!supabase) return;
         setBusy(true);
         await supabase.auth.signOut();
-        window.location.assign('/login');
+        window.location.assign("/login");
       }}
       type="button"
     >
-      {busy ? 'Signing out…' : 'Sign out'}
+      {busy ? "Signing out…" : "Sign out"}
     </button>
   );
 }
