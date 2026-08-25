@@ -112,6 +112,30 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
 
+  apps/inc:
+    dependencies:
+      '@ksp/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@ksp/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@ksp/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
+      '@supabase/ssr':
+        specifier: ^0.5.2
+        version: 0.5.2(@supabase/supabase-js@2.110.7)
+      next:
+        specifier: 15.5.23
+        version: 15.5.23(@playwright/test@1.62.1)(@types/node@22.10.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react:
+        specifier: 19.0.0
+        version: 19.0.0
+      react-dom:
+        specifier: 19.0.0
+        version: 19.0.0(react@19.0.0)
+
   apps/network:
     dependencies:
       '@ksp/auth':

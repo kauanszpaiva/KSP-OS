@@ -1,0 +1,21 @@
+{
+  "name": "@ksp/inc",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "node ../../scripts/check-source.mjs apps/inc",
+    "format:check": "node ../../scripts/check-format.mjs apps/inc"
+  },
+  "dependencies": {
+    "@ksp/auth": "workspace:*",
+    "@ksp/database": "workspace:*",
+    "@ksp/observability": "workspace:*",
+    "@supabase/ssr": "^0.5.2",
+    "next": "15.5.23",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  }
+}
