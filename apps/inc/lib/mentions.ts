@@ -4,13 +4,9 @@ export interface MentionProfile {
 }
 
 /**
- * Resolve `@handle` tokens in a comment body to profile ids. A handle is a
- * contiguous run of word characters after `@` (no spaces), matched
- * case-insensitively against a profile's first name or compact full display name.
- *
- * Access-impacting mentions fail closed when a token is ambiguous: a first name
- * shared by multiple active profiles grants access to none of them until the
- * author uses a unique compact full name. The author is always excluded.
+ * Resolve @firstName / @CompactFullName tokens from trusted server-side profiles.
+ * A token grants access only when it resolves to exactly one active profile;
+ * ambiguous first names fail closed instead of widening access to multiple people.
  */
 export function resolveMentions(body: string, profiles: MentionProfile[], authorId?: string): string[] {
   const tokens = [...body.matchAll(/@([a-zA-Z0-9._-]+)/g)].map((match) => match[1].toLowerCase());

@@ -163,6 +163,7 @@ exec "$REAL_DOCKER" "$@"
 
 try {
   await import('./check-db-tests.mjs');
+  await import('./check-owner-access-db.mjs');
   await import('./check-social-distribution-db.mjs');
 } catch (err) {
   if (process.env.CI) {

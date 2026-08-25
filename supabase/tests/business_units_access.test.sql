@@ -67,9 +67,14 @@ delete from public.business_unit_memberships
 where business_unit_id='60000000-0000-0000-0000-000000000002'
   and profile_id='20000000-0000-0000-0000-000000000002';
 
+-- The member has canonical Dominion project scope, no KSP Dev unit scope, and
+-- one exact KSP Dev task assigned directly to them. Sibling tasks model the
+-- boundary we must preserve when an exact cross-unit task is exposed.
 insert into public.tasks (organization_id, project_id, owner_id, title) values
   ('10000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 'Dominion child'),
-  ('10000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', 'KSP Dev child');
+  ('10000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000006', 'Dominion sibling'),
+  ('10000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', 'KSP Dev child'),
+  ('10000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000006', 'KSP Dev sibling');
 
 -- A future-dated organization membership and project grant are not active early.
 begin;
@@ -182,8 +187,19 @@ begin;
     if not can_access_project('70000000-0000-0000-0000-000000000001') then raise exception 'Dominion project denied'; end if;
     if can_access_project('70000000-0000-0000-0000-000000000002') then raise exception 'KSP Dev project allowed'; end if;
     if not can_access_project('70000000-0000-0000-0000-000000000003') then raise exception 'legacy project compatibility denied'; end if;
-    select count(*) into c from tasks where project_id in ('70000000-0000-0000-0000-000000000001'::uuid, '70000000-0000-0000-0000-000000000002'::uuid);
-    if c <> 1 then raise exception 'project-child division boundary failed: %', c; end if;
+
+    -- Canonical Dominion scope exposes both project children.
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000001';
+    if c <> 2 then raise exception 'canonical project child visibility failed: %', c; end if;
+
+    -- KSP Dev project scope remains denied, but the exact assigned task crosses
+    -- the unit boundary. The sibling must stay hidden.
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000002';
+    if c <> 1 then raise exception 'cross-unit exact-task visibility failed: %', c; end if;
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000002' and title='KSP Dev child';
+    if c <> 1 then raise exception 'assigned KSP Dev task was not the visible resource'; end if;
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000002' and title='KSP Dev sibling';
+    if c <> 0 then raise exception 'cross-unit sibling task leaked: %', c; end if;
   end $$;
 rollback;
 
@@ -215,8 +231,15 @@ begin;
   select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
   do $$ declare c int; begin
     if can_access_project('70000000-0000-0000-0000-000000000001') then raise exception 'revoked division still authorizes project'; end if;
+
+    -- Revoking the unit removes sibling/project visibility, but an exact task
+    -- assignment remains an intentional resource window.
     select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000001';
-    if c <> 0 then raise exception 'revoked division still exposes child rows'; end if;
+    if c <> 1 then raise exception 'revoked division did not collapse to exact task access: %', c; end if;
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000001' and title='Dominion child';
+    if c <> 1 then raise exception 'assigned Dominion task disappeared after unit revocation'; end if;
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000001' and title='Dominion sibling';
+    if c <> 0 then raise exception 'revoked division still exposes sibling child rows: %', c; end if;
   end $$;
 rollback;
 
