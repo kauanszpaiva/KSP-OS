@@ -98,16 +98,10 @@ interface PermissionScope {
   resourceId?: string;
 }
 
-/**
- * A permission grant that only applies to a concrete scope. Keeping this
- * separate from `explicitGrants` prevents a project/client-specific database
- * grant from accidentally becoming organization-wide authorization in memory.
- */
 export interface ScopedPermissionGrant extends PermissionScope {
   action: PermissionAction;
 }
 
-/** Explicit deny always wins over ordinary grants, roles and relationships. */
 export interface ScopedPermissionDeny extends PermissionScope {
   action: PermissionAction;
   effectiveFrom?: Date;
@@ -115,11 +109,6 @@ export interface ScopedPermissionDeny extends PermissionScope {
   reason?: string;
 }
 
-/**
- * Relationship-based authority is directional. A supervisor may receive
- * bounded authority over a subordinate's operational work; nothing flows back
- * upward and no financial capability is inherited from supervision.
- */
 export interface AuthorityRelationship extends PermissionScope {
   type: AuthorityRelationshipType;
   targetProfileId?: string;
@@ -129,15 +118,25 @@ export interface AuthorityRelationship extends PermissionScope {
   reason?: string;
 }
 
-/**
- * Emergency override is deliberately narrow: one action, one scope and a short
- * validity window. It is only considered for a full-control owner on AAL2.
- */
 export interface BreakGlassGrant extends PermissionScope {
   id: string;
   action: PermissionAction;
   effectiveUntil: Date;
   reason: string;
+}
+
+/**
+ * Non-owner high-impact authority is always bounded by amount, currency and
+ * optional scope. A capability grant says "may attempt"; the limit says "up to
+ * how much". Both must match for an amount-bearing approval to pass.
+ */
+export interface ApprovalLimit extends PermissionScope {
+  id: string;
+  action: PermissionAction;
+  maxAmountMinor: number;
+  currency: string;
+  effectiveFrom?: Date;
+  effectiveUntil?: Date;
 }
 
 export interface MembershipContext {
@@ -150,16 +149,12 @@ export interface MembershipContext {
     effectiveUntil?: Date;
   }>;
   projectIds: string[];
-  /** Organization-wide explicit grants only. */
   explicitGrants: PermissionAction[];
-  /** Project/client/resource grants resolved from the access-control tables. */
   scopedGrants?: ScopedPermissionGrant[];
-  /** Explicit denies are checked before every ordinary allow path. */
   explicitDenies?: ScopedPermissionDeny[];
-  /** Directional supervision, approval, billing and delegated relationships. */
   authorityRelationships?: AuthorityRelationship[];
-  /** Active emergency overrides loaded from the audited access store. */
   breakGlassGrants?: BreakGlassGrant[];
+  approvalLimits?: ApprovalLimit[];
   mfa: boolean;
   suspended?: boolean;
 }
@@ -168,7 +163,6 @@ export interface ResourceContext {
   organizationId: string;
   clientOrganizationId?: string;
   projectId?: string;
-  /** Optional generic resource identity for resource_type/resource_id grants. */
   resourceType?: string;
   id?: string;
   ownerId?: string;
@@ -177,6 +171,7 @@ export interface ResourceContext {
   publicationState?: PublicationState;
   recordState?: 'draft' | 'active' | 'posted' | 'locked' | 'archived';
   amountMinor?: number;
+  currency?: string;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
 }
 
@@ -213,17 +208,21 @@ export const financialActions: readonly PermissionAction[] = [
   'finance.reconcile'
 ];
 
-const sensitiveActions: readonly PermissionAction[] = [
+export const approvalBoundActions: readonly PermissionAction[] = [
   'invoice.approve',
   'invoice.pay',
   'payment.schedule',
   'payment.mark_paid',
   'payment.refund',
-  'payout_method.manage',
-  'tax_profile.manage',
-  'reconciliation.manage',
   'finance.post',
   'finance.reconcile',
+  'reconciliation.manage'
+];
+
+const sensitiveActions: readonly PermissionAction[] = [
+  ...approvalBoundActions,
+  'payout_method.manage',
+  'tax_profile.manage',
   'access.grant',
   'access.revoke',
   'production.deploy'
@@ -251,16 +250,9 @@ const supervisorOperationalActions: readonly PermissionAction[] = [
 ];
 
 const nonDelegableActions: readonly PermissionAction[] = [
-  'invoice.approve',
-  'invoice.pay',
-  'payment.schedule',
-  'payment.mark_paid',
-  'payment.refund',
+  ...approvalBoundActions,
   'payout_method.manage',
   'tax_profile.manage',
-  'reconciliation.manage',
-  'finance.post',
-  'finance.reconcile',
   'access.grant',
   'access.revoke',
   'production.deploy'
@@ -278,34 +270,25 @@ function hasConcreteScope(scope: PermissionScope): boolean {
   return Boolean(scope.clientOrganizationId || scope.projectId || scope.resourceType || scope.resourceId);
 }
 
-function isEffectiveWindow(
-  effectiveFrom: Date | undefined,
-  effectiveUntil: Date | undefined,
-  now: Date
-): boolean {
+function isEffectiveWindow(effectiveFrom: Date | undefined, effectiveUntil: Date | undefined, now: Date): boolean {
   if (effectiveFrom && effectiveFrom > now) return false;
   if (effectiveUntil && effectiveUntil <= now) return false;
   return true;
 }
 
-function matchesScopedGrant(
-  grant: ScopedPermissionGrant,
-  action: PermissionAction,
-  resource: ResourceContext
-): boolean {
-  if (grant.action !== action || !hasConcreteScope(grant)) return false;
-  return scopeMatches(grant, resource);
+function matchesScopedGrant(grant: ScopedPermissionGrant, action: PermissionAction, resource: ResourceContext): boolean {
+  return grant.action === action && hasConcreteScope(grant) && scopeMatches(grant, resource);
 }
 
 function matchesExplicitDeny(
-  deny: ScopedPermissionDeny,
+  denyEntry: ScopedPermissionDeny,
   action: PermissionAction,
   resource: ResourceContext,
   now: Date
 ): boolean {
-  if (deny.action !== action) return false;
-  if (!isEffectiveWindow(deny.effectiveFrom, deny.effectiveUntil, now)) return false;
-  return scopeMatches(deny, resource);
+  if (denyEntry.action !== action) return false;
+  if (!isEffectiveWindow(denyEntry.effectiveFrom, denyEntry.effectiveUntil, now)) return false;
+  return scopeMatches(denyEntry, resource);
 }
 
 function isExecutive(actor: MembershipContext): boolean {
@@ -334,8 +317,7 @@ function matchesRelationship(
   if (!scopeMatches(relationship, resource)) return false;
 
   if (relationship.type === 'supervises') {
-    if (!supervisorOperationalActions.includes(action)) return false;
-    if (financialActions.includes(action)) return false;
+    if (!supervisorOperationalActions.includes(action) || financialActions.includes(action)) return false;
     if (relationship.action && relationship.action !== action) return false;
     if (!relationship.targetProfileId) return false;
     const assignedIds = new Set([resource.ownerId, ...(resource.assignedProfileIds ?? [])].filter(Boolean));
@@ -360,6 +342,41 @@ function deny(reason: string, trace: string[], outcome: AuthorizationResult['out
   return { allowed: false, reason, outcome, trace };
 }
 
+function allowWithinApprovalLimit(
+  actor: MembershipContext,
+  action: PermissionAction,
+  resource: ResourceContext,
+  now: Date,
+  reason: string,
+  trace: string[]
+): AuthorizationResult {
+  if (isExecutive(actor) || !approvalBoundActions.includes(action)) return allow(reason, trace);
+
+  if (resource.amountMinor === undefined || !resource.currency) {
+    return deny('approval_context_required', [...trace, 'amount_or_currency_missing'], 'require_approval');
+  }
+
+  const currency = resource.currency.toUpperCase();
+  const candidates = (actor.approvalLimits ?? []).filter(
+    (limit) =>
+      limit.action === action &&
+      limit.currency.toUpperCase() === currency &&
+      isEffectiveWindow(limit.effectiveFrom, limit.effectiveUntil, now) &&
+      scopeMatches(limit, resource)
+  );
+  const limit = candidates.sort((a, b) => b.maxAmountMinor - a.maxAmountMinor)[0];
+  if (!limit) return deny('approval_limit_missing', [...trace, 'approval_limit_missing'], 'require_approval');
+  if (resource.amountMinor > limit.maxAmountMinor) {
+    return deny(
+      'approval_limit_exceeded',
+      [...trace, `approval_limit:${limit.maxAmountMinor}:${currency}`, `requested_amount:${resource.amountMinor}:${currency}`],
+      'require_approval'
+    );
+  }
+
+  return allow(reason, [...trace, `approval_limit:${limit.id}:${limit.maxAmountMinor}:${currency}`]);
+}
+
 export function canPerform(
   actor: MembershipContext,
   action: PermissionAction,
@@ -374,14 +391,10 @@ export function canPerform(
   }
   trace.push('organization_scope_matched');
 
-  const matchedDeny = (actor.explicitDenies ?? []).find((entry) =>
-    matchesExplicitDeny(entry, action, resource, now)
-  );
+  const matchedDeny = (actor.explicitDenies ?? []).find((entry) => matchesExplicitDeny(entry, action, resource, now));
   if (matchedDeny) {
     const breakGlass = matchesBreakGlass(actor, action, resource, now);
-    if (!breakGlass) {
-      return deny('explicit_deny', [...trace, `explicit_deny:${matchedDeny.reason ?? 'policy'}`]);
-    }
+    if (!breakGlass) return deny('explicit_deny', [...trace, `explicit_deny:${matchedDeny.reason ?? 'policy'}`]);
     return allow('break_glass_override', [...trace, `break_glass:${breakGlass.id}`], true);
   }
 
@@ -393,18 +406,25 @@ export function canPerform(
   }
 
   const scopedGrant = (actor.scopedGrants ?? []).find((grant) => matchesScopedGrant(grant, action, resource));
-  const relationship = (actor.authorityRelationships ?? []).find((entry) =>
-    matchesRelationship(entry, action, resource, now)
-  );
+  const relationship = (actor.authorityRelationships ?? []).find((entry) => matchesRelationship(entry, action, resource, now));
 
-  // Internal authorization may use organization-wide and scoped grants before
-  // role defaults. Client-only actors are deliberately excluded here: a client
-  // grant can expand actions inside the Portal boundary, but can never bypass
-  // publication/classification/project isolation below.
   if (actor.internalRoles.length > 0) {
-    if (actor.explicitGrants.includes(action)) return allow('explicit_grant', [...trace, 'organization_grant']);
-    if (scopedGrant) return allow('scoped_grant', [...trace, 'scoped_grant']);
-    if (relationship) return allow(`relationship_${relationship.type}`, [...trace, `relationship:${relationship.type}`]);
+    if (actor.explicitGrants.includes(action)) {
+      return allowWithinApprovalLimit(actor, action, resource, now, 'explicit_grant', [...trace, 'organization_grant']);
+    }
+    if (scopedGrant) {
+      return allowWithinApprovalLimit(actor, action, resource, now, 'scoped_grant', [...trace, 'scoped_grant']);
+    }
+    if (relationship) {
+      return allowWithinApprovalLimit(
+        actor,
+        action,
+        resource,
+        now,
+        `relationship_${relationship.type}`,
+        [...trace, `relationship:${relationship.type}`]
+      );
+    }
 
     if (isExecutive(actor)) {
       const approvalRequired =
@@ -414,11 +434,7 @@ export function canPerform(
       return allow('executive_internal_scope', [...trace, 'executive_scope'], approvalRequired);
     }
 
-    if (
-      resource.projectId &&
-      actor.projectIds.includes(resource.projectId) &&
-      !mfaClassifications.includes(resource.classification)
-    ) {
+    if (resource.projectId && actor.projectIds.includes(resource.projectId) && !mfaClassifications.includes(resource.classification)) {
       if (!roleTemplateAllows(actor.internalRoles, action)) {
         return deny('role_template_action_denied', [...trace, 'assigned_project_scope', 'role_template_denied']);
       }
@@ -433,9 +449,6 @@ export function canPerform(
       (!membership.effectiveUntil || membership.effectiveUntil > now)
   );
   if (clientMembership) {
-    // A client-organization membership is not a blanket entitlement to every
-    // project. The project list is resolved through Portal RLS and must contain
-    // the concrete project before any application-level action is allowed.
     if (resource.projectId && !actor.projectIds.includes(resource.projectId)) {
       return deny('client_project_scope_denied', [...trace, 'client_project_scope_denied']);
     }
@@ -446,7 +459,6 @@ export function canPerform(
       return deny('client_safe_fields_only', [...trace, 'classification_gate']);
     }
     if (action === 'request.submit') return allow('client_request_submission_allowed', [...trace, 'request_submit']);
-
     if (scopedGrant) return allow('client_scoped_grant', [...trace, 'client_scoped_grant']);
 
     if (action === 'invoice.pay') {
@@ -466,11 +478,6 @@ export function canPerform(
   return deny('insufficient_scope', [...trace, 'no_allow_path']);
 }
 
-/**
- * Delegation ceiling: a person cannot delegate an action they cannot perform on
- * the same resource. High-impact actions always stay inside an owner/approval
- * workflow even when the delegator personally has that power.
- */
 export function canDelegate(
   actor: MembershipContext,
   action: PermissionAction,
