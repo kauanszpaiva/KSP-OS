@@ -1,25 +1,36 @@
 # KSP Inc Operating Experience — Foundation
 
-Status: implementation foundation only. This document does not change Canon, legal identity, domains, email senders, payment providers, Auth, RBAC, RLS, database state, or production deployment.
+Status: active visual foundation. This document does not change Canon, legal identity, domains, email senders, payment providers, Auth, RBAC, RLS, database state, or production deployment.
 
 ## Objective
 
 Move KSP OS toward one coherent operating experience across Command, Client Portal, commercial documents, finance, checkout/payment and transactional email without rewriting the business logic that already works.
 
-The visual thesis is institutional, precise and operational: bright paper surfaces for work, carbon rails for navigation/context, graphite structure for hierarchy, and a restrained signal accent for KSP-selected/primary actions. Functional success/warning/risk colors remain semantically independent.
+The visual thesis is institutional, precise and operational: paper-white work surfaces, an Onyx operating rail, graphite hierarchy, steel secondary text, and a restrained Signal Green for KSP-selected/primary actions. Functional success/warning/risk colors remain semantically independent.
 
-## Foundation tokens
+## 2026-08-24 visual-board calibration
 
-- `ksp-carbon`: `#17181D`
-- `ksp-graphite`: `#2A2C33`
-- `ksp-paper`: `#F4F5F7`
-- `ksp-signal`: `#B6FF41`
+The current KSP INC brand boards are the visual source of truth for the operating experience. They refine the earlier foundation palette and typography without authorizing a legal/public rename or treating generated board artwork as production logo/vector assets.
 
-These tokens are introduced as migration primitives. Existing semantic `brand`/`accent` tokens remain intact until individual surfaces are deliberately converted and reviewed.
+Fixed identity tokens:
+
+- `ksp-onyx`: `#0D0D0D`
+- `ksp-carbon`: `#0D0D0D` — compatibility alias for Onyx
+- `ksp-graphite`: `#1E1E1E`
+- `ksp-steel`: `#575757`
+- `ksp-paper`: `#F2F2F2`
+- `ksp-signal`: `#A6C63A`
+
+Typography direction:
+
+- **Sora** for display headings, operating labels and large figures.
+- **Inter** for dense UI copy, forms, tables and tabular figures.
+
+The exact Signal Green is a visual signal, not a generic status color. Light-theme text links use a darker accessible green while primary controls, selection marks and signature linework may use the exact signal token.
 
 ## Shared primitives
 
-`@ksp/ui` now exposes:
+`@ksp/ui` exposes:
 
 - `KspSignalLine`
 - `KspWordmark`
@@ -29,7 +40,16 @@ These tokens are introduced as migration primitives. Existing semantic `brand`/`
 - `KspMetric`
 - `KspPrimaryAction`
 
-The primitives intentionally do not embed a legal entity name or a logo asset. Callers supply approved copy/assets so visual rollout can proceed without silently resolving the open naming/Canon gate.
+The primitives intentionally do not embed a logo asset, legal entity name, or division name. Callers supply approved copy/assets so visual rollout can proceed without silently resolving the open naming/Canon gate.
+
+## Operating-shell rules
+
+- Command and Portal desktop surfaces use a dark operating rail with light content surfaces.
+- Navigation selection uses Signal Green as a line/icon cue rather than filling the application with green.
+- White/graphite hierarchy, linework and spacing do more visual work than shadows or nested cards.
+- User-selectable decorative color palettes are not surfaced inside the KSP INC operating shells; identity should remain consistent between users.
+- Dark mode remains supported, but it must preserve the same Onyx/Paper/Signal hierarchy rather than introduce an unrelated theme family.
+- Mobile keeps the same visual vocabulary with compact top branding and bottom primary navigation.
 
 ## Migration sequence
 
@@ -49,24 +69,21 @@ The primitives intentionally do not embed a legal entity name or a logo asset. C
 - Preserve the released client-media and invoice state machines.
 - Do not fabricate financial/project metrics for visual fidelity.
 - Do not store card number or CVV in KSP OS.
-- Do not rename legal/public identity, domains or email senders from this foundation change.
+- Do not rename legal/public identity, domains or email senders from a visual-system change.
 - Do not treat generated mockups as production logo/vector assets.
-- Keep success/warning/risk meaning separate from the KSP signal accent.
+- Keep success/warning/risk meaning separate from KSP Signal Green.
 - Prefer grouped rows, typography, linework and whitespace over nested card stacks.
 - Keep descriptions/details behind intentional disclosure where the page already supports click-first behavior.
 
 ## Dependency recovery
 
-This is the clean recovery of the original PR #111 foundation. It is based directly on the current `main` branch and intentionally excludes PR #110 profile/avatar/Auth changes and every database migration from that stacked branch lineage.
+This foundation is based directly on the reconciled `main` line. Visual work must remain independent from stale Auth or migration ancestry and should not import database changes simply to achieve presentation parity.
 
-Future Command/Portal redesign work should branch from the reconciled current `main`; profile/avatar work must be reconstructed and reviewed separately so visual foundation work cannot silently import stale Auth or migration ancestry.
+## Acceptance gates
 
-## Acceptance gates for this foundation
-
-- Tailwind exposes the four fixed KSP operating identity tokens.
+- Tailwind exposes the calibrated fixed KSP operating identity tokens.
 - Shared primitives compile through `@ksp/ui` without duplicating business logic.
-- No production-facing shell is switched yet.
-- No database, migration, Auth, RLS, payment, email-provider or sender-domain change.
-- The PR diff contains only this foundation document, `@ksp/ui` export/primitives, and Tailwind identity tokens.
-- Full repository typecheck/tests/build and Command/Portal Vercel previews must pass on the new exact head before merge.
-- Visual/originality review is required once a representative Command/Portal surface actually consumes the primitives; token creation alone is not sufficient evidence for final visual approval.
+- Command and Portal shells consume the KSP operating identity without altering permissions or data behavior.
+- No database, migration, Auth, RLS, payment, email-provider or sender-domain change is part of the visual migration.
+- Full repository typecheck/tests/build and Command/Portal Vercel previews must pass on the exact head before merge.
+- Representative desktop/mobile visual and accessibility review is required before the visual migration is considered complete.
