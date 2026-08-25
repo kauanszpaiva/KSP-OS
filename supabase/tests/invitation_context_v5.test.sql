@@ -1,0 +1,47 @@
+-- Invitation context V5 negative SQL regression plan.
+-- Execute against a seeded preview database with pgTAP/psql after the
+-- migration replay. No production database or invitation is touched here.
+--
+-- Contract / constraint checks:
+--   1. portal_invitations.surface is always 'portal' and
+--      partner_invitations.surface is always 'network'.
+--   2. context_version is exactly 1 and scope is a JSON object.
+--   3. a Portal scope cannot carry partnerOrganizationId and a Network scope
+--      cannot carry clientOrganizationId.
+--   4. scope.organizationId and the surface-specific tenant id must match the
+--      row's authoritative organization columns.
+--   5. role values are limited to the surface's role set.
+--   6. raw token values never appear in either table; only token_hash exists.
+--
+-- RLS / function checks:
+--   7. anonymous callers cannot execute preview_partner_invitation or
+--      accept_partner_invitation and cannot select partner_invitations.
+--   8. authenticated partner users cannot select, insert, update, delete or
+--      enumerate partner_invitations directly; only the narrow preview and
+--      accept functions are exposed.
+--   9. a non-executive/internal user cannot insert or alter a partner invitation
+--      through the table policy.
+--  10. an invitation whose scope points at another organization or tenant is
+--      rejected by constraints and cannot be accepted.
+--
+-- Acceptance state machine:
+--  11. unknown, revoked, expired, accepted and email-mismatched tokens fail
+--      closed with the mapped reason.
+--  12. a valid Network token creates exactly one partner_memberships row,
+--      marks accepted_at/accepted_by, and appends network.invitation.accepted
+--      to audit_events.
+--  13. a second acceptance of the same token raises
+--      partner_membership_exists or invitation_already_accepted and creates
+--      no second membership.
+--  14. a Network token with non-empty projectIds or teamKey raises an explicit
+--      *_scope_not_supported error until the Network scope ledger exists;
+--      it never silently widens access.
+--  15. a valid Portal owner token grants only the persisted projectIds when
+--      the context contains that key; legacy rows with no key retain their
+--      reviewed historical owner behavior.
+--
+-- Runtime E2E still required:
+--   - create invitation in Inc with owner AAL2, follow the real email/callback,
+--     accept in Portal and Network, and verify cross-tenant/direct-URL/API/RLS
+--     denials at the exact deployed head.
+select 'invitation context V5 regression plan present' as plan;
