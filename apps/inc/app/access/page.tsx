@@ -1,10 +1,12 @@
 import { AccessAdminPanel } from '../../components/access-admin-panel';
 import { AuthorityAdminPanel } from '../../components/authority-admin-panel';
 import { AuthoritySimulatorPanel } from '../../components/authority-simulator-panel';
+import { DelegationAdminPanel } from '../../components/delegation-admin-panel';
 import { IncShell, ownerRoleLabel } from '../../components/inc-shell';
 import { OwnerList, OwnerPageHeader, SurfaceStatus } from '../../components/owner-surface';
 import { getIncAccessAdminData } from '../../lib/inc-admin-data';
 import { getIncAuthorityData } from '../../lib/authority-data';
+import { getIncDelegations } from '../../lib/delegation-data';
 import { getAccessRows } from '../../lib/inc-data';
 import { requireIncOwner } from '../../lib/inc-session';
 import { getServerSupabase } from '../../lib/supabase';
@@ -31,25 +33,26 @@ const emptyAuthority = {
 export default async function IncAccessPage() {
   const ctx = await requireIncOwner();
   const supabase = await getServerSupabase();
-  const [rows, admin, authority] = supabase
+  const [rows, admin, authority, delegations] = supabase
     ? await Promise.all([
         getAccessRows(supabase),
         getIncAccessAdminData(supabase, ctx.organizationId),
-        getIncAuthorityData(supabase, ctx.organizationId)
+        getIncAuthorityData(supabase, ctx.organizationId),
+        getIncDelegations(supabase, ctx.organizationId)
       ])
-    : [[], emptyAdmin, emptyAuthority];
+    : [[], emptyAdmin, emptyAuthority, []];
 
   return (
     <IncShell ownerName={ctx.user.displayName} roleLabel={ownerRoleLabel(ctx.internalRoles)}>
       <OwnerPageHeader
         eyebrow="Authorization"
         title="Access"
-        description="Owner-operated authority control across KSP divisions, permissions, explicit denies, hierarchy and time-bound access."
+        description="Owner-operated authority control across KSP divisions, permissions, explicit denies, hierarchy, delegation and time-bound access."
         aside="All mutations require the canonical KSP INC owner role plus an AAL2/MFA session; application checks and database RLS enforce the same boundary."
       />
       <SurfaceStatus
         title="Authority Engine V4 · deny-by-default"
-        body="Roles are defaults, not blanket authority. Explicit denies win, supervision flows downward without financial inheritance, and emergency override is short-lived and audited."
+        body="Roles are defaults, not blanket authority. Explicit denies win, supervision flows downward without financial inheritance, delegation cannot exceed source authority, and emergency override is short-lived and audited."
         tone="ok"
       />
       <section className="section">
@@ -58,6 +61,13 @@ export default async function IncAccessPage() {
           <p>safe view-as · decision trace</p>
         </div>
         <AuthoritySimulatorPanel people={admin.people} projects={admin.projects} />
+      </section>
+      <section className="section">
+        <div className="sectionHeader">
+          <h2>Delegation</h2>
+          <p>source authority · exact scope · expiry</p>
+        </div>
+        <DelegationAdminPanel people={admin.people} projects={admin.projects} delegations={delegations} />
       </section>
       <section className="section">
         <div className="sectionHeader">
