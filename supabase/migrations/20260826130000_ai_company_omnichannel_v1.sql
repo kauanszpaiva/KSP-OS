@@ -52,7 +52,7 @@ create table if not exists public.communication_conversations (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint communication_conversations_scope_check check (
+  constraint communication_conversations_client_scope_check check (
     (scope = 'client' and client_organization_id is not null)
     or (scope <> 'client')
   )
