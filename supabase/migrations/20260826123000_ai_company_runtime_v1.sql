@@ -167,23 +167,23 @@ grant select, insert, update, delete on public.ai_company_budget_events to authe
 
 create policy ai_company_agents_owner_all on public.ai_company_agents
   for all to authenticated
-  using (public.is_executive(organization_id))
-  with check (public.is_executive(organization_id));
+  using (public.is_executive(ai_company_agents.organization_id))
+  with check (public.is_executive(ai_company_agents.organization_id));
 
 create policy ai_company_missions_owner_all on public.ai_company_missions
   for all to authenticated
-  using (public.is_executive(organization_id))
+  using (public.is_executive(ai_company_missions.organization_id))
   with check (
-    public.is_executive(organization_id)
+    public.is_executive(ai_company_missions.organization_id)
     and (
-      (plane = 'internal' and client_organization_id is null)
+      (ai_company_missions.plane = 'internal' and ai_company_missions.client_organization_id is null)
       or (
-        plane = 'client'
-        and client_organization_id is not null
+        ai_company_missions.plane = 'client'
+        and ai_company_missions.client_organization_id is not null
         and exists (
           select 1 from public.client_organizations co
-          where co.id = client_organization_id
-            and co.organization_id = organization_id
+          where co.id = ai_company_missions.client_organization_id
+            and co.organization_id = ai_company_missions.organization_id
             and co.archived_at is null
         )
       )
@@ -192,43 +192,46 @@ create policy ai_company_missions_owner_all on public.ai_company_missions
 
 create policy ai_company_tasks_owner_all on public.ai_company_tasks
   for all to authenticated
-  using (public.is_executive(organization_id))
+  using (public.is_executive(ai_company_tasks.organization_id))
   with check (
-    public.is_executive(organization_id)
+    public.is_executive(ai_company_tasks.organization_id)
     and exists (
       select 1 from public.ai_company_missions m
-      where m.id = mission_id and m.organization_id = organization_id
+      where m.id = ai_company_tasks.mission_id
+        and m.organization_id = ai_company_tasks.organization_id
     )
   );
 
 create policy ai_company_evidence_owner_all on public.ai_company_evidence
   for all to authenticated
-  using (public.is_executive(organization_id))
+  using (public.is_executive(ai_company_evidence.organization_id))
   with check (
-    public.is_executive(organization_id)
+    public.is_executive(ai_company_evidence.organization_id)
     and exists (
       select 1 from public.ai_company_missions m
-      where m.id = mission_id and m.organization_id = organization_id
+      where m.id = ai_company_evidence.mission_id
+        and m.organization_id = ai_company_evidence.organization_id
     )
   );
 
 create policy ai_company_capabilities_owner_all on public.ai_company_capabilities
   for all to authenticated
-  using (public.is_executive(organization_id))
-  with check (public.is_executive(organization_id));
+  using (public.is_executive(ai_company_capabilities.organization_id))
+  with check (public.is_executive(ai_company_capabilities.organization_id));
 
 create policy ai_company_budget_policies_owner_all on public.ai_company_budget_policies
   for all to authenticated
-  using (public.is_executive(organization_id))
-  with check (public.is_executive(organization_id));
+  using (public.is_executive(ai_company_budget_policies.organization_id))
+  with check (public.is_executive(ai_company_budget_policies.organization_id));
 
 create policy ai_company_budget_events_owner_all on public.ai_company_budget_events
   for all to authenticated
-  using (public.is_executive(organization_id))
+  using (public.is_executive(ai_company_budget_events.organization_id))
   with check (
-    public.is_executive(organization_id)
-    and (mission_id is null or exists (
+    public.is_executive(ai_company_budget_events.organization_id)
+    and (ai_company_budget_events.mission_id is null or exists (
       select 1 from public.ai_company_missions m
-      where m.id = mission_id and m.organization_id = organization_id
+      where m.id = ai_company_budget_events.mission_id
+        and m.organization_id = ai_company_budget_events.organization_id
     ))
   );
