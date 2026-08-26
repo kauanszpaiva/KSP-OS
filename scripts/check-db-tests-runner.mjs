@@ -155,17 +155,17 @@ SQL
   ex\it $?
 fi
 
-# Hosted Supabase Auth provides raw_user_meta_data and the profile-sync trigger
-# creates public.profiles when auth.users rows are inserted. The legacy actor
-# fixture still writes its friendly display names explicitly. Keep the real
-# trigger active and make that fixture write idempotent instead of disabling
-# production behavior during the RLS rehearsal.
+# Hosted Supabase Auth provides raw_user_meta_data/recovery_sent_at and the
+# profile-sync trigger creates public.profiles when auth.users rows are inserted.
+# The legacy actor fixture still writes its friendly display names explicitly.
+# Keep the real trigger active and make that fixture write idempotent instead of
+# disabling production behavior during the RLS rehearsal.
 if [ "$1" = "exec" ] && [ "$2" = "-i" ] && [ "$4" = "psql" ]; then
   INPUT_FILE="$(mktemp)"
   REWRITTEN_FILE="$(mktemp)"
   cat > "$INPUT_FILE"
   sed \
-    -e "s/create table auth.users (id uuid primary key, email text unique);/create table auth.users (id uuid primary key, email text unique, raw_user_meta_data jsonb not null default '{}'::jsonb);/" \
+    -e "s/create table auth.users (id uuid primary key, email text unique);/create table auth.users (id uuid primary key, email text unique, raw_user_meta_data jsonb not null default '{}'::jsonb, recovery_sent_at timestamptz);/" \
     -e "s/('20000000-0000-0000-0000-000000000005', 'Other Org Test', 'other-org@test.invalid');/('20000000-0000-0000-0000-000000000005', 'Other Org Test', 'other-org@test.invalid') on conflict (id) do update set display_name = excluded.display_name, email = excluded.email;/" \
     "$INPUT_FILE" > "$REWRITTEN_FILE"
   $REAL_DOCKER "$@" < "$REWRITTEN_FILE"
