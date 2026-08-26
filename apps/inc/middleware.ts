@@ -1,6 +1,16 @@
-import { createServerClient } from "@ksp/database";
 import { logger, metrics, tracingContext } from "@ksp/observability";
+import {
+  createServerClient as createSsrServerClient,
+  type CookieOptions,
+} from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { resolveIncSupabaseConfig } from "./lib/supabase-routing";
+
+type CookieToSet = {
+  name: string;
+  value: string;
+  options: CookieOptions;
+};
 
 export async function middleware(request: NextRequest) {
   const requestId = crypto.randomUUID();
@@ -18,16 +28,21 @@ export async function middleware(request: NextRequest) {
       });
     }
 
-    const supabase = createServerClient({
-      getAll: () =>
-        request.cookies
-          .getAll()
-          .map((cookie) => ({ name: cookie.name, value: cookie.value })),
-      setAll: (toSet) => {
-        for (const { name, value, options } of toSet)
-          response.cookies.set(name, value, options);
-      },
-    });
+    const config = resolveIncSupabaseConfig(request.nextUrl.hostname);
+    const supabase = config
+      ? createSsrServerClient(config.url, config.anonKey, {
+          cookies: {
+            getAll: () =>
+              request.cookies
+                .getAll()
+                .map((cookie) => ({ name: cookie.name, value: cookie.value })),
+            setAll: (toSet: CookieToSet[]) => {
+              for (const { name, value, options } of toSet)
+                response.cookies.set(name, value, options);
+            },
+          },
+        })
+      : null;
 
     if (supabase) {
       try {
