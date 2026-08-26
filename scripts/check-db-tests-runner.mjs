@@ -18,11 +18,11 @@ if [ "$1" = "exec" ] && [ "$3" = "pg_isready" ]; then
 fi
 
 # The repository's migration chain targets Supabase Postgres, where Vault,
-# pgcrypto-in-extensions, the HTTP extension, and service_role are platform
-# contracts. The behavioral CI harness uses vanilla postgres:15, so inject only
-# those platform-provided contracts into each fresh test database. Application
-# tables, policies, triggers, and migrations still come exclusively from the
-# real migration chain.
+# pgcrypto-in-extensions, the HTTP extension, service_role, and the full
+# auth.users shape are platform contracts. The behavioral CI harness uses
+# vanilla postgres:15, so inject only those platform-provided contracts.
+# Application tables, policies, triggers, and migrations still come exclusively
+# from the real migration chain.
 if [ "$1" = "exec" ] && [ "$3" = "createdb" ]; then
   CONTAINER="$2"
   DB_NAME=""
@@ -153,6 +153,57 @@ AS $$
 $$;
 SQL
   ex\it $?
+fi
+
+# Legacy behavioral fixtures seed auth.users and profiles in separate steps.
+# Once the production profile-sync trigger exists those fixtures would attempt
+# to create the same profile twice. Suspend only that trigger around fixture
+# payloads that explicitly seed auth.users; leave the real migration and trigger
+# enabled in the resulting schema. Also expand the minimal auth.users stub with
+# raw_user_meta_data, which hosted Supabase provides and the production migration
+# legitimately reads during backfill.
+if [ "$1" = "exec" ] && [ "$2" = "-i" ] && [ "$4" = "psql" ]; then
+  INPUT_FILE="$(mktemp)"
+  REWRITTEN_FILE="$(mktemp)"
+  WRAPPED_FILE="$(mktemp)"
+  cat > "$INPUT_FILE"
+  sed "s/create table auth.users (id uuid primary key, email text unique);/create table auth.users (id uuid primary key, email text unique, raw_user_meta_data jsonb not null default '{}'::jsonb);/" "$INPUT_FILE" > "$REWRITTEN_FILE"
+
+  if grep -qi "insert into auth.users" "$REWRITTEN_FILE" && ! grep -qi "create table auth.users" "$REWRITTEN_FILE"; then
+    cat > "$WRAPPED_FILE" <<'SQL'
+DO $ksp$ BEGIN
+  IF to_regclass('auth.users') IS NOT NULL
+     AND EXISTS (
+       SELECT 1
+       FROM pg_trigger
+       WHERE tgname = 'ksp_auth_user_profile_sync'
+         AND tgrelid = 'auth.users'::regclass
+     ) THEN
+    EXECUTE 'ALTER TABLE auth.users DISABLE TRIGGER ksp_auth_user_profile_sync';
+  END IF;
+END $ksp$;
+SQL
+    cat "$REWRITTEN_FILE" >> "$WRAPPED_FILE"
+    cat >> "$WRAPPED_FILE" <<'SQL'
+DO $ksp$ BEGIN
+  IF to_regclass('auth.users') IS NOT NULL
+     AND EXISTS (
+       SELECT 1
+       FROM pg_trigger
+       WHERE tgname = 'ksp_auth_user_profile_sync'
+         AND tgrelid = 'auth.users'::regclass
+     ) THEN
+    EXECUTE 'ALTER TABLE auth.users ENABLE TRIGGER ksp_auth_user_profile_sync';
+  END IF;
+END $ksp$;
+SQL
+    $REAL_DOCKER "$@" < "$WRAPPED_FILE"
+  else
+    $REAL_DOCKER "$@" < "$REWRITTEN_FILE"
+  fi
+  STATUS=$?
+  rm -f "$INPUT_FILE" "$REWRITTEN_FILE" "$WRAPPED_FILE"
+  ex\it $STATUS
 fi
 
 exec "$REAL_DOCKER" "$@"
