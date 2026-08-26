@@ -11,9 +11,14 @@ insert into auth.users (id, email) values
   ('20000000-0000-0000-0000-000000000006', 'operations-owner@test.invalid'),
   ('20000000-0000-0000-0000-000000000007', 'future-owner@test.invalid');
 
+-- The production-like migration chain synchronizes auth.users -> profiles.
+-- Keep these fixtures compatible whether that trigger is already present.
 insert into public.profiles (id, display_name, email) values
   ('20000000-0000-0000-0000-000000000006', 'Operations Owner Test', 'operations-owner@test.invalid'),
-  ('20000000-0000-0000-0000-000000000007', 'Future Owner Test', 'future-owner@test.invalid');
+  ('20000000-0000-0000-0000-000000000007', 'Future Owner Test', 'future-owner@test.invalid')
+on conflict (id) do update
+set display_name = excluded.display_name,
+    email = excluded.email;
 
 insert into public.organization_memberships (organization_id, profile_id, role, internal_role, scope) values
   ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000006', 'executive_operations', 'executive_operations', 'all');
@@ -268,7 +273,10 @@ insert into auth.users (id,email) values
  ('20000000-0000-0000-0000-000000000009','partner-b@test.invalid');
 insert into public.profiles (id,display_name,email) values
  ('20000000-0000-0000-0000-000000000008','Partner A','partner-a@test.invalid'),
- ('20000000-0000-0000-0000-000000000009','Partner B','partner-b@test.invalid');
+ ('20000000-0000-0000-0000-000000000009','Partner B','partner-b@test.invalid')
+on conflict (id) do update
+set display_name = excluded.display_name,
+    email = excluded.email;
 insert into public.business_units(id,organization_id,key,name,sort_order) values
  ('61000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','network-agency-test','Network Agency Test',40),
  ('61000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','network-dev-test','Network Dev Test',50);
