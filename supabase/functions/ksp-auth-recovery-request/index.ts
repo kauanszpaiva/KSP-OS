@@ -33,8 +33,8 @@ function json(req: Request, body: Record<string, unknown>, status = 200) {
 }
 
 function genericSuccess(req: Request) {
-  // Never reveal whether an account exists or whether delivery failed for a
-  // specific address. Delivery failures are observable in server-side logs.
+  // Never reveal whether an account exists, is in cooldown, or whether delivery
+  // failed for a specific address. Delivery failures remain server-observable.
   return json(req, { ok: true }, 200);
 }
 
@@ -88,6 +88,19 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+
+  // admin.generateLink() does not enforce the normal /recover frequency limit.
+  // This service-role-only database gate checks the same recovery_sent_at field
+  // before a new token is generated, preserving at least a 60-second cooldown.
+  const { data: recoveryAllowed, error: cooldownError } = await admin.rpc(
+    "ksp_can_generate_recovery_link",
+    { p_email: email, p_cooldown_seconds: 60 },
+  );
+  if (cooldownError) {
+    console.error("KSP auth recovery cooldown check failed");
+    return genericSuccess(req);
+  }
+  if (recoveryAllowed !== true) return genericSuccess(req);
 
   // generateLink creates a native Supabase recovery token without asking GoTrue
   // to deliver email. Unknown users intentionally collapse to the same public
