@@ -96,6 +96,22 @@ if (docker.status !== 0) {
       grant select on storage.objects to anon;
       grant select, insert, update, delete on storage.objects to authenticated;
       grant usage, select on all sequences in schema storage to authenticated;
+
+      -- This isolated rehearsal owns its profile fixtures explicitly. Auth/profile
+      -- synchronization is exercised by the main and owner-access DB rehearsals;
+      -- disabling it here prevents unrelated duplicate fixtures from coupling the
+      -- social-distribution suite to Auth trigger behavior.
+      do $$ begin
+        if exists (
+          select 1
+          from pg_trigger
+          where tgname = 'ksp_auth_user_profile_sync'
+            and tgrelid = 'auth.users'::regclass
+            and not tgisinternal
+        ) then
+          alter table auth.users disable trigger ksp_auth_user_profile_sync;
+        end if;
+      end $$;
     `);
 
     psql('social_distribution', socialTest);
