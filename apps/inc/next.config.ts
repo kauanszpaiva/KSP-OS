@@ -21,7 +21,15 @@ const securityHeaders = [
 ];
 
 function readVersionedSupabaseEnv(): Record<string, string> {
-  if (process.env.VERCEL_ENV === "preview") {
+  // `main` is the repository's canonical production branch. Treat a main-branch
+  // deployment as production even if Vercel mislabels the deployment as Preview;
+  // otherwise the public standalone INC hostname can silently authenticate
+  // against the isolated staging project.
+  const isProductionSource =
+    process.env.VERCEL_ENV === "production" ||
+    process.env.VERCEL_GIT_COMMIT_REF === "main";
+
+  if (!isProductionSource && process.env.VERCEL_ENV === "preview") {
     process.env.NEXT_PUBLIC_SUPABASE_URL = PREVIEW_SUPABASE_URL;
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY =
       PREVIEW_SUPABASE_PUBLISHABLE_KEY;
@@ -31,7 +39,7 @@ function readVersionedSupabaseEnv(): Record<string, string> {
     };
   }
 
-  if (process.env.VERCEL_ENV !== "production") return {};
+  if (!isProductionSource) return {};
 
   const workflow = readFileSync(
     new URL("../../.github/workflows/setup-login.yml", import.meta.url),
@@ -40,9 +48,6 @@ function readVersionedSupabaseEnv(): Record<string, string> {
   const readWorkflowEnv = (name: string) =>
     workflow.match(new RegExp(`^\\s*${name}:\\s*(\\S+)\\s*$`, "m"))?.[1];
 
-  // Production auth must stay pinned to the repository-versioned canonical
-  // Supabase target. Project-level Vercel env drift must not silently route
-  // the standalone INC login to staging/preview.
   const url =
     readWorkflowEnv("NEXT_PUBLIC_SUPABASE_URL") ??
     process.env.NEXT_PUBLIC_SUPABASE_URL;
