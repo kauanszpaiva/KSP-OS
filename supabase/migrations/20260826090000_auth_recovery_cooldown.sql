@@ -21,8 +21,8 @@ as $$
         u.recovery_sent_at is null
         or u.recovery_sent_at <= pg_catalog.now() - pg_catalog.make_interval(
           secs => case
-            when pg_catalog.coalesce(p_cooldown_seconds, 60) < 60 then 60
-            else pg_catalog.coalesce(p_cooldown_seconds, 60)
+            when coalesce(p_cooldown_seconds, 60) < 60 then 60
+            else coalesce(p_cooldown_seconds, 60)
           end
         )
       )
