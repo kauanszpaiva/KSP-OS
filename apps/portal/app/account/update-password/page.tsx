@@ -10,6 +10,7 @@ export default function UpdatePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [hasRecoverySession, setHasRecoverySession] = useState(false);
   const [pending, setPending] = useState(false);
   const configured = isSupabaseConfigured();
 
@@ -21,6 +22,7 @@ export default function UpdatePasswordPage() {
       if (!supabase) {
         if (!cancelled) {
           setError('Supabase is not configured in this environment.');
+          setHasRecoverySession(false);
           setCheckingSession(false);
         }
         return;
@@ -31,6 +33,9 @@ export default function UpdatePasswordPage() {
 
       if (userError || !data.user) {
         setError('This password link is invalid or has expired. Request a new one from the sign-in page.');
+        setHasRecoverySession(false);
+      } else {
+        setHasRecoverySession(true);
       }
       setCheckingSession(false);
     }
@@ -45,6 +50,10 @@ export default function UpdatePasswordPage() {
     e.preventDefault();
     setError(null);
 
+    if (!hasRecoverySession) {
+      setError('This password link is invalid or has expired. Request a new one from the sign-in page.');
+      return;
+    }
     if (password.length < 8) {
       setError('Use at least 8 characters.');
       return;
@@ -110,6 +119,7 @@ export default function UpdatePasswordPage() {
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={!hasRecoverySession}
                   className={field}
                 />
               </div>
@@ -123,13 +133,14 @@ export default function UpdatePasswordPage() {
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={!hasRecoverySession}
                   className={field}
                 />
               </div>
               {error && <p className="text-[13px] text-risk">{error}</p>}
               <button
                 type="submit"
-                disabled={pending || !configured || Boolean(error && !password)}
+                disabled={pending || !configured || !hasRecoverySession}
                 className="w-full rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-on-brand shadow-card transition-[background-color,transform] duration-fast active:scale-[0.98] hover:bg-brand-strong disabled:opacity-50 disabled:active:scale-100"
               >
                 {pending ? 'Saving…' : 'Save password'}
