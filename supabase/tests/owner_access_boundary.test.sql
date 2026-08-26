@@ -34,7 +34,10 @@ insert into public.profiles(id,display_name,email) values
  ('e1000000-0000-0000-0000-000000000001','Founder Matrix','founder-matrix@test.invalid'),
  ('e1000000-0000-0000-0000-000000000002','Executive Matrix','exec-matrix@test.invalid'),
  ('e1000000-0000-0000-0000-000000000003','Member Matrix','member-matrix@test.invalid'),
- ('e1000000-0000-0000-0000-000000000004','Other Founder Matrix','other-founder-matrix@test.invalid');
+ ('e1000000-0000-0000-0000-000000000004','Other Founder Matrix','other-founder-matrix@test.invalid')
+on conflict (id) do update
+set display_name = excluded.display_name,
+    email = excluded.email;
 
 insert into public.organization_memberships(organization_id,profile_id,role,internal_role,scope) values
  ('e0000000-0000-0000-0000-000000000001','e1000000-0000-0000-0000-000000000001','founder_ceo','founder_ceo','all'),
