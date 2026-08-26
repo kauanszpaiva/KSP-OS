@@ -3,6 +3,7 @@ import { SignOutButton } from './sign-out-button';
 
 const nav = [
   ['Overview', '/'],
+  ['AI Company', '/ai-company'],
   ['Work', '/work'],
   ['Structure', '/structure'],
   ['People', '/people'],
