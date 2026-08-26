@@ -1,9 +1,18 @@
 import { isSupabaseConfigured, type SupabaseClient } from "@ksp/database";
-import { createServerClient as createSsrServerClient } from "@supabase/ssr";
+import {
+  createServerClient as createSsrServerClient,
+  type CookieOptions,
+} from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
 import { resolveIncSupabaseConfig } from "./supabase-routing";
 
 export { isSupabaseConfigured };
+
+type CookieToSet = {
+  name: string;
+  value: string;
+  options: CookieOptions;
+};
 
 export async function getServerSupabase(): Promise<SupabaseClient | null> {
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
@@ -23,7 +32,7 @@ export async function getServerSupabase(): Promise<SupabaseClient | null> {
         cookieStore
           .getAll()
           .map((cookie) => ({ name: cookie.name, value: cookie.value })),
-      setAll: (toSet) => {
+      setAll: (toSet: CookieToSet[]) => {
         try {
           for (const { name, value, options } of toSet)
             cookieStore.set(name, value, options);
