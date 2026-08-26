@@ -28,6 +28,7 @@ const accessGraphTest = fs.readFileSync('supabase/tests/access_graph_v3.test.sql
 const ownerBoundaryTest = fs.readFileSync('supabase/tests/owner_access_boundary.test.sql', 'utf8');
 const suspendedNotificationTest = fs.readFileSync('supabase/tests/suspended_notification_boundary.test.sql', 'utf8');
 const aiCompanyRuntimeTest = fs.readFileSync('supabase/tests/ai_company_runtime.test.sql', 'utf8');
+const whatsappFrontDeskTest = fs.readFileSync('supabase/tests/whatsapp_front_desk.test.sql', 'utf8');
 
 function dockerExec(args, options = {}) {
   return run('docker', ['exec', ...args], options);
@@ -109,7 +110,8 @@ try {
   psql(db, ownerBoundaryTest);
   psql(db, suspendedNotificationTest);
   psql(db, aiCompanyRuntimeTest);
-  console.log('Owner access DB rehearsal passed: exact task assignment/mention isolation, anti-fan-out, revoke behavior, owner-only temporary grants, suspended notification denial, and AI Company owner/client-plane isolation.');
+  psql(db, whatsappFrontDeskTest);
+  console.log('Owner access DB rehearsal passed: assignment/mention isolation, revoke behavior, owner-only temporary grants, suspended notification denial, AI Company isolation, and WhatsApp-only Front Desk channel/RLS boundaries.');
 } finally {
   run('docker', ['rm', '-f', containerName], { allowFailure: true });
 }
