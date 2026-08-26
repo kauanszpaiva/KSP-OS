@@ -3,6 +3,7 @@ import { getServerSupabase } from '../../../lib/supabase';
 
 const TOKEN_HASH_RE = /^[A-Za-z0-9_-]{16,256}$/;
 const INVITE_PATH_RE = /^\/invite\/[0-9a-f]{64}$/i;
+const RECOVERY_PATH = '/account/update-password';
 
 function invalidRedirect(request: NextRequest) {
   const url = request.nextUrl.clone();
@@ -16,7 +17,9 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get('type');
   const next = request.nextUrl.searchParams.get('next') || '';
 
-  if (type !== 'signup' || !TOKEN_HASH_RE.test(tokenHash) || !INVITE_PATH_RE.test(next)) {
+  const validSignup = type === 'signup' && INVITE_PATH_RE.test(next);
+  const validRecovery = type === 'recovery' && next === RECOVERY_PATH;
+  if (!TOKEN_HASH_RE.test(tokenHash) || (!validSignup && !validRecovery)) {
     return invalidRedirect(request);
   }
 
@@ -29,7 +32,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { error } = await supabase.auth.verifyOtp({
-    type: 'signup',
+    type: validSignup ? 'signup' : 'recovery',
     token_hash: tokenHash
   });
 
