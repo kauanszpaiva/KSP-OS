@@ -1,4 +1,4 @@
--- KSP INC WhatsApp AI Front Desk V1 actor, channel and ingress-scope matrix.
+-- KSP INC WhatsApp AI Front Desk V1 actor, channel, ingress and outbox-scope matrix.
 -- Runs after the full migration chain and rolls back all fixtures.
 
 begin;
@@ -57,11 +57,30 @@ insert into public.communication_conversations(
 );
 
 insert into public.communication_events(
- organization_id,conversation_id,channel_id,identity_id,channel_kind,direction,event_type,provider,dedupe_key,body
+ id,organization_id,conversation_id,channel_id,identity_id,channel_kind,direction,event_type,provider,dedupe_key,provider_event_id,body
 ) values (
- 'b0000000-0000-0000-0000-000000000001','b4000000-0000-0000-0000-000000000001',
- 'b2000000-0000-0000-0000-000000000001','b3000000-0000-0000-0000-000000000001',
- 'whatsapp','inbound','message','meta','whatsapp-test-event-1','hello'
+ 'b5000000-0000-0000-0000-000000000001','b0000000-0000-0000-0000-000000000001',
+ 'b4000000-0000-0000-0000-000000000001','b2000000-0000-0000-0000-000000000001',
+ 'b3000000-0000-0000-0000-000000000001','whatsapp','inbound','message','meta',
+ 'whatsapp-test-event-1','wamid.test-inbound-1','hello'
+);
+
+insert into public.communication_ai_actions(
+ id,organization_id,conversation_id,source_event_id,agent_key,action_type,status,risk_level,summary,requires_human_approval,metadata
+) values (
+ 'b6000000-0000-0000-0000-000000000001','b0000000-0000-0000-0000-000000000001',
+ 'b4000000-0000-0000-0000-000000000001','b5000000-0000-0000-0000-000000000001',
+ 'inc.whatsapp-front-desk','reply','queued','low','Reply to the inbound WhatsApp test message.',false,
+ '{"external_send_allowed":true}'::jsonb
+);
+
+insert into public.communication_outbox(
+ id,organization_id,conversation_id,channel_id,ai_action_id,dedupe_key,payload,status
+) values (
+ 'b7000000-0000-0000-0000-000000000001','b0000000-0000-0000-0000-000000000001',
+ 'b4000000-0000-0000-0000-000000000001','b2000000-0000-0000-0000-000000000001',
+ 'b6000000-0000-0000-0000-000000000001','whatsapp-test-outbox-1',
+ '{"kind":"text","body":"hello back"}'::jsonb,'queued'
 );
 
 do $$ declare c int; begin
@@ -71,6 +90,8 @@ do $$ declare c int; begin
  if c<>1 then raise exception 'WhatsApp automation must default fail-closed/off: %',c; end if;
  select count(*) into c from public.communication_events where channel_kind='whatsapp';
  if c<>1 then raise exception 'founder WhatsApp event write failed: %',c; end if;
+ select count(*) into c from public.communication_outbox where ai_action_id is not null;
+ if c<>1 then raise exception 'authorized WhatsApp outbox evidence link failed: %',c; end if;
 
  begin
   insert into public.communication_channels(organization_id,channel_key,kind,provider,created_by)
@@ -105,6 +126,17 @@ do $$ declare c int; begin
   );
   raise exception 'cross-organization identity unexpectedly attached to conversation';
  exception when insufficient_privilege then null; end;
+
+ begin
+  insert into public.communication_outbox(
+    organization_id,conversation_id,channel_id,dedupe_key,payload,status
+  ) values (
+    'b0000000-0000-0000-0000-000000000001','b4000000-0000-0000-0000-000000000001',
+    'b2000000-0000-0000-0000-000000000001','missing-ai-action',
+    '{"kind":"text","body":"must fail"}'::jsonb,'queued'
+  );
+  raise exception 'outbox without AI action unexpectedly allowed';
+ exception when not_null_violation then null; end;
 end $$;
 reset role;
 
@@ -129,6 +161,8 @@ do $$ declare c int; begin
  if c<>0 then raise exception 'normal internal member reads WhatsApp channels: %',c; end if;
  select count(*) into c from public.communication_conversations;
  if c<>0 then raise exception 'normal internal member reads WhatsApp conversations: %',c; end if;
+ select count(*) into c from public.communication_outbox;
+ if c<>0 then raise exception 'normal internal member reads WhatsApp outbox: %',c; end if;
  begin
   insert into public.communication_channels(organization_id,channel_key,kind,provider)
   values ('b0000000-0000-0000-0000-000000000001','member-must-fail','whatsapp','meta');
@@ -142,6 +176,10 @@ do $$ begin
  begin
   perform 1 from public.communication_events limit 1;
   raise exception 'anon unexpectedly read WhatsApp communication events';
+ exception when insufficient_privilege then null; end;
+ begin
+  perform 1 from public.communication_outbox limit 1;
+  raise exception 'anon unexpectedly read WhatsApp outbox';
  exception when insufficient_privilege then null; end;
 end $$;
 reset role;
