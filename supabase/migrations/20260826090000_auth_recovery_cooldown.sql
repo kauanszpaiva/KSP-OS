@@ -19,7 +19,12 @@ as $$
     where pg_catalog.lower(u.email) = pg_catalog.lower(pg_catalog.btrim(p_email))
       and (
         u.recovery_sent_at is null
-        or u.recovery_sent_at <= pg_catalog.now() - pg_catalog.make_interval(secs => pg_catalog.greatest(p_cooldown_seconds, 60))
+        or u.recovery_sent_at <= pg_catalog.now() - pg_catalog.make_interval(
+          secs => case
+            when pg_catalog.coalesce(p_cooldown_seconds, 60) < 60 then 60
+            else pg_catalog.coalesce(p_cooldown_seconds, 60)
+          end
+        )
       )
   );
 $$;
