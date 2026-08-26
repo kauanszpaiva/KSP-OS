@@ -18,6 +18,7 @@ type OutboxRow = {
   organization_id: string;
   conversation_id: string;
   channel_id: string;
+  ai_action_id: string | null;
   attempt_count: number;
   payload: unknown;
 };
@@ -40,6 +41,16 @@ type ConversationRow = {
   identity_id: string | null;
 };
 
+type AiActionRow = {
+  conversation_id: string;
+  action_type: string;
+  status: string;
+  risk_level: string;
+  requires_human_approval: boolean;
+  approved_by: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
 function json(body: Record<string, unknown>, status = 200) {
   return Response.json(body, {
     status,
@@ -58,6 +69,18 @@ function parseTextPayload(value: unknown): TextPayload | null {
   if (payload.kind !== 'text' || typeof payload.body !== 'string') return null;
   const body = payload.body.trim();
   return body ? { kind: 'text', body } : null;
+}
+
+function actionAllowsExternalReply(action: AiActionRow | null): boolean {
+  if (!action) return false;
+  if (action.action_type !== 'reply' || action.risk_level !== 'low') return false;
+  if (action.metadata?.external_send_allowed !== true) return false;
+
+  if (action.requires_human_approval) {
+    return action.status === 'approved' && Boolean(action.approved_by);
+  }
+
+  return action.status === 'approved' || action.status === 'queued';
 }
 
 async function failOutbox(
@@ -109,30 +132,56 @@ async function dispatchOne(
     await failOutbox(service, row, 'unsupported_outbox_payload');
     return 'blocked';
   }
+  if (!row.ai_action_id) {
+    await failOutbox(service, row, 'missing_ai_reply_authorization');
+    return 'blocked';
+  }
 
-  const [{ data: channel, error: channelError }, { data: conversation, error: conversationError }] =
-    await Promise.all([
-      service
-        .from('communication_channels')
-        .select('external_ref,provider,kind,status,outbound_enabled')
-        .eq('id', row.channel_id)
-        .eq('organization_id', row.organization_id)
-        .maybeSingle(),
-      service
-        .from('communication_conversations')
-        .select('state,identity_id')
-        .eq('id', row.conversation_id)
-        .eq('organization_id', row.organization_id)
-        .maybeSingle(),
-    ]);
+  const [
+    { data: channel, error: channelError },
+    { data: conversation, error: conversationError },
+    { data: aiAction, error: aiActionError },
+  ] = await Promise.all([
+    service
+      .from('communication_channels')
+      .select('external_ref,provider,kind,status,outbound_enabled')
+      .eq('id', row.channel_id)
+      .eq('organization_id', row.organization_id)
+      .maybeSingle(),
+    service
+      .from('communication_conversations')
+      .select('state,identity_id')
+      .eq('id', row.conversation_id)
+      .eq('organization_id', row.organization_id)
+      .maybeSingle(),
+    service
+      .from('communication_ai_actions')
+      .select(
+        'conversation_id,action_type,status,risk_level,requires_human_approval,approved_by,metadata',
+      )
+      .eq('id', row.ai_action_id)
+      .eq('organization_id', row.organization_id)
+      .maybeSingle(),
+  ]);
 
-  if (channelError || conversationError) {
+  if (channelError || conversationError || aiActionError) {
     await failOutbox(service, row, 'outbox_context_lookup_failed');
     return 'failed';
   }
 
   const channelRow = (channel as ChannelRow | null) ?? null;
   const conversationRow = (conversation as ConversationRow | null) ?? null;
+  const aiActionRow = (aiAction as AiActionRow | null) ?? null;
+
+  if (
+    !aiActionRow ||
+    aiActionRow.conversation_id !== row.conversation_id ||
+    !actionAllowsExternalReply(aiActionRow)
+  ) {
+    await failOutbox(service, row, 'ai_reply_not_authorized');
+    return 'blocked';
+  }
+
   if (
     !channelRow ||
     channelRow.kind !== 'whatsapp' ||
@@ -145,31 +194,37 @@ async function dispatchOne(
     return 'blocked';
   }
 
-  if (!conversationRow || conversationRow.state !== 'open' || !conversationRow.identity_id) {
+  if (
+    !conversationRow ||
+    conversationRow.state !== 'open' ||
+    !conversationRow.identity_id
+  ) {
     await failOutbox(service, row, 'conversation_not_open');
     return 'blocked';
   }
 
-  const [{ data: identity, error: identityError }, { data: inbound, error: inboundError }] =
-    await Promise.all([
-      service
-        .from('communication_identities')
-        .select('id,normalized_address')
-        .eq('id', conversationRow.identity_id)
-        .eq('organization_id', row.organization_id)
-        .eq('channel_kind', 'whatsapp')
-        .maybeSingle(),
-      service
-        .from('communication_events')
-        .select('occurred_at')
-        .eq('organization_id', row.organization_id)
-        .eq('conversation_id', row.conversation_id)
-        .eq('direction', 'inbound')
-        .in('event_type', ['message', 'attachment'])
-        .order('occurred_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+  const [
+    { data: identity, error: identityError },
+    { data: inbound, error: inboundError },
+  ] = await Promise.all([
+    service
+      .from('communication_identities')
+      .select('id,normalized_address')
+      .eq('id', conversationRow.identity_id)
+      .eq('organization_id', row.organization_id)
+      .eq('channel_kind', 'whatsapp')
+      .maybeSingle(),
+    service
+      .from('communication_events')
+      .select('occurred_at')
+      .eq('organization_id', row.organization_id)
+      .eq('conversation_id', row.conversation_id)
+      .eq('direction', 'inbound')
+      .in('event_type', ['message', 'attachment'])
+      .order('occurred_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   if (identityError || inboundError) {
     await failOutbox(service, row, 'outbound_policy_lookup_failed');
@@ -181,7 +236,9 @@ async function dispatchOne(
       ? identity.normalized_address
       : '';
   const latestInboundAt =
-    inbound && typeof inbound.occurred_at === 'string' ? inbound.occurred_at : null;
+    inbound && typeof inbound.occurred_at === 'string'
+      ? inbound.occurred_at
+      : null;
 
   if (!normalizedAddress) {
     await failOutbox(service, row, 'recipient_identity_missing');
@@ -238,6 +295,7 @@ async function dispatchOne(
       metadata: {
         source: 'communication_outbox',
         customer_service_window: true,
+        ai_action_id: row.ai_action_id,
       },
     });
   if (eventError && eventError.code !== '23505') return 'failed';
@@ -249,6 +307,13 @@ async function dispatchOne(
     .eq('organization_id', row.organization_id)
     .eq('status', 'sending');
   if (sentError) return 'failed';
+
+  await service
+    .from('communication_ai_actions')
+    .update({ status: 'executed', executed_at: sentAt })
+    .eq('id', row.ai_action_id)
+    .eq('organization_id', row.organization_id)
+    .eq('conversation_id', row.conversation_id);
 
   return 'sent';
 }
@@ -262,7 +327,10 @@ export async function POST(request: Request) {
   }
 
   const dispatchSecret = process.env.WHATSAPP_META_OUTBOX_SECRET?.trim() ?? '';
-  if (!verifyInternalBearer(request.headers.get('authorization'), dispatchSecret)) {
+  if (!verifyInternalBearer(
+    request.headers.get('authorization'),
+    dispatchSecret,
+  )) {
     return json({ ok: false, error: 'unauthorized' }, 401);
   }
 
@@ -279,11 +347,15 @@ export async function POST(request: Request) {
 
   const { data, error } = await service
     .from('communication_outbox')
-    .select('id,organization_id,conversation_id,channel_id,attempt_count,payload')
+    .select(
+      'id,organization_id,conversation_id,channel_id,ai_action_id,attempt_count,payload',
+    )
     .eq('status', 'queued')
     .order('created_at', { ascending: true })
     .limit(DISPATCH_BATCH_SIZE);
-  if (error) return json({ ok: false, error: 'outbox_lookup_failed' }, 500);
+  if (error) {
+    return json({ ok: false, error: 'outbox_lookup_failed' }, 500);
+  }
 
   let sent = 0;
   let blocked = 0;
@@ -299,5 +371,11 @@ export async function POST(request: Request) {
     else failed += 1;
   }
 
-  return json({ ok: true, inspected: (data ?? []).length, sent, blocked, failed });
+  return json({
+    ok: true,
+    inspected: (data ?? []).length,
+    sent,
+    blocked,
+    failed,
+  });
 }
