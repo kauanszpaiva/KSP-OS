@@ -12,6 +12,7 @@ create table if not exists public.communication_channels (
   address text,
   external_ref text,
   status text not null default 'candidate' check (status in ('candidate','configured','active','paused','disabled','error')),
+  automation_mode text not null default 'off' check (automation_mode in ('off','observe','draft','autonomous')),
   inbound_enabled boolean not null default false,
   outbound_enabled boolean not null default false,
   capabilities jsonb not null default '{}'::jsonb,
@@ -40,6 +41,7 @@ create table if not exists public.communication_identities (
 create table if not exists public.communication_conversations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
+  identity_id uuid references public.communication_identities(id) on delete set null,
   contact_id uuid references public.contacts(id) on delete set null,
   lead_id uuid references public.leads(id) on delete set null,
   client_organization_id uuid references public.client_organizations(id) on delete set null,
@@ -136,14 +138,38 @@ create table if not exists public.communication_consents (
   unique (organization_id, identity_id, channel_kind, consent_type)
 );
 
-create index if not exists communication_identities_contact_idx on public.communication_identities (organization_id, contact_id);
-create index if not exists communication_conversations_recent_idx on public.communication_conversations (organization_id, last_event_at desc nulls last, created_at desc);
-create index if not exists communication_conversations_contact_idx on public.communication_conversations (organization_id, contact_id);
-create index if not exists communication_events_conversation_idx on public.communication_events (conversation_id, occurred_at, id);
-create index if not exists communication_events_provider_idx on public.communication_events (organization_id, provider, provider_event_id) where provider_event_id is not null;
-create index if not exists communication_ai_actions_conversation_idx on public.communication_ai_actions (conversation_id, created_at desc);
-create index if not exists communication_outbox_queue_idx on public.communication_outbox (organization_id, status, next_attempt_at, created_at) where status in ('queued','failed');
-create index if not exists communication_consents_identity_idx on public.communication_consents (identity_id, channel_kind, status);
+create unique index if not exists communication_channels_provider_ref_uq
+  on public.communication_channels (organization_id, provider, external_ref)
+  where external_ref is not null;
+create index if not exists communication_identities_contact_idx
+  on public.communication_identities (organization_id, contact_id);
+create index if not exists communication_conversations_recent_idx
+  on public.communication_conversations (organization_id, last_event_at desc nulls last, created_at desc);
+create index if not exists communication_conversations_contact_idx
+  on public.communication_conversations (organization_id, contact_id);
+create index if not exists communication_conversations_identity_idx
+  on public.communication_conversations (organization_id, identity_id, created_at desc);
+create unique index if not exists communication_conversations_active_identity_uq
+  on public.communication_conversations (organization_id, identity_id)
+  where identity_id is not null and state in ('open','human_handoff','waiting');
+create index if not exists communication_events_conversation_idx
+  on public.communication_events (conversation_id, occurred_at, id);
+create index if not exists communication_events_provider_idx
+  on public.communication_events (organization_id, provider, provider_event_id)
+  where provider_event_id is not null;
+create index if not exists communication_ai_actions_conversation_idx
+  on public.communication_ai_actions (conversation_id, created_at desc);
+create unique index if not exists communication_ai_actions_source_event_uq
+  on public.communication_ai_actions (organization_id, source_event_id, action_type)
+  where source_event_id is not null;
+create index if not exists communication_outbox_queue_idx
+  on public.communication_outbox (organization_id, status, next_attempt_at, created_at)
+  where status in ('queued','failed');
+create index if not exists communication_outbox_provider_message_idx
+  on public.communication_outbox (organization_id, provider_message_id)
+  where provider_message_id is not null;
+create index if not exists communication_consents_identity_idx
+  on public.communication_consents (identity_id, channel_kind, status);
 
 alter table public.communication_channels enable row level security;
 alter table public.communication_identities enable row level security;
@@ -177,13 +203,47 @@ create policy communication_channels_owner_all on public.communication_channels
 create policy communication_identities_owner_all on public.communication_identities
   for all to authenticated
   using (public.is_executive(communication_identities.organization_id))
-  with check (public.is_executive(communication_identities.organization_id));
+  with check (
+    public.is_executive(communication_identities.organization_id)
+    and (
+      communication_identities.contact_id is null
+      or exists (
+        select 1 from public.contacts c
+        where c.id = communication_identities.contact_id
+          and c.organization_id = communication_identities.organization_id
+      )
+    )
+  );
 
 create policy communication_conversations_owner_all on public.communication_conversations
   for all to authenticated
   using (public.is_executive(communication_conversations.organization_id))
   with check (
     public.is_executive(communication_conversations.organization_id)
+    and (
+      communication_conversations.identity_id is null
+      or exists (
+        select 1 from public.communication_identities i
+        where i.id = communication_conversations.identity_id
+          and i.organization_id = communication_conversations.organization_id
+      )
+    )
+    and (
+      communication_conversations.contact_id is null
+      or exists (
+        select 1 from public.contacts c
+        where c.id = communication_conversations.contact_id
+          and c.organization_id = communication_conversations.organization_id
+      )
+    )
+    and (
+      communication_conversations.lead_id is null
+      or exists (
+        select 1 from public.leads l
+        where l.id = communication_conversations.lead_id
+          and l.organization_id = communication_conversations.organization_id
+      )
+    )
     and (
       communication_conversations.client_organization_id is null
       or exists (
@@ -205,6 +265,24 @@ create policy communication_events_owner_all on public.communication_events
       where c.id = communication_events.conversation_id
         and c.organization_id = communication_events.organization_id
     )
+    and (
+      communication_events.channel_id is null
+      or exists (
+        select 1 from public.communication_channels ch
+        where ch.id = communication_events.channel_id
+          and ch.organization_id = communication_events.organization_id
+          and ch.kind = 'whatsapp'
+      )
+    )
+    and (
+      communication_events.identity_id is null
+      or exists (
+        select 1 from public.communication_identities i
+        where i.id = communication_events.identity_id
+          and i.organization_id = communication_events.organization_id
+          and i.channel_kind = 'whatsapp'
+      )
+    )
   );
 
 create policy communication_ai_actions_owner_all on public.communication_ai_actions
@@ -216,6 +294,15 @@ create policy communication_ai_actions_owner_all on public.communication_ai_acti
       select 1 from public.communication_conversations c
       where c.id = communication_ai_actions.conversation_id
         and c.organization_id = communication_ai_actions.organization_id
+    )
+    and (
+      communication_ai_actions.source_event_id is null
+      or exists (
+        select 1 from public.communication_events e
+        where e.id = communication_ai_actions.source_event_id
+          and e.organization_id = communication_ai_actions.organization_id
+          and e.conversation_id = communication_ai_actions.conversation_id
+      )
     )
   );
 
@@ -235,6 +322,15 @@ create policy communication_outbox_owner_all on public.communication_outbox
         and ch.organization_id = communication_outbox.organization_id
         and ch.kind = 'whatsapp'
     )
+    and (
+      communication_outbox.ai_action_id is null
+      or exists (
+        select 1 from public.communication_ai_actions a
+        where a.id = communication_outbox.ai_action_id
+          and a.organization_id = communication_outbox.organization_id
+          and a.conversation_id = communication_outbox.conversation_id
+      )
+    )
   );
 
 create policy communication_consents_owner_all on public.communication_consents
@@ -251,6 +347,7 @@ create policy communication_consents_owner_all on public.communication_consents
   );
 
 comment on table public.communication_channels is 'WhatsApp-only provider connection for the KSP INC AI Company Front Desk. The existing AT&T number may remain the public phone identity; carrier credentials do not belong here.';
-comment on table public.communication_events is 'Canonical normalized WhatsApp event ledger. Provider webhooks must be verified, deduplicated and minimized before persistence.';
+comment on column public.communication_channels.automation_mode is 'off=no AI action; observe=classify only; draft=reply requires human approval; autonomous=eligible low-risk replies may be queued by approved runtime policy.';
+comment on table public.communication_events is 'Canonical normalized WhatsApp event ledger. Provider webhooks must be signature-verified, deduplicated and minimized before persistence.';
 comment on table public.communication_outbox is 'WhatsApp outbound queue. Provider credentials remain in approved secret storage and never in payload or metadata.';
 comment on table public.communication_consents is 'WhatsApp consent evidence. Policy enforcement occurs before outbound execution.';
