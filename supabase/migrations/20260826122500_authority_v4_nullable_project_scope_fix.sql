@@ -5,12 +5,20 @@
 -- still governed by their existing organization/client/resource policies.
 -- Requiring project_action_not_denied(NULL, ...) incorrectly hides otherwise
 -- authorized client-scoped resources such as projectless documents.
+--
+-- Production may intentionally lag the Authority Engine V4 source migration.
+-- In that state this migration must be a no-op rather than silently forcing the
+-- Authority Engine dependency into the AI Company release.
 
 do $do$
 declare
   r record;
   qtable text;
 begin
+  if to_regprocedure('authority_private.project_action_not_denied(uuid,public.permission_action)') is null then
+    return;
+  end if;
+
   for r in
     select c.table_schema, c.table_name
     from information_schema.columns c
