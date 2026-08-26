@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CLIENT_INVITATION_ROLES } from './invitation-context';
 export const uuid = z.string().uuid();
 /** Minimal `{ id }` payload — shared by delete/archive-style actions. */
 export const idParamSchema = z.object({ id: uuid });
@@ -209,7 +210,7 @@ export const addClientNoteSchema = z.object({
 });
 
 /** Phase P0 follow-up — internal creation of a client portal invitation. */
-const CLIENT_ROLE_VALUES = ['client_owner', 'client_project_approver', 'client_billing_contact', 'client_collaborator', 'client_viewer'] as const;
+const CLIENT_ROLE_VALUES = CLIENT_INVITATION_ROLES;
 
 export const createPortalInvitationSchema = z.object({
   clientOrganizationId: uuid,
@@ -340,9 +341,12 @@ export const postCommentSchema = z.object({
 
 /** Phase P0 — Portal invitation accept. Token is the raw value from the
  * invite link; the server hashes it before comparing to token_hash. */
-export const acceptPortalInvitationSchema = z.object({
+export const acceptInvitationTokenSchema = z.object({
   token: z.string().min(16).max(256)
 });
+
+export const acceptPortalInvitationSchema = acceptInvitationTokenSchema;
+export const acceptPartnerInvitationSchema = acceptInvitationTokenSchema;
 
 /** Phase P2 — Approvals (change_order_client_decisions). */
 export const recordChangeOrderDecisionSchema = z.object({

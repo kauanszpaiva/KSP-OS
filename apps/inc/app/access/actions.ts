@@ -1,10 +1,12 @@
 'use server';
 
+import { createHash, randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { getAuthContext, isKspIncOwner, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
 import type { PermissionAction } from '@ksp/permissions';
 import { getServerSupabase } from '../../lib/supabase';
+import { createPartnerInvitationSchema, invitationPayloadSchema } from '@ksp/validation';
 
 export interface IncAccessActionResult {
   ok: boolean;
@@ -12,7 +14,7 @@ export interface IncAccessActionResult {
 }
 
 const OWNER_ROLES = new Set(['founder_ceo', 'executive_operations']);
-const PARTNER_ROLES = new Set(['partner_owner', 'partner_coordinator', 'editor', 'uploader', 'viewer']);
+const PARTNER_ROLES = new Set(['partner_owner', 'partner_coordinator', 'billing', 'editor', 'uploader', 'viewer']);
 const UNIT_ACCESS_LEVELS = new Set(['admin', 'member', 'viewer']);
 const PERMISSION_ACTIONS = new Set<PermissionAction>([
   'client.read',
@@ -524,6 +526,97 @@ export async function setPartnerMembership(
   );
   refreshOwnerAccess();
   return { ok: true };
+}
+
+export interface PartnerInvitationActionResult {
+  ok: boolean;
+  error?: string;
+  invitePath?: string;
+}
+
+/**
+ * Creates a Network invitation with an explicit surface, organization, role,
+ * bounded partner scope and expiry. Team/project scopes are intentionally empty
+ * until Network has a dedicated scope ledger; acceptance rejects non-empty
+ * values rather than widening access implicitly.
+ */
+export async function createPartnerInvitation(
+  _prev: PartnerInvitationActionResult,
+  form: FormData
+): Promise<PartnerInvitationActionResult> {
+  const gate = await ownerGate();
+  if ('error' in gate) return { ok: false, error: gate.error };
+  const { supabase, ctx } = gate;
+
+  const parsed = createPartnerInvitationSchema.safeParse({
+    partnerOrganizationId: form.get('partnerOrganizationId'),
+    email: form.get('email'),
+    role: form.get('role'),
+    expiresInDays: form.get('expiresInDays') || undefined
+  });
+  if (!parsed.success) return { ok: false, error: 'Choose a valid partner, email, role and expiry.' };
+
+  const { data: partnerOrganization } = await supabase
+    .from('partner_organizations')
+    .select('id,display_name')
+    .eq('id', parsed.data.partnerOrganizationId)
+    .eq('organization_id', ctx.organizationId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (!partnerOrganization) return { ok: false, error: 'Active partner organization was not found.' };
+
+  const token = randomBytes(32).toString('base64url');
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + parsed.data.expiresInDays * 86_400_000).toISOString();
+  const payloadResult = invitationPayloadSchema.safeParse({
+    version: 1,
+    surface: 'network',
+    organizationId: ctx.organizationId,
+    email: parsed.data.email,
+    role: parsed.data.role,
+    scope: {
+      organizationId: ctx.organizationId,
+      partnerOrganizationId: parsed.data.partnerOrganizationId,
+      projectIds: [],
+      teamKey: null
+    },
+    expiresAt
+  });
+  if (!payloadResult.success) return { ok: false, error: 'Could not establish a valid Network invitation context.' };
+  const payload = payloadResult.data;
+
+  const { data, error } = await supabase
+    .from('partner_invitations')
+    .insert({
+      organization_id: ctx.organizationId,
+      partner_organization_id: parsed.data.partnerOrganizationId,
+      email: payload.email,
+      role: payload.role,
+      surface: payload.surface,
+      context_version: payload.version,
+      scope: payload.scope,
+      team_key: payload.scope.teamKey,
+      token_hash: tokenHash,
+      invited_by: ctx.user.id,
+      expires_at: payload.expiresAt
+    })
+    .select('id')
+    .single();
+  if (error || !data) return { ok: false, error: 'Could not create the Network invitation.' };
+
+  await recordAccessEvent(
+    supabase,
+    ctx,
+    'network.invitation.created',
+    'partner_invitations',
+    data.id,
+    `Invited ${payload.email} as ${payload.role} to ${partnerOrganization.display_name}`
+  );
+  refreshOwnerAccess();
+
+  const base = process.env.NEXT_PUBLIC_NETWORK_BASE_URL?.trim().replace(/\/+$/, '');
+  const invitePath = `/invite/${token}`;
+  return { ok: true, invitePath: base ? `${base}${invitePath}` : invitePath };
 }
 
 export async function revokePartnerMembership(

@@ -208,8 +208,36 @@ const actorTests = `
     ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001', 'meeting-a', now() + interval '1 day', '20000000-0000-0000-0000-000000000001'),
     ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000002', '40000000-0000-0000-0000-000000000002', 'meeting-b', now() + interval '1 day', '20000000-0000-0000-0000-000000000001');
 
-  insert into portal_invitations (organization_id, client_organization_id, email, initial_role, invited_by, token_hash, expires_at) values
-    ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'client-a@test.invalid', 'client_owner', '20000000-0000-0000-0000-000000000001', 'runtime-reconciliation-token-hash', now() + interval '1 day');
+  insert into portal_invitations (
+    organization_id,
+    client_organization_id,
+    email,
+    initial_role,
+    invited_by,
+    token_hash,
+    expires_at,
+    surface,
+    context_version,
+    scope,
+    team_key
+  ) values (
+    '10000000-0000-0000-0000-000000000001',
+    '30000000-0000-0000-0000-000000000001',
+    'client-a@test.invalid',
+    'client_owner',
+    '20000000-0000-0000-0000-000000000001',
+    'runtime-reconciliation-token-hash',
+    now() + interval '1 day',
+    'portal',
+    1,
+    jsonb_build_object(
+      'organizationId', '10000000-0000-0000-0000-000000000001',
+      'clientOrganizationId', '30000000-0000-0000-0000-000000000001',
+      'projectIds', jsonb_build_array('40000000-0000-0000-0000-000000000001'),
+      'teamKey', null
+    ),
+    null
+  );
 
   insert into contacts (id, organization_id, client_id, name) values
     ('50000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', 'Delete Policy Test');

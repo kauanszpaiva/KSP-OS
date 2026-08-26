@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getAuthContext, isExecutive, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
 import { getServerSupabase } from '../../../lib/supabase';
+import { invitationScopeSchema } from '@ksp/validation';
 
 const CLIENT_ROLES = new Set([
   'client_owner',
@@ -217,7 +218,7 @@ export async function resendPortalInvitation(form: FormData): Promise<void> {
 
   const { data: invitation } = await supabase
     .from('portal_invitations')
-    .select('id, organization_id, client_organization_id, email, initial_role, accepted_at')
+    .select('id, organization_id, client_organization_id, email, initial_role, accepted_at, scope')
     .eq('organization_id', ctx.organizationId)
     .eq('id', invitationId)
     .maybeSingle();
@@ -226,17 +227,42 @@ export async function resendPortalInvitation(form: FormData): Promise<void> {
   const rawFallbackToken = randomBytes(32).toString('hex');
   const fallbackTokenHash = createHash('sha256').update(rawFallbackToken).digest('hex');
   const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  const parsedScope = invitationScopeSchema.safeParse(invitation.scope);
+  let projectIds = parsedScope.success ? parsedScope.data.projectIds : [];
+
+  if (invitation.initial_role === 'client_owner' && projectIds.length === 0) {
+    const { data: projects, error: projectError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('organization_id', ctx.organizationId)
+      .eq('client_id', invitation.client_organization_id)
+      .neq('status', 'archived')
+      .limit(501);
+    if (projectError || (projects?.length ?? 0) > 500) return;
+    projectIds = (projects ?? []).map((project) => project.id);
+  }
+
+  const scope = {
+    organizationId: ctx.organizationId,
+    clientOrganizationId: invitation.client_organization_id,
+    projectIds,
+    teamKey: parsedScope.success ? parsedScope.data.teamKey : null
+  };
 
   const { data: replacement, error } = await supabase
     .from('portal_invitations')
     .insert({
       organization_id: ctx.organizationId,
       client_organization_id: invitation.client_organization_id,
-      email: invitation.email,
+      email: invitation.email.trim().toLowerCase(),
       token_hash: fallbackTokenHash,
       invited_by: ctx.user.id,
       initial_role: invitation.initial_role,
-      expires_at: expiresAt
+      expires_at: expiresAt,
+      surface: 'portal',
+      context_version: 1,
+      scope,
+      team_key: scope.teamKey
     })
     .select('id')
     .single();

@@ -1,35 +1,92 @@
 import { AccessAdminPanel } from '../../components/access-admin-panel';
+import { AuthorityAdminPanel } from '../../components/authority-admin-panel';
+import { AuthoritySimulatorPanel } from '../../components/authority-simulator-panel';
+import { DelegationAdminPanel } from '../../components/delegation-admin-panel';
 import { IncShell, ownerRoleLabel } from '../../components/inc-shell';
 import { OwnerList, OwnerPageHeader, SurfaceStatus } from '../../components/owner-surface';
 import { getIncAccessAdminData } from '../../lib/inc-admin-data';
+import { getIncAuthorityData } from '../../lib/authority-data';
+import { getIncDelegations } from '../../lib/delegation-data';
 import { getAccessRows } from '../../lib/inc-data';
 import { requireIncOwner } from '../../lib/inc-session';
 import { getServerSupabase } from '../../lib/supabase';
 
+const emptyAdmin = {
+  people: [],
+  units: [],
+  projects: [],
+  permanentGrants: [],
+  temporaryGrants: [],
+  partners: [],
+  partnerMemberships: [],
+  businessUnitsAvailable: false,
+  networkAvailable: false
+};
+
+const emptyAuthority = {
+  denies: [],
+  relationships: [],
+  breakGlassSessions: [],
+  available: false
+};
+
 export default async function IncAccessPage() {
   const ctx = await requireIncOwner();
   const supabase = await getServerSupabase();
-  const [rows, admin] = supabase
-    ? await Promise.all([getAccessRows(supabase), getIncAccessAdminData(supabase, ctx.organizationId)])
-    : [[], { people: [], units: [], projects: [], permanentGrants: [], temporaryGrants: [], partners: [], partnerMemberships: [], businessUnitsAvailable: false, networkAvailable: false }];
+  const [rows, admin, authority, delegations] = supabase
+    ? await Promise.all([
+        getAccessRows(supabase),
+        getIncAccessAdminData(supabase, ctx.organizationId),
+        getIncAuthorityData(supabase, ctx.organizationId),
+        getIncDelegations(supabase, ctx.organizationId)
+      ])
+    : [[], emptyAdmin, emptyAuthority, []];
 
   return (
     <IncShell ownerName={ctx.user.displayName} roleLabel={ownerRoleLabel(ctx.internalRoles)}>
       <OwnerPageHeader
         eyebrow="Authorization"
         title="Access"
-        description="Owner-operated access control across KSP divisions, permanent permission grants and time-bound project access."
-        aside="All mutations require the canonical KSP INC owner role plus an AAL2/MFA session; database RLS remains authoritative."
+        description="Owner-operated authority control across KSP divisions, permissions, explicit denies, hierarchy, delegation and time-bound access."
+        aside="All mutations require the canonical KSP INC owner role plus an AAL2/MFA session; application checks and database RLS enforce the same boundary."
       />
       <SurfaceStatus
-        title="Temporary-grant boundary narrowed"
-        body="Ordinary Command members can no longer create or revoke temporary grants. Recipients can inspect their own grants; owner mutations preserve revocation history."
+        title="Authority Engine V4 · deny-by-default"
+        body="Roles are defaults, not blanket authority. Explicit denies win, supervision flows downward without financial inheritance, delegation cannot exceed source authority, and emergency override is short-lived and audited."
         tone="ok"
       />
       <section className="section">
         <div className="sectionHeader">
-          <h2>Owner controls</h2>
-          <p>Verticals · permissions · temporary access</p>
+          <h2>Access Explorer</h2>
+          <p>safe view-as · decision trace</p>
+        </div>
+        <AuthoritySimulatorPanel people={admin.people} projects={admin.projects} />
+      </section>
+      <section className="section">
+        <div className="sectionHeader">
+          <h2>Delegation</h2>
+          <p>source authority · exact scope · expiry</p>
+        </div>
+        <DelegationAdminPanel people={admin.people} projects={admin.projects} delegations={delegations} />
+      </section>
+      <section className="section">
+        <div className="sectionHeader">
+          <h2>Authority engine</h2>
+          <p>relationships · explicit deny · break-glass</p>
+        </div>
+        <AuthorityAdminPanel
+          people={admin.people}
+          projects={admin.projects}
+          denies={authority.denies}
+          relationships={authority.relationships}
+          breakGlassSessions={authority.breakGlassSessions}
+          available={authority.available}
+        />
+      </section>
+      <section className="section">
+        <div className="sectionHeader">
+          <h2>Access grants</h2>
+          <p>verticals · permissions · temporary access</p>
         </div>
         <AccessAdminPanel
           people={admin.people}
@@ -45,7 +102,10 @@ export default async function IncAccessPage() {
           <h2>Effective entitlement evidence</h2>
           <p>Current active grants</p>
         </div>
-        <OwnerList rows={rows} empty="No access rows were returned, or the newer access tables are not promoted in this environment." />
+        <OwnerList
+          rows={rows}
+          empty="No access rows were returned, or the newer access tables are not promoted in this environment."
+        />
       </section>
     </IncShell>
   );

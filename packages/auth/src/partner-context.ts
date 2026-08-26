@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@ksp/database';
 import { getSessionAal, getSessionUser, type SessionUser } from './context';
 
-export type PartnerRole = 'partner_owner' | 'partner_coordinator' | 'editor' | 'uploader' | 'viewer';
+export type PartnerRole = 'partner_owner' | 'partner_coordinator' | 'billing' | 'editor' | 'uploader' | 'viewer';
 
 export interface PartnerAuthContext {
   user: SessionUser;
@@ -29,7 +29,9 @@ export async function getPartnerAuthContext(supabase: SupabaseClient): Promise<P
   const now = new Date().toISOString();
   const { data: memberships, error } = await supabase
     .from('partner_memberships')
-    .select('organization_id, partner_organization_id, role, effective_from, effective_until, suspended_at, partner_organizations!inner(display_name,business_unit_id,status)')
+    .select(
+      'organization_id, partner_organization_id, role, effective_from, effective_until, suspended_at, partner_organizations!inner(display_name,business_unit_id,status)'
+    )
     .eq('profile_id', user.id)
     .is('suspended_at', null)
     .lte('effective_from', now)
