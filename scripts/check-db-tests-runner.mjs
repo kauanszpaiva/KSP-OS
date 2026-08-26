@@ -155,54 +155,22 @@ SQL
   ex\it $?
 fi
 
-# Legacy behavioral fixtures seed auth.users and profiles in separate steps.
-# Once the production profile-sync trigger exists those fixtures would attempt
-# to create the same profile twice. Suspend only that trigger around fixture
-# payloads that explicitly seed auth.users; leave the real migration and trigger
-# enabled in the resulting schema. Also expand the minimal auth.users stub with
-# raw_user_meta_data, which hosted Supabase provides and the production migration
-# legitimately reads during backfill.
+# Hosted Supabase Auth provides raw_user_meta_data and the profile-sync trigger
+# creates public.profiles when auth.users rows are inserted. The legacy actor
+# fixture still writes its friendly display names explicitly. Keep the real
+# trigger active and make that fixture write idempotent instead of disabling
+# production behavior during the RLS rehearsal.
 if [ "$1" = "exec" ] && [ "$2" = "-i" ] && [ "$4" = "psql" ]; then
   INPUT_FILE="$(mktemp)"
   REWRITTEN_FILE="$(mktemp)"
-  WRAPPED_FILE="$(mktemp)"
   cat > "$INPUT_FILE"
-  sed "s/create table auth.users (id uuid primary key, email text unique);/create table auth.users (id uuid primary key, email text unique, raw_user_meta_data jsonb not null default '{}'::jsonb);/" "$INPUT_FILE" > "$REWRITTEN_FILE"
-
-  if grep -qi "insert into auth.users" "$REWRITTEN_FILE" && ! grep -qi "create table auth.users" "$REWRITTEN_FILE"; then
-    cat > "$WRAPPED_FILE" <<'SQL'
-DO $ksp$ BEGIN
-  IF to_regclass('auth.users') IS NOT NULL
-     AND EXISTS (
-       SELECT 1
-       FROM pg_trigger
-       WHERE tgname = 'ksp_auth_user_profile_sync'
-         AND tgrelid = 'auth.users'::regclass
-     ) THEN
-    EXECUTE 'ALTER TABLE auth.users DISABLE TRIGGER ksp_auth_user_profile_sync';
-  END IF;
-END $ksp$;
-SQL
-    cat "$REWRITTEN_FILE" >> "$WRAPPED_FILE"
-    cat >> "$WRAPPED_FILE" <<'SQL'
-DO $ksp$ BEGIN
-  IF to_regclass('auth.users') IS NOT NULL
-     AND EXISTS (
-       SELECT 1
-       FROM pg_trigger
-       WHERE tgname = 'ksp_auth_user_profile_sync'
-         AND tgrelid = 'auth.users'::regclass
-     ) THEN
-    EXECUTE 'ALTER TABLE auth.users ENABLE TRIGGER ksp_auth_user_profile_sync';
-  END IF;
-END $ksp$;
-SQL
-    $REAL_DOCKER "$@" < "$WRAPPED_FILE"
-  else
-    $REAL_DOCKER "$@" < "$REWRITTEN_FILE"
-  fi
+  sed \
+    -e "s/create table auth.users (id uuid primary key, email text unique);/create table auth.users (id uuid primary key, email text unique, raw_user_meta_data jsonb not null default '{}'::jsonb);/" \
+    -e "s/('20000000-0000-0000-0000-000000000005', 'Other Org Test', 'other-org@test.invalid');/('20000000-0000-0000-0000-000000000005', 'Other Org Test', 'other-org@test.invalid') on conflict (id) do update set display_name = excluded.display_name, email = excluded.email;/" \
+    "$INPUT_FILE" > "$REWRITTEN_FILE"
+  $REAL_DOCKER "$@" < "$REWRITTEN_FILE"
   STATUS=$?
-  rm -f "$INPUT_FILE" "$REWRITTEN_FILE" "$WRAPPED_FILE"
+  rm -f "$INPUT_FILE" "$REWRITTEN_FILE"
   ex\it $STATUS
 fi
 
