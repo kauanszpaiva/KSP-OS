@@ -11,15 +11,9 @@ insert into auth.users (id, email) values
   ('20000000-0000-0000-0000-000000000006', 'operations-owner@test.invalid'),
   ('20000000-0000-0000-0000-000000000007', 'future-owner@test.invalid');
 
--- The production-like migration chain now synchronizes auth.users -> profiles.
--- Keep this regression fixture compatible with both trigger-present and
--- trigger-absent test baselines instead of double-inserting the same IDs.
 insert into public.profiles (id, display_name, email) values
   ('20000000-0000-0000-0000-000000000006', 'Operations Owner Test', 'operations-owner@test.invalid'),
-  ('20000000-0000-0000-0000-000000000007', 'Future Owner Test', 'future-owner@test.invalid')
-on conflict (id) do update
-set display_name = excluded.display_name,
-    email = excluded.email;
+  ('20000000-0000-0000-0000-000000000007', 'Future Owner Test', 'future-owner@test.invalid');
 
 insert into public.organization_memberships (organization_id, profile_id, role, internal_role, scope) values
   ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000006', 'executive_operations', 'executive_operations', 'all');
@@ -225,19 +219,103 @@ begin;
   select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000006', true);
   do $$ declare c int; begin
     select count(*) into c from business_units where organization_id='10000000-0000-0000-0000-000000000001';
-    if c <> 3 then raise exception 'operations global unit visibility failed: %', c; end if;
+    if c <> 3 then raise exception 'operations owner global unit visibility failed: %', c; end if;
   end $$;
 rollback;
 
--- Future-dated grants and revoked memberships must not be usable.
+update public.business_unit_memberships set suspended_at=now()
+where business_unit_id='60000000-0000-0000-0000-000000000001' and profile_id='20000000-0000-0000-0000-000000000002';
+
 begin;
   set local role authenticated;
   select set_config('request.jwt.claim.sub', '20000000-0000-0000-0000-000000000002', true);
-  do $$ begin
-    update public.business_unit_memberships
-    set revoked_at=now()
-    where business_unit_id='60000000-0000-0000-0000-000000000001'
-      and profile_id='20000000-0000-0000-0000-000000000002';
-    if can_access_business_unit('60000000-0000-0000-0000-000000000001') then raise exception 'revoked business-unit membership remained active'; end if;
+  do $$ declare c int; begin
+    if can_access_project('70000000-0000-0000-0000-000000000001') then raise exception 'revoked division still authorizes project'; end if;
+
+    -- Revoking the unit removes sibling/project visibility, but an exact task
+    -- assignment remains an intentional resource window.
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000001';
+    if c <> 1 then raise exception 'revoked division did not collapse to exact task access: %', c; end if;
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000001' and title='Dominion child';
+    if c <> 1 then raise exception 'assigned Dominion task disappeared after unit revocation'; end if;
+    select count(*) into c from tasks where project_id='70000000-0000-0000-0000-000000000001' and title='Dominion sibling';
+    if c <> 0 then raise exception 'revoked division still exposes sibling child rows: %', c; end if;
   end $$;
+rollback;
+
+do $$ begin
+  begin
+    update public.projects set business_unit_id='60000000-0000-0000-0000-000000000003'
+    where id='70000000-0000-0000-0000-000000000003';
+    raise exception 'cross-organization project classification was accepted';
+  exception when foreign_key_violation then null; end;
+end $$;
+
+update public.projects set business_unit_id='60000000-0000-0000-0000-000000000001'
+where id='70000000-0000-0000-0000-000000000003';
+
+do $$ declare c int; begin
+  select count(*) into c from public.business_unit_memberships
+  where business_unit_id='60000000-0000-0000-0000-000000000001'
+    and profile_id='20000000-0000-0000-0000-000000000002'
+    and suspended_at is null;
+  if c <> 1 then raise exception 'classification inheritance did not reactivate unit membership'; end if;
+end $$;
+
+-- KSP Network negative-path coverage.
+insert into auth.users (id,email) values
+ ('20000000-0000-0000-0000-000000000008','partner-a@test.invalid'),
+ ('20000000-0000-0000-0000-000000000009','partner-b@test.invalid');
+insert into public.profiles (id,display_name,email) values
+ ('20000000-0000-0000-0000-000000000008','Partner A','partner-a@test.invalid'),
+ ('20000000-0000-0000-0000-000000000009','Partner B','partner-b@test.invalid');
+insert into public.business_units(id,organization_id,key,name,sort_order) values
+ ('61000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','network-agency-test','Network Agency Test',40),
+ ('61000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','network-dev-test','Network Dev Test',50);
+insert into public.projects(id,organization_id,name,project_type,business_unit_id) values
+ ('71000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','Agency Event','test','61000000-0000-0000-0000-000000000001'),
+ ('71000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','Dev Build','test','61000000-0000-0000-0000-000000000002');
+insert into public.partner_organizations(id,organization_id,business_unit_id,display_name,slug,created_by) values
+ ('81000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','61000000-0000-0000-0000-000000000001','Partner Studio A','partner-a','20000000-0000-0000-0000-000000000001'),
+ ('81000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','61000000-0000-0000-0000-000000000001','Partner Studio B','partner-b','20000000-0000-0000-0000-000000000001');
+insert into public.partner_memberships(organization_id,partner_organization_id,profile_id,role,created_by) values
+ ('10000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000008','partner_owner','20000000-0000-0000-0000-000000000001'),
+ ('10000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000009','partner_owner','20000000-0000-0000-0000-000000000001');
+insert into public.partner_assignments(id,organization_id,business_unit_id,project_id,partner_organization_id,title,created_by) values
+ ('91000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','61000000-0000-0000-0000-000000000001','71000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000001','Event A','20000000-0000-0000-0000-000000000001'),
+ ('91000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','61000000-0000-0000-0000-000000000001','71000000-0000-0000-0000-000000000001','81000000-0000-0000-0000-000000000002','Event B','20000000-0000-0000-0000-000000000001');
+
+begin;
+ set local role authenticated;
+ select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000008',true);
+ do $$ declare c int; r text; begin
+  select count(*) into c from public.partner_organizations; if c<>1 then raise exception 'cross-partner organization denial failed: %',c; end if;
+  select count(*) into c from public.partner_assignments; if c<>1 then raise exception 'cross-partner assignment denial failed: %',c; end if;
+  r:=public.respond_partner_assignment('91000000-0000-0000-0000-000000000001','accepted',null); if r<>'accepted' then raise exception 'assignment response failed'; end if;
+  begin
+    perform public.respond_partner_assignment('91000000-0000-0000-0000-000000000002','accepted',null);
+    raise exception 'cross-partner response unexpectedly allowed';
+  exception when others then
+    if sqlerrm='cross-partner response unexpectedly allowed' then raise; end if;
+  end;
+ end $$;
+rollback;
+
+do $$ begin
+ begin
+  insert into public.partner_assignments(organization_id,business_unit_id,project_id,partner_organization_id,title,created_by)
+  values('10000000-0000-0000-0000-000000000001','61000000-0000-0000-0000-000000000002','71000000-0000-0000-0000-000000000002','81000000-0000-0000-0000-000000000001','Wrong vertical','20000000-0000-0000-0000-000000000001');
+  raise exception 'cross-vertical assignment unexpectedly allowed';
+ exception when others then
+  if sqlerrm='cross-vertical assignment unexpectedly allowed' then raise; end if;
+ end;
+end $$;
+
+update public.partner_memberships set suspended_at=now() where partner_organization_id='81000000-0000-0000-0000-000000000001' and profile_id='20000000-0000-0000-0000-000000000008';
+begin;
+ set local role authenticated;
+ select set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000008',true);
+ do $$ declare c int; begin
+  select count(*) into c from public.partner_assignments; if c<>0 then raise exception 'offboarding denial failed: %',c; end if;
+ end $$;
 rollback;
