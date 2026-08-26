@@ -10,28 +10,7 @@ const COMMAND_ORIGIN = "https://appkspdominion.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function allowedOrigin(origin: string | null): string | null {
-  if (!origin) return null;
-  if (
-    origin === PORTAL_ORIGIN ||
-    origin === "https://www.kspdominionportal.com" ||
-    origin === COMMAND_ORIGIN
-  ) {
-    return origin;
-  }
-  if (
-    origin === "http://localhost:3000" ||
-    origin === "http://localhost:3001" ||
-    origin === "http://localhost:3002" ||
-    origin === "http://localhost:3003"
-  ) {
-    return origin;
-  }
-  try {
-    const parsed = new URL(origin);
-    if (parsed.protocol === "https:" && parsed.hostname.endsWith(".vercel.app")) return origin;
-  } catch {
-    return null;
-  }
+  if (origin === PORTAL_ORIGIN || origin === COMMAND_ORIGIN) return origin;
   return null;
 }
 
@@ -54,7 +33,8 @@ function json(req: Request, body: Record<string, unknown>, status = 200) {
 }
 
 function genericSuccess(req: Request) {
-  // Never reveal whether an account exists for a supplied address.
+  // Never reveal whether an account exists or whether delivery failed for a
+  // specific address. Delivery failures are observable in server-side logs.
   return json(req, { ok: true }, 200);
 }
 
@@ -74,7 +54,7 @@ function recoveryUrl(origin: string, tokenHash: string): string {
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    if (req.headers.get("Origin") && !allowedOrigin(req.headers.get("Origin"))) {
+    if (!allowedOrigin(req.headers.get("Origin"))) {
       return json(req, { ok: false, error: "origin_not_allowed" }, 403);
     }
     return new Response(null, { status: 204, headers: corsHeaders(req) });
@@ -82,6 +62,9 @@ Deno.serve(async (req: Request) => {
 
   if (req.method !== "POST") return json(req, { ok: false, error: "method_not_allowed" }, 405);
 
+  // The chosen origin becomes the recovery-link host, so it is intentionally
+  // pinned to canonical KSP production domains. Do not broaden this to a
+  // wildcard preview domain: that would let another origin receive token_hash.
   const requestOrigin = allowedOrigin(req.headers.get("Origin"));
   if (!requestOrigin) return json(req, { ok: false, error: "origin_not_allowed" }, 403);
 
@@ -98,7 +81,8 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) {
-    return json(req, { ok: false, error: "recovery_unavailable" }, 503);
+    console.error("KSP auth recovery runtime is missing required Supabase configuration");
+    return genericSuccess(req);
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -121,7 +105,8 @@ Deno.serve(async (req: Request) => {
   const { data: resendKeyData, error: resendKeyError } = await admin.rpc("ksp_get_resend_api_key");
   const resendKey = typeof resendKeyData === "string" ? resendKeyData.trim() : "";
   if (resendKeyError || resendKey.length < 10) {
-    return json(req, { ok: false, error: "recovery_unavailable" }, 503);
+    console.error("KSP auth recovery could not load the Resend credential");
+    return genericSuccess(req);
   }
 
   const actionUrl = recoveryUrl(requestOrigin, linkData.properties.hashed_token);
@@ -144,11 +129,11 @@ Deno.serve(async (req: Request) => {
 
     if (sendError || !sent?.id) {
       console.error("KSP auth recovery email delivery failed");
-      return json(req, { ok: false, error: "recovery_unavailable" }, 503);
+      return genericSuccess(req);
     }
   } catch {
     console.error("KSP auth recovery email delivery threw");
-    return json(req, { ok: false, error: "recovery_unavailable" }, 503);
+    return genericSuccess(req);
   }
 
   return genericSuccess(req);
