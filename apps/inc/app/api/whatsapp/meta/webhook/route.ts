@@ -8,6 +8,7 @@ import {
   type NormalizedWhatsAppMessage,
   type NormalizedWhatsAppStatus,
 } from '../../../../../lib/whatsapp-meta';
+import { whatsappWebhookRuntimeGate } from '../../../../../lib/whatsapp-runtime';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -344,6 +345,10 @@ async function ingestStatus(
 }
 
 export async function GET(request: Request) {
+  if (!whatsappWebhookRuntimeGate(request).ok) {
+    return json({ ok: false, error: 'webhook_unavailable' }, 503);
+  }
+
   const { verifyToken } = metaSecrets();
   if (!verifyToken) {
     return json({ ok: false, error: 'webhook_not_configured' }, 503);
@@ -367,6 +372,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (!whatsappWebhookRuntimeGate(request).ok) {
+    return json({ ok: false, error: 'webhook_unavailable' }, 503);
+  }
+
   const contentLength = Number(request.headers.get('content-length') ?? '0');
   if (
     Number.isFinite(contentLength) &&
