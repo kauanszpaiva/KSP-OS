@@ -97,13 +97,13 @@ export default function UpdatePasswordPage() {
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold tracking-tight text-ink">KSP</span>
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">Client Portal</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">Dominion OS</span>
           </div>
         </div>
 
         <div className="rounded-xl border border-line bg-surface p-7 shadow-card">
           <h1 className="font-display text-[22px] font-semibold text-ink">Choose your password</h1>
-          <p className="mt-1 text-[13px] text-ink-3">Set the password you will use to access the KSP Client Portal.</p>
+          <p className="mt-1 text-[13px] text-ink-3">Set the password you will use to access KSP Dominion OS.</p>
 
           {checkingSession ? (
             <p className="mt-6 text-[13px] text-ink-3">Checking your secure link…</p>

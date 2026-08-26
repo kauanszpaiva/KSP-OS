@@ -18,11 +18,11 @@ if [ "$1" = "exec" ] && [ "$3" = "pg_isready" ]; then
 fi
 
 # The repository's migration chain targets Supabase Postgres, where Vault,
-# pgcrypto-in-extensions, the HTTP extension, and service_role are platform
-# contracts. The behavioral CI harness uses vanilla postgres:15, so inject only
-# those platform-provided contracts into each fresh test database. Application
-# tables, policies, triggers, and migrations still come exclusively from the
-# real migration chain.
+# pgcrypto-in-extensions, the HTTP extension, service_role, and the full
+# auth.users shape are platform contracts. The behavioral CI harness uses
+# vanilla postgres:15, so inject only those platform-provided contracts.
+# Application tables, policies, triggers, and migrations still come exclusively
+# from the real migration chain.
 if [ "$1" = "exec" ] && [ "$3" = "createdb" ]; then
   CONTAINER="$2"
   DB_NAME=""
@@ -153,6 +153,26 @@ AS $$
 $$;
 SQL
   ex\it $?
+fi
+
+# Hosted Supabase Auth provides raw_user_meta_data/recovery_sent_at and the
+# profile-sync trigger creates public.profiles when auth.users rows are inserted.
+# The legacy actor fixture still writes its friendly display names explicitly.
+# Keep the real trigger active and make that fixture write idempotent instead of
+# disabling production behavior during the RLS rehearsal.
+if [ "$1" = "exec" ] && [ "$2" = "-i" ] && [ "$4" = "psql" ]; then
+  INPUT_FILE="$(mktemp)"
+  REWRITTEN_FILE="$(mktemp)"
+  cat > "$INPUT_FILE"
+  sed \
+    -e "s/create table auth.users (id uuid primary key, email text unique);/create table auth.users (id uuid primary key, email text unique, raw_user_meta_data jsonb not null default '{}'::jsonb, recovery_sent_at timestamptz);/" \
+    -e "s/('20000000-0000-0000-0000-000000000005', 'Other Org Test', 'other-org@test.invalid');/('20000000-0000-0000-0000-000000000005', 'Other Org Test', 'other-org@test.invalid') on conflict (id) do update set display_name = excluded.display_name, email = excluded.email;/" \
+    -e "s/select count(*) into c from documents; if c <> 1 then raise exception 'client document isolation failed: %', c; end if;/select count(*) into c from client_memberships where profile_id=auth.uid(); if c <> 1 then raise exception 'client membership self-read failed: %, uid %', c, auth.uid(); end if; select case when public.is_portal_member('30000000-0000-0000-0000-000000000001'::uuid) then 1 else 0 end into c; if c <> 1 then raise exception 'is_portal_member failed: %, uid %', c, auth.uid(); end if; select count(*) into c from documents; if c <> 1 then raise exception 'client document isolation failed: %', c; end if;/" \
+    "$INPUT_FILE" > "$REWRITTEN_FILE"
+  $REAL_DOCKER "$@" < "$REWRITTEN_FILE"
+  STATUS=$?
+  rm -f "$INPUT_FILE" "$REWRITTEN_FILE"
+  ex\it $STATUS
 fi
 
 exec "$REAL_DOCKER" "$@"

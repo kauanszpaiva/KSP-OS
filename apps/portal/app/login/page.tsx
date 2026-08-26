@@ -51,8 +51,9 @@ export default function LoginPage() {
     }
 
     setRecoveryPending(true);
-    const redirectTo = `${window.location.origin}/auth/callback?next=/account/update-password`;
-    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+    const { error: recoveryError } = await supabase.functions.invoke('ksp-auth-recovery-request', {
+      body: { email: normalizedEmail }
+    });
     setRecoveryPending(false);
 
     if (recoveryError) {
@@ -60,7 +61,7 @@ export default function LoginPage() {
       return;
     }
 
-    setMessage('Check your email for a secure link to choose your password.');
+    setMessage('If this email belongs to a KSP account, a secure password link is on the way.');
   }
 
   const field =

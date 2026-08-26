@@ -9,12 +9,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [recoveryPending, setRecoveryPending] = useState(false);
   const configured = isSupabaseConfigured();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setMessage(null);
     const supabase = createBrowserClient();
     if (!supabase) {
       setError('Supabase is not configured in this environment.');
@@ -32,6 +35,36 @@ export default function LoginPage() {
     const safeNext = requested?.startsWith('/') && !requested.startsWith('//') ? requested : '/home';
     router.push(safeNext);
     router.refresh();
+  }
+
+  async function sendPasswordRecovery() {
+    setError(null);
+    setMessage(null);
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError('Enter your email address first.');
+      return;
+    }
+
+    const supabase = createBrowserClient();
+    if (!supabase) {
+      setError('Supabase is not configured in this environment.');
+      return;
+    }
+
+    setRecoveryPending(true);
+    const { error: recoveryError } = await supabase.functions.invoke('ksp-auth-recovery-request', {
+      body: { email: normalizedEmail }
+    });
+    setRecoveryPending(false);
+
+    if (recoveryError) {
+      setError('We could not send the password recovery email. Please try again or contact KSP.');
+      return;
+    }
+
+    setMessage('If this email belongs to a KSP account, a secure password link is on the way.');
   }
 
   const field =
@@ -68,10 +101,21 @@ export default function LoginPage() {
               <input id="email" type="email" required autoComplete="email" inputMode="email" placeholder="you@kspdominion.group" value={email} onChange={(e) => setEmail(e.target.value)} className={field} />
             </div>
             <div>
-              <label htmlFor="password" className="block text-[12px] font-medium text-ink-2">Password</label>
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="password" className="block text-[12px] font-medium text-ink-2">Password</label>
+                <button
+                  type="button"
+                  onClick={() => void sendPasswordRecovery()}
+                  disabled={recoveryPending || !configured}
+                  className="text-[12px] font-medium text-brand hover:text-brand-strong disabled:opacity-50"
+                >
+                  {recoveryPending ? 'Sending…' : 'Forgot password?'}
+                </button>
+              </div>
               <input id="password" type="password" required autoComplete="current-password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className={field} />
             </div>
             {error && <p className="text-[13px] text-risk">{error}</p>}
+            {message && <p className="rounded-lg border border-brand/25 bg-brand-tint px-3 py-2 text-[13px] text-brand">{message}</p>}
             <button
               type="submit"
               disabled={pending || !configured}

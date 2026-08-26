@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getServerSupabase } from '../../../lib/supabase';
 
 const TOKEN_HASH_RE = /^[A-Za-z0-9_-]{16,256}$/;
-const INVITE_PATH_RE = /^\/invite\/[0-9a-f]{64}$/i;
 const RECOVERY_PATH = '/account/update-password';
 
 function invalidRedirect(request: NextRequest) {
@@ -17,9 +16,7 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get('type');
   const next = request.nextUrl.searchParams.get('next') || '';
 
-  const validSignup = type === 'signup' && INVITE_PATH_RE.test(next);
-  const validRecovery = type === 'recovery' && next === RECOVERY_PATH;
-  if (!TOKEN_HASH_RE.test(tokenHash) || (!validSignup && !validRecovery)) {
+  if (type !== 'recovery' || next !== RECOVERY_PATH || !TOKEN_HASH_RE.test(tokenHash)) {
     return invalidRedirect(request);
   }
 
@@ -32,14 +29,14 @@ export async function GET(request: NextRequest) {
   }
 
   const { error } = await supabase.auth.verifyOtp({
-    type: validSignup ? 'signup' : 'recovery',
+    type: 'recovery',
     token_hash: tokenHash
   });
 
   if (error) return invalidRedirect(request);
 
   const url = request.nextUrl.clone();
-  url.pathname = next;
+  url.pathname = RECOVERY_PATH;
   url.search = '';
   return NextResponse.redirect(url);
 }
