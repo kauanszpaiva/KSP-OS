@@ -1,10 +1,10 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { resolveIncSupabaseConfig } from "./supabase-routing";
 
 export function getBrowserSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createBrowserClient(url, key);
+  const hostname =
+    typeof window === "undefined" ? undefined : window.location.hostname;
+  const config = resolveIncSupabaseConfig(hostname);
+  if (!config) return null;
+  return createBrowserClient(config.url, config.anonKey);
 }
