@@ -12,7 +12,10 @@ insert into auth.users(id,email) values
 
 insert into public.profiles(id,display_name,email) values
  ('f1000000-0000-0000-0000-000000000001','Owner Notification','owner-notification@test.invalid'),
- ('f1000000-0000-0000-0000-000000000002','Member Notification','member-notification@test.invalid');
+ ('f1000000-0000-0000-0000-000000000002','Member Notification','member-notification@test.invalid')
+on conflict (id) do update
+set display_name = excluded.display_name,
+    email = excluded.email;
 
 insert into public.organization_memberships(organization_id,profile_id,role,internal_role,scope) values
  ('f0000000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','founder_ceo','founder_ceo','all'),
