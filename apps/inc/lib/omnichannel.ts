@@ -2,10 +2,10 @@ import type { SupabaseClient } from '@ksp/database';
 import type { ListRow, MetricState } from './inc-data';
 
 const metricSpecs = [
-  ['communication_channels', 'Configured transport adapters'],
-  ['communication_conversations', 'Unified conversations'],
-  ['communication_events', 'Canonical communication events'],
-  ['communication_outbox', 'Outbound delivery queue']
+  ['communication_channels', 'WhatsApp connections'],
+  ['communication_conversations', 'WhatsApp conversations'],
+  ['communication_events', 'WhatsApp events'],
+  ['communication_outbox', 'WhatsApp delivery queue']
 ] as const;
 
 async function scopedCount(
@@ -14,10 +14,16 @@ async function scopedCount(
   table: string,
   label: string
 ): Promise<MetricState> {
-  const { count, error } = await supabase
+  let query = supabase
     .from(table)
     .select('*', { count: 'exact', head: true })
     .eq('organization_id', organizationId);
+
+  if (table === 'communication_channels') query = query.eq('kind', 'whatsapp');
+  if (table === 'communication_conversations') query = query.eq('primary_channel', 'whatsapp');
+  if (table === 'communication_events') query = query.eq('channel_kind', 'whatsapp');
+
+  const { count, error } = await query;
 
   return {
     label,
@@ -26,7 +32,7 @@ async function scopedCount(
   };
 }
 
-export async function getOmnichannelDashboard(
+export async function getWhatsAppDashboard(
   supabase: SupabaseClient,
   organizationId: string
 ): Promise<{
@@ -49,11 +55,13 @@ export async function getOmnichannelDashboard(
       .from('communication_channels')
       .select('id,channel_key,kind,provider,status,inbound_enabled,outbound_enabled')
       .eq('organization_id', organizationId)
-      .order('kind'),
+      .eq('kind', 'whatsapp')
+      .order('created_at', { ascending: true }),
     supabase
       .from('communication_conversations')
       .select('id,scope,primary_channel,state,summary,assigned_agent_key,last_event_at')
       .eq('organization_id', organizationId)
+      .eq('primary_channel', 'whatsapp')
       .order('last_event_at', { ascending: false, nullsFirst: false })
       .limit(40)
   ]);
@@ -62,7 +70,7 @@ export async function getOmnichannelDashboard(
     ? []
     : (channelResult.data ?? []).map((row: any) => ({
         id: String(row.id),
-        primary: `${String(row.kind).toUpperCase()} · ${row.provider}`,
+        primary: `WHATSAPP · ${row.provider}`,
         secondary: `${row.status} · inbound ${row.inbound_enabled ? 'on' : 'off'} · outbound ${row.outbound_enabled ? 'on' : 'off'}`,
         meta: row.channel_key
       }));
@@ -71,7 +79,7 @@ export async function getOmnichannelDashboard(
     ? []
     : (conversationResult.data ?? []).map((row: any) => ({
         id: String(row.id),
-        primary: row.summary || `${String(row.primary_channel).toUpperCase()} conversation`,
+        primary: row.summary || 'WhatsApp conversation',
         secondary: `${row.scope} · ${row.state}`,
         meta: row.assigned_agent_key
           ? `${row.assigned_agent_key}${row.last_event_at ? ` · ${row.last_event_at}` : ''}`
