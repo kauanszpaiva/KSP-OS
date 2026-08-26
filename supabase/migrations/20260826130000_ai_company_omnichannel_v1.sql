@@ -1,12 +1,13 @@
--- KSP INC AI Company Omnichannel Front Desk V1
--- Provider-agnostic communication ledger. No provider credentials or tokens belong in these tables.
--- Production application is separately release-gated.
+-- KSP INC AI Company WhatsApp Front Desk V1
+-- WhatsApp-only communication ledger for the existing AT&T phone identity.
+-- No provider credentials or tokens belong in these tables.
+-- Production application and Meta/WhatsApp activation are separately release-gated.
 
 create table if not exists public.communication_channels (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   channel_key text not null,
-  kind text not null check (kind in ('voice','sms','whatsapp','email')),
+  kind text not null default 'whatsapp' check (kind = 'whatsapp'),
   provider text not null,
   address text,
   external_ref text,
@@ -26,7 +27,7 @@ create table if not exists public.communication_identities (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   contact_id uuid references public.contacts(id) on delete set null,
-  channel_kind text not null check (channel_kind in ('voice','sms','whatsapp','email')),
+  channel_kind text not null default 'whatsapp' check (channel_kind = 'whatsapp'),
   normalized_address text not null,
   display_address text,
   verified boolean not null default false,
@@ -43,7 +44,7 @@ create table if not exists public.communication_conversations (
   lead_id uuid references public.leads(id) on delete set null,
   client_organization_id uuid references public.client_organizations(id) on delete set null,
   scope text not null default 'prospect' check (scope in ('prospect','client','internal')),
-  primary_channel text not null check (primary_channel in ('voice','sms','whatsapp','email')),
+  primary_channel text not null default 'whatsapp' check (primary_channel = 'whatsapp'),
   state text not null default 'open' check (state in ('open','human_handoff','waiting','closed','blocked')),
   assigned_agent_key text,
   summary text,
@@ -64,9 +65,9 @@ create table if not exists public.communication_events (
   conversation_id uuid not null references public.communication_conversations(id) on delete cascade,
   channel_id uuid references public.communication_channels(id) on delete set null,
   identity_id uuid references public.communication_identities(id) on delete set null,
-  channel_kind text not null check (channel_kind in ('voice','sms','whatsapp','email')),
+  channel_kind text not null default 'whatsapp' check (channel_kind = 'whatsapp'),
   direction text not null check (direction in ('inbound','outbound','system')),
-  event_type text not null check (event_type in ('message','email','call_started','call_connected','call_ended','voicemail','delivery','attachment','consent','handoff','status')),
+  event_type text not null check (event_type in ('message','delivery','attachment','consent','handoff','status')),
   provider text not null,
   dedupe_key text not null,
   provider_event_id text,
@@ -122,7 +123,7 @@ create table if not exists public.communication_consents (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   identity_id uuid not null references public.communication_identities(id) on delete cascade,
-  channel_kind text not null check (channel_kind in ('voice','sms','whatsapp','email')),
+  channel_kind text not null default 'whatsapp' check (channel_kind = 'whatsapp'),
   consent_type text not null,
   status text not null default 'unknown' check (status in ('unknown','granted','denied','revoked')),
   source text,
@@ -232,6 +233,7 @@ create policy communication_outbox_owner_all on public.communication_outbox
       select 1 from public.communication_channels ch
       where ch.id = communication_outbox.channel_id
         and ch.organization_id = communication_outbox.organization_id
+        and ch.kind = 'whatsapp'
     )
   );
 
@@ -244,9 +246,11 @@ create policy communication_consents_owner_all on public.communication_consents
       select 1 from public.communication_identities i
       where i.id = communication_consents.identity_id
         and i.organization_id = communication_consents.organization_id
+        and i.channel_kind = 'whatsapp'
     )
   );
 
-comment on table public.communication_events is 'Canonical normalized communication ledger. Provider webhook payloads must be verified, deduplicated and minimized before persistence.';
-comment on table public.communication_outbox is 'Provider-agnostic outbound queue. Credentials remain in approved secret storage and never in payload or metadata.';
-comment on table public.communication_consents is 'Channel/interaction consent evidence. Legal requirements vary by channel, purpose and jurisdiction; policy enforcement occurs before outbound execution or recording.';
+comment on table public.communication_channels is 'WhatsApp-only provider connection for the KSP INC AI Company Front Desk. The existing AT&T number may remain the public phone identity; carrier credentials do not belong here.';
+comment on table public.communication_events is 'Canonical normalized WhatsApp event ledger. Provider webhooks must be verified, deduplicated and minimized before persistence.';
+comment on table public.communication_outbox is 'WhatsApp outbound queue. Provider credentials remain in approved secret storage and never in payload or metadata.';
+comment on table public.communication_consents is 'WhatsApp consent evidence. Policy enforcement occurs before outbound execution.';
