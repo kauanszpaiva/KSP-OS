@@ -60,6 +60,10 @@ function readVersionedSupabaseEnv(): Record<string, string> {
     throw new Error("production_supabase_public_env_missing");
   }
 
+  if (process.env.VERCEL_GIT_COMMIT_REF === "main" && url === PREVIEW_SUPABASE_URL) {
+    throw new Error("main_branch_cannot_use_preview_supabase");
+  }
+
   return {
     NEXT_PUBLIC_SUPABASE_URL: url,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
