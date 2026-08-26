@@ -74,6 +74,7 @@ export const FOUNDER_NAV_GROUPS: NavGroup[] = [
     { label: 'Handoffs', href: '/founder/handoffs', status: 'live', icon: 'connections' }
   ]},
   { key: 'agents', label: 'Agents', items: [
+    { label: 'AI Company', href: '/founder/company', status: 'live', icon: 'software' },
     { label: 'AI Inbox', href: '/founder/ai-inbox', status: 'live', icon: 'software' },
     { label: 'AI Access', href: '/founder/ai-access', status: 'live', icon: 'connections' }
   ]},

@@ -71,6 +71,7 @@ describe('Founder OS navigation isolation', () => {
       '/founder/sources',
       '/founder/context',
       '/founder/handoffs',
+      '/founder/company',
       '/founder/ai-inbox',
       '/founder/ai-access',
       '/founder/work',
