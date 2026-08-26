@@ -16,7 +16,10 @@ insert into auth.users (id, email) values
 insert into public.profiles (id, display_name, email) values
   ('c1000000-0000-0000-0000-000000000001', 'Owner V3 CI', 'owner-v3-ci@test.invalid'),
   ('c1000000-0000-0000-0000-000000000002', 'Dev V3 CI', 'dev-v3-ci@test.invalid'),
-  ('c1000000-0000-0000-0000-000000000003', 'Third V3 CI', 'third-v3-ci@test.invalid');
+  ('c1000000-0000-0000-0000-000000000003', 'Third V3 CI', 'third-v3-ci@test.invalid')
+on conflict (id) do update
+set display_name = excluded.display_name,
+    email = excluded.email;
 
 insert into public.organization_memberships (
   organization_id,
