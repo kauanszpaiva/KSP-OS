@@ -40,13 +40,16 @@ function readVersionedSupabaseEnv(): Record<string, string> {
   const readWorkflowEnv = (name: string) =>
     workflow.match(new RegExp(`^\\s*${name}:\\s*(\\S+)\\s*$`, "m"))?.[1];
 
+  // Production auth must stay pinned to the repository-versioned canonical
+  // Supabase target. Project-level Vercel env drift must not silently route
+  // the standalone INC login to staging/preview.
   const url =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ??
-    readWorkflowEnv("NEXT_PUBLIC_SUPABASE_URL");
+    readWorkflowEnv("NEXT_PUBLIC_SUPABASE_URL") ??
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey =
+    readWorkflowEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    readWorkflowEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !publishableKey) {
     throw new Error("production_supabase_public_env_missing");
