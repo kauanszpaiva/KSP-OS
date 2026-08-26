@@ -1,32 +1,33 @@
 import { redirect } from 'next/navigation';
-import { getPortalAuthContext, getSessionUser, type PortalAuthContext } from '@ksp/auth';
+import { getSessionUser, type PortalAuthContext } from '@ksp/auth';
 import { getServerSupabase, isSupabaseConfigured } from './supabase';
+import { getEffectivePortalSession, type EffectivePortalSession } from './view-as';
 
 export interface PortalSessionState {
   configured: boolean;
   context: PortalAuthContext | null;
-  /**
-   * True when a valid Supabase session exists but resolves to no active client
-   * membership (none, expired, or suspended) — as opposed to no session at all.
-   * Lets callers route to a "no access" explanation instead of sign-in.
-   */
+  effective: EffectivePortalSession | null;
+  /** True when a valid Supabase session exists, even if it has no client membership. */
   signedIn: boolean;
 }
 
 export async function readPortalSession(): Promise<PortalSessionState> {
-  if (!isSupabaseConfigured()) return { configured: false, context: null, signedIn: false };
+  if (!isSupabaseConfigured()) return { configured: false, context: null, effective: null, signedIn: false };
   const supabase = await getServerSupabase();
-  if (!supabase) return { configured: false, context: null, signedIn: false };
-  const context = await getPortalAuthContext(supabase);
-  // Only pay for the extra lookup when the context is null and we need to tell
-  // "no session" apart from "signed in but no active client membership".
-  const signedIn = context !== null ? true : (await getSessionUser(supabase)) !== null;
-  return { configured: true, context, signedIn };
+  if (!supabase) return { configured: false, context: null, effective: null, signedIn: false };
+  const effective = await getEffectivePortalSession(supabase);
+  const context = effective?.context ?? null;
+  const signedIn = effective !== null ? true : (await getSessionUser(supabase)) !== null;
+  return { configured: true, context, effective, signedIn };
+}
+
+export async function requireEffectivePortalSession(): Promise<EffectivePortalSession> {
+  const { configured, effective, signedIn } = await readPortalSession();
+  if (!configured) redirect('/setup');
+  if (!effective) redirect(signedIn ? '/no-access' : '/login');
+  return effective;
 }
 
 export async function requirePortalSession(): Promise<PortalAuthContext> {
-  const { configured, context, signedIn } = await readPortalSession();
-  if (!configured) redirect('/setup');
-  if (!context) redirect(signedIn ? '/no-access' : '/login');
-  return context;
+  return (await requireEffectivePortalSession()).context;
 }
