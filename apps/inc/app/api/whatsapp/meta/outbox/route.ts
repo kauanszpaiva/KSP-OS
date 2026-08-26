@@ -1,8 +1,10 @@
 import { createServiceClient } from '@ksp/database';
 import {
+  automationModeAllowsExternalReply,
   sendMetaTextMessage,
   verifyInternalBearer,
   withinWhatsAppCustomerServiceWindow,
+  type WhatsAppAutomationMode,
 } from '../../../../../lib/whatsapp-meta-send';
 import { whatsappWebhookRuntimeGate } from '../../../../../lib/whatsapp-runtime';
 
@@ -33,6 +35,7 @@ type ChannelRow = {
   provider: string;
   kind: string;
   status: string;
+  automation_mode: WhatsAppAutomationMode;
   outbound_enabled: boolean;
 };
 
@@ -71,16 +74,20 @@ function parseTextPayload(value: unknown): TextPayload | null {
   return body ? { kind: 'text', body } : null;
 }
 
-function actionAllowsExternalReply(action: AiActionRow | null): boolean {
+function actionAllowsExternalReply(
+  action: AiActionRow | null,
+  automationMode: WhatsAppAutomationMode,
+): boolean {
   if (!action) return false;
   if (action.action_type !== 'reply' || action.risk_level !== 'low') return false;
   if (action.metadata?.external_send_allowed !== true) return false;
 
-  if (action.requires_human_approval) {
-    return action.status === 'approved' && Boolean(action.approved_by);
-  }
-
-  return action.status === 'approved' || action.status === 'queued';
+  return automationModeAllowsExternalReply({
+    automationMode,
+    requiresHumanApproval: action.requires_human_approval,
+    actionStatus: action.status,
+    approvedBy: action.approved_by,
+  });
 }
 
 async function failOutbox(
@@ -144,7 +151,9 @@ async function dispatchOne(
   ] = await Promise.all([
     service
       .from('communication_channels')
-      .select('external_ref,provider,kind,status,outbound_enabled')
+      .select(
+        'external_ref,provider,kind,status,automation_mode,outbound_enabled',
+      )
       .eq('id', row.channel_id)
       .eq('organization_id', row.organization_id)
       .maybeSingle(),
@@ -174,15 +183,6 @@ async function dispatchOne(
   const aiActionRow = (aiAction as AiActionRow | null) ?? null;
 
   if (
-    !aiActionRow ||
-    aiActionRow.conversation_id !== row.conversation_id ||
-    !actionAllowsExternalReply(aiActionRow)
-  ) {
-    await failOutbox(service, row, 'ai_reply_not_authorized');
-    return 'blocked';
-  }
-
-  if (
     !channelRow ||
     channelRow.kind !== 'whatsapp' ||
     channelRow.provider !== 'meta' ||
@@ -191,6 +191,15 @@ async function dispatchOne(
     !channelRow.external_ref
   ) {
     await failOutbox(service, row, 'outbound_channel_not_active');
+    return 'blocked';
+  }
+
+  if (
+    !aiActionRow ||
+    aiActionRow.conversation_id !== row.conversation_id ||
+    !actionAllowsExternalReply(aiActionRow, channelRow.automation_mode)
+  ) {
+    await failOutbox(service, row, 'ai_reply_not_authorized_for_mode');
     return 'blocked';
   }
 
@@ -296,6 +305,7 @@ async function dispatchOne(
         source: 'communication_outbox',
         customer_service_window: true,
         ai_action_id: row.ai_action_id,
+        automation_mode: channelRow.automation_mode,
       },
     });
   if (eventError && eventError.code !== '23505') return 'failed';

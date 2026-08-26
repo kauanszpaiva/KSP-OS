@@ -5,6 +5,8 @@ const WHATSAPP_TEXT_MAX_LENGTH = 4096;
 const CUSTOMER_SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const META_SEND_TIMEOUT_MS = 10_000;
 
+export type WhatsAppAutomationMode = 'off' | 'observe' | 'draft' | 'autonomous';
+
 export type MetaTextSendRequest = {
   url: string;
   body: {
@@ -21,7 +23,15 @@ export type MetaTextSendRequest = {
 
 export type MetaTextSendResult =
   | { ok: true; providerMessageId: string }
-  | { ok: false; code: 'invalid_config' | 'timeout' | 'transport' | 'provider_rejected' | 'invalid_response' };
+  | {
+      ok: false;
+      code:
+        | 'invalid_config'
+        | 'timeout'
+        | 'transport'
+        | 'provider_rejected'
+        | 'invalid_response';
+    };
 
 function digitsOnly(value: string): string {
   return value.replace(/\D/g, '');
@@ -35,6 +45,31 @@ export function verifyInternalBearer(
   const supplied = Buffer.from(authorizationHeader.slice('Bearer '.length), 'utf8');
   const expected = Buffer.from(expectedSecret, 'utf8');
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+}
+
+export function automationModeAllowsExternalReply(input: {
+  automationMode: WhatsAppAutomationMode;
+  requiresHumanApproval: boolean;
+  actionStatus: string;
+  approvedBy: string | null;
+}): boolean {
+  if (input.automationMode === 'off' || input.automationMode === 'observe') {
+    return false;
+  }
+
+  if (input.automationMode === 'draft') {
+    return (
+      input.requiresHumanApproval &&
+      input.actionStatus === 'approved' &&
+      Boolean(input.approvedBy)
+    );
+  }
+
+  if (input.requiresHumanApproval) {
+    return input.actionStatus === 'approved' && Boolean(input.approvedBy);
+  }
+
+  return input.actionStatus === 'approved' || input.actionStatus === 'queued';
 }
 
 export function withinWhatsAppCustomerServiceWindow(

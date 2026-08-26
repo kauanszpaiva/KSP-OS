@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  automationModeAllowsExternalReply,
   buildMetaTextSendRequest,
   verifyInternalBearer,
   withinWhatsAppCustomerServiceWindow,
@@ -51,6 +52,81 @@ describe('Meta WhatsApp outbound safety policy', () => {
         body: 'x'.repeat(4097),
       }),
     ).toBeNull();
+  });
+
+  it('treats off and observe as hard outbound kill switches', () => {
+    for (const automationMode of ['off', 'observe'] as const) {
+      expect(
+        automationModeAllowsExternalReply({
+          automationMode,
+          requiresHumanApproval: false,
+          actionStatus: 'queued',
+          approvedBy: null,
+        }),
+      ).toBe(false);
+      expect(
+        automationModeAllowsExternalReply({
+          automationMode,
+          requiresHumanApproval: true,
+          actionStatus: 'approved',
+          approvedBy: 'founder-id',
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it('requires explicit human approval in draft mode', () => {
+    expect(
+      automationModeAllowsExternalReply({
+        automationMode: 'draft',
+        requiresHumanApproval: true,
+        actionStatus: 'approved',
+        approvedBy: 'founder-id',
+      }),
+    ).toBe(true);
+    expect(
+      automationModeAllowsExternalReply({
+        automationMode: 'draft',
+        requiresHumanApproval: false,
+        actionStatus: 'queued',
+        approvedBy: null,
+      }),
+    ).toBe(false);
+    expect(
+      automationModeAllowsExternalReply({
+        automationMode: 'draft',
+        requiresHumanApproval: true,
+        actionStatus: 'approved',
+        approvedBy: null,
+      }),
+    ).toBe(false);
+  });
+
+  it('allows autonomous low-risk reply actions while preserving human gates', () => {
+    expect(
+      automationModeAllowsExternalReply({
+        automationMode: 'autonomous',
+        requiresHumanApproval: false,
+        actionStatus: 'queued',
+        approvedBy: null,
+      }),
+    ).toBe(true);
+    expect(
+      automationModeAllowsExternalReply({
+        automationMode: 'autonomous',
+        requiresHumanApproval: true,
+        actionStatus: 'approved',
+        approvedBy: 'founder-id',
+      }),
+    ).toBe(true);
+    expect(
+      automationModeAllowsExternalReply({
+        automationMode: 'autonomous',
+        requiresHumanApproval: true,
+        actionStatus: 'approved',
+        approvedBy: null,
+      }),
+    ).toBe(false);
   });
 
   it('allows free-form replies only within 24 hours of the latest inbound message', () => {
