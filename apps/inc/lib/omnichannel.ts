@@ -53,7 +53,7 @@ export async function getWhatsAppDashboard(
   const [channelResult, conversationResult] = await Promise.all([
     supabase
       .from('communication_channels')
-      .select('id,channel_key,kind,provider,status,inbound_enabled,outbound_enabled')
+      .select('id,channel_key,kind,provider,status,automation_mode,inbound_enabled,outbound_enabled')
       .eq('organization_id', organizationId)
       .eq('kind', 'whatsapp')
       .order('created_at', { ascending: true }),
@@ -71,7 +71,7 @@ export async function getWhatsAppDashboard(
     : (channelResult.data ?? []).map((row: any) => ({
         id: String(row.id),
         primary: `WHATSAPP · ${row.provider}`,
-        secondary: `${row.status} · inbound ${row.inbound_enabled ? 'on' : 'off'} · outbound ${row.outbound_enabled ? 'on' : 'off'}`,
+        secondary: `${row.status} · AI ${row.automation_mode} · inbound ${row.inbound_enabled ? 'on' : 'off'} · outbound ${row.outbound_enabled ? 'on' : 'off'}`,
         meta: row.channel_key
       }));
 
