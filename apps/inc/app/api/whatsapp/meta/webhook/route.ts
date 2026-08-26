@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic';
 const MAX_EVENTS_PER_WEBHOOK = 50;
 
 type ServiceClient = NonNullable<ReturnType<typeof createServiceClient>>;
+type ChannelPurpose = 'inbound' | 'delivery';
 
 type ChannelRow = {
   id: string;
@@ -52,17 +53,22 @@ function metaSecrets() {
 async function resolveChannel(
   service: ServiceClient,
   phoneNumberId: string,
+  purpose: ChannelPurpose,
 ): Promise<ChannelRow | null> {
-  const { data, error } = await service
+  let query = service
     .from('communication_channels')
     .select('id,organization_id,automation_mode')
     .eq('kind', 'whatsapp')
     .eq('provider', META_WHATSAPP_PROVIDER)
     .eq('external_ref', phoneNumberId)
-    .eq('status', 'active')
-    .eq('inbound_enabled', true)
-    .maybeSingle();
+    .eq('status', 'active');
 
+  query =
+    purpose === 'inbound'
+      ? query.eq('inbound_enabled', true)
+      : query.eq('outbound_enabled', true);
+
+  const { data, error } = await query.maybeSingle();
   if (error) throw error;
   return (data as ChannelRow | null) ?? null;
 }
@@ -90,7 +96,11 @@ async function resolveIdentity(
       };
       const { error: updateError } = await service
         .from('communication_identities')
-        .update({ display_address: event.from, metadata, updated_at: new Date().toISOString() })
+        .update({
+          display_address: event.from,
+          metadata,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', row.id)
         .eq('organization_id', channel.organization_id);
       if (updateError) throw updateError;
@@ -235,7 +245,10 @@ async function ingestMessage(
 
   const { error: conversationError } = await service
     .from('communication_conversations')
-    .update({ last_event_at: event.occurredAt, updated_at: new Date().toISOString() })
+    .update({
+      last_event_at: event.occurredAt,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', conversation.id)
     .eq('organization_id', channel.organization_id);
   if (conversationError) throw conversationError;
@@ -281,20 +294,22 @@ async function ingestStatus(
   if (!outbox) return 'ignored';
 
   const dedupeKey = `meta:status:${event.providerMessageId}:${event.status}:${event.occurredAt}`;
-  const { error: eventError } = await service.from('communication_events').insert({
-    organization_id: channel.organization_id,
-    conversation_id: outbox.conversation_id,
-    channel_id: channel.id,
-    channel_kind: 'whatsapp',
-    direction: 'system',
-    event_type: 'delivery',
-    provider: META_WHATSAPP_PROVIDER,
-    dedupe_key: dedupeKey,
-    provider_event_id: event.providerMessageId,
-    body: event.status,
-    occurred_at: event.occurredAt,
-    metadata: event.metadata,
-  });
+  const { error: eventError } = await service
+    .from('communication_events')
+    .insert({
+      organization_id: channel.organization_id,
+      conversation_id: outbox.conversation_id,
+      channel_id: channel.id,
+      channel_kind: 'whatsapp',
+      direction: 'system',
+      event_type: 'delivery',
+      provider: META_WHATSAPP_PROVIDER,
+      dedupe_key: dedupeKey,
+      provider_event_id: event.providerMessageId,
+      body: event.status,
+      occurred_at: event.occurredAt,
+      metadata: event.metadata,
+    });
 
   if (eventError) {
     if (eventError.code === '23505') return 'duplicate';
@@ -315,7 +330,11 @@ async function ingestStatus(
   } else if (['sent', 'delivered', 'read'].includes(event.status)) {
     const { error } = await service
       .from('communication_outbox')
-      .update({ status: 'sent', sent_at: event.occurredAt, last_error: null })
+      .update({
+        status: 'sent',
+        sent_at: event.occurredAt,
+        last_error: null,
+      })
       .eq('id', outbox.id)
       .eq('organization_id', channel.organization_id);
     if (error) throw error;
@@ -326,7 +345,9 @@ async function ingestStatus(
 
 export async function GET(request: Request) {
   const { verifyToken } = metaSecrets();
-  if (!verifyToken) return json({ ok: false, error: 'webhook_not_configured' }, 503);
+  if (!verifyToken) {
+    return json({ ok: false, error: 'webhook_not_configured' }, 503);
+  }
 
   const url = new URL(request.url);
   const mode = url.searchParams.get('hub.mode');
@@ -338,18 +359,26 @@ export async function GET(request: Request) {
   }
   return new Response(challenge, {
     status: 200,
-    headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+    },
   });
 }
 
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get('content-length') ?? '0');
-  if (Number.isFinite(contentLength) && contentLength > META_WEBHOOK_MAX_BYTES) {
+  if (
+    Number.isFinite(contentLength) &&
+    contentLength > META_WEBHOOK_MAX_BYTES
+  ) {
     return json({ ok: false, error: 'payload_too_large' }, 413);
   }
 
   const { appSecret } = metaSecrets();
-  if (!appSecret) return json({ ok: false, error: 'webhook_not_configured' }, 503);
+  if (!appSecret) {
+    return json({ ok: false, error: 'webhook_not_configured' }, 503);
+  }
 
   const rawBody = await request.text();
   if (Buffer.byteLength(rawBody, 'utf8') > META_WEBHOOK_MAX_BYTES) {
@@ -374,7 +403,9 @@ export async function POST(request: Request) {
   }
 
   const service = createServiceClient();
-  if (!service) return json({ ok: false, error: 'database_not_configured' }, 503);
+  if (!service) {
+    return json({ ok: false, error: 'database_not_configured' }, 503);
+  }
 
   const events = normalizeMetaWebhook(payload).slice(0, MAX_EVENTS_PER_WEBHOOK);
   let processed = 0;
@@ -383,7 +414,11 @@ export async function POST(request: Request) {
 
   try {
     for (const event of events) {
-      const channel = await resolveChannel(service, event.phoneNumberId);
+      const channel = await resolveChannel(
+        service,
+        event.phoneNumberId,
+        event.kind === 'message' ? 'inbound' : 'delivery',
+      );
       if (!channel) {
         ignored += 1;
         continue;
