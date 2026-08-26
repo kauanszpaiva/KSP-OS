@@ -171,7 +171,7 @@ async function recordAudit(
   action: string,
   targetId: string,
   summary: string,
-  classification: string
+  classification: 'internal' | 'confidential'
 ) {
   await supabase.from('audit_events').insert({
     organization_id: ctx.organizationId,
@@ -270,7 +270,7 @@ export async function createAiMission(
     metadata: { vertical, plane, task_count: plan.length },
     created_by: ctx.user.id
   });
-  await recordAudit(supabase, ctx, 'ai.mission.created', mission.id, `Created AI Company mission: ${title}`, plane === 'client' ? 'client' : 'internal');
+  await recordAudit(supabase, ctx, 'ai.mission.created', mission.id, `Created AI Company mission: ${title}`, plane === 'client' ? 'confidential' : 'internal');
   revalidatePath('/ai-company');
   return { ok: true, missionId: mission.id, warning: 'Mission created in zero-cost deterministic mode.' };
 }
@@ -398,7 +398,7 @@ export async function runAiMission(
       created_by: ctx.user.id
     })
   ]);
-  await recordAudit(supabase, ctx, 'ai.mission.completed', missionId, output, mission.plane === 'client' ? 'client' : 'internal');
+  await recordAudit(supabase, ctx, 'ai.mission.completed', missionId, output, mission.plane === 'client' ? 'confidential' : 'internal');
   revalidatePath('/ai-company');
   return { ok: true, missionId, warning: 'Mission completed with persisted evidence and $0.00 API/model spend.' };
 }
