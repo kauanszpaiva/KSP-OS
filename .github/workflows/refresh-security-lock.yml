@@ -1,0 +1,64 @@
+name: refresh-security-lock
+
+on:
+  push:
+    branches:
+      - chore/kspcenter-promotion-preflight-20260917
+    paths:
+      - .github/workflows/refresh-security-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/kspcenter-promotion-preflight-20260917
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Patch vulnerable production dependencies
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const rootPath = 'package.json';
+          const root = JSON.parse(fs.readFileSync(rootPath, 'utf8'));
+          root.pnpm ??= {};
+          root.pnpm.overrides ??= {};
+          delete root.pnpm.overrides['fast-uri@>=3.0.0 <3.1.5'];
+          delete root.pnpm.overrides['sharp@<0.35.0'];
+          root.pnpm.overrides['fast-uri@>=3.0.0 <4.0.0'] = '3.1.8';
+          root.pnpm.overrides['sharp@<0.35.4'] = '0.35.4';
+          fs.writeFileSync(rootPath, JSON.stringify(root, null, 2) + '\n');
+
+          for (const path of [
+            'apps/command/package.json',
+            'apps/inc/package.json',
+            'apps/network/package.json',
+            'apps/portal/package.json',
+          ]) {
+            const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+            if (pkg.dependencies?.next !== '15.5.23') {
+              throw new Error(`${path}: unexpected Next.js baseline ${pkg.dependencies?.next}`);
+            }
+            pkg.dependencies.next = '15.5.24';
+            fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+          }
+          NODE
+          pnpm install --lockfile-only --no-frozen-lockfile
+          pnpm install --frozen-lockfile
+          pnpm audit --prod --audit-level high
+      - name: Commit generated lockfile and remove one-shot workflow
+        run: |
+          rm .github/workflows/refresh-security-lock.yml
+          git config user.name "KSP Security Automation"
+          git config user.email "security-automation@users.noreply.github.com"
+          git add package.json pnpm-lock.yaml apps/command/package.json apps/inc/package.json apps/network/package.json apps/portal/package.json .github/workflows/refresh-security-lock.yml
+          git diff --cached --check
+          git commit -m "fix(deps): patch critical production advisories"
+          git push origin HEAD:chore/kspcenter-promotion-preflight-20260917
