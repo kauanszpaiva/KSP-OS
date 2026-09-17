@@ -14,8 +14,8 @@ export default async function FounderAiAccessPage() {
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null;
   const baseUrl = configured || vercel || 'https://appkspdominion.com';
   const endpoint = `${baseUrl}/api/founder/mcp`;
-  const supabaseBase = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://tqwnsxjrlomosfblleqy.supabase.co').replace(/\/$/, '');
-  const oauthIssuer = `${supabaseBase}/auth/v1`;
+  const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
+  const oauthIssuer = supabaseBase ? `${supabaseBase}/auth/v1` : 'Not configured';
 
   return (
     <div className="mx-auto max-w-4xl">
