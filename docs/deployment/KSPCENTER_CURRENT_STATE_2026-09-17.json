@@ -18,6 +18,7 @@
       "ksp_modules": 4
     },
     "securityAdvisorFindings": 0,
+    "developmentBranches": [],
     "migrations": [
       "lumendor_v1_operational_foundation",
       "index_operational_foreign_keys",
@@ -79,9 +80,18 @@
     "status": "incompatible_without_reconciliation",
     "blockingCollision": {
       "table": "public.memberships",
+      "rowCount": 0,
+      "directForeignKeys": [
+        {
+          "sourceTable": "public.membership_events",
+          "sourceColumns": ["membership_id"],
+          "constraint": "membership_events_membership_id_fkey"
+        }
+      ],
       "reason": "KSPCENTER already contains the Lumendor/commerce memberships table, while KSP-OS migration 202607150001_foundation.sql creates a different memberships table for organization/profile RBAC."
     },
-    "runtimeOldProjectReferenceStillPresent": true
+    "simplifiedKspMembershipRows": 0,
+    "runtimeOldProjectReferenceStillPresentOnMain": true
   },
   "safety": {
     "destructiveDdlExecuted": false,
