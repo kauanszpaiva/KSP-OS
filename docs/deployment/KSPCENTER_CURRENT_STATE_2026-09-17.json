@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-17",
+  "repository": {
+    "fullName": "kauanszpaiva/KSP-OS",
+    "baseBranch": "main",
+    "observedHead": "ca4995d02457d16e4e4d28aa5276388eaaebb37a"
+  },
+  "supabase": {
+    "projectName": "KSPCENTER",
+    "projectRef": "rmaxqwbjizivkhurvuvx",
+    "region": "us-east-1",
+    "status": "ACTIVE_HEALTHY",
+    "postgresMajor": 17,
+    "authUserCount": 0,
+    "publicTableCount": 35,
+    "nonEmptyObservedTables": {
+      "ksp_modules": 4
+    },
+    "securityAdvisorFindings": 0,
+    "developmentBranches": [],
+    "migrations": [
+      "lumendor_v1_operational_foundation",
+      "index_operational_foreign_keys",
+      "replace_clerk_with_supabase_auth_and_rls",
+      "consolidate_auth_select_policies",
+      "add_access_and_inventory_control_rpcs",
+      "move_admin_writes_behind_edge_functions",
+      "ksp_platform_core",
+      "ksp_platform_hardening",
+      "ksp_policy_consolidation"
+    ]
+  },
+  "observedSchemaFamilies": {
+    "legacyLumendorOrCommerce": [
+      "app_users",
+      "addresses",
+      "products",
+      "product_variants",
+      "inventory_levels",
+      "inventory_movements",
+      "inventory_reservations",
+      "promotions",
+      "countries",
+      "orders",
+      "order_items",
+      "shipments",
+      "memberships",
+      "membership_events",
+      "returns",
+      "return_items",
+      "provider_events",
+      "notification_outbox",
+      "audit_logs",
+      "content_entries"
+    ],
+    "simplifiedKspPlatform": [
+      "ksp_profiles",
+      "ksp_organizations",
+      "ksp_members",
+      "ksp_modules",
+      "ksp_module_access",
+      "ksp_inc_projects",
+      "ksp_inc_tasks",
+      "ksp_command_incidents",
+      "ksp_command_updates",
+      "ksp_portal_tickets",
+      "ksp_portal_ticket_messages",
+      "ksp_network_posts",
+      "ksp_network_comments",
+      "ksp_notifications",
+      "ksp_audit_log"
+    ]
+  },
+  "repositoryLineageAtObservation": {
+    "approvedTargetProjectRef": "tqwnsxjrlomosfblleqy",
+    "productionDdlBlocked": true
+  },
+  "compatibility": {
+    "status": "incompatible_without_reconciliation",
+    "blockingCollision": {
+      "table": "public.memberships",
+      "rowCount": 0,
+      "directForeignKeys": [
+        {
+          "sourceTable": "public.membership_events",
+          "sourceColumns": ["membership_id"],
+          "constraint": "membership_events_membership_id_fkey"
+        }
+      ],
+      "reason": "KSPCENTER already contains the Lumendor/commerce memberships table, while KSP-OS migration 202607150001_foundation.sql creates a different memberships table for organization/profile RBAC."
+    },
+    "simplifiedKspMembershipRows": 0,
+    "runtimeOldProjectReferenceStillPresentOnMain": true
+  },
+  "safety": {
+    "destructiveDdlExecuted": false,
+    "productionRuntimeRepointed": false,
+    "secretsRecorded": false
+  }
+}

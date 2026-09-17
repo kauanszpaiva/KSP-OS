@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { resolveIncSupabaseConfig } from './supabase-routing';
 
-const PROD_URL = 'https://tqwnsxjrlomosfblleqy.supabase.co';
-const PROD_KEY = 'sb_publishable_NpvF7WGaA8Iy3xGWFRbZsQ_vvCxsiSs';
+const KSPCENTER_URL = 'https://rmaxqwbjizivkhurvuvx.supabase.co';
 const PREVIEW_URL = 'https://qfnriufuahlcwbxgprmy.supabase.co';
 
 const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,23 +15,23 @@ afterEach(() => {
 });
 
 describe('KSP INC Auth routing', () => {
-  it('pins the public standalone hostname to production Auth even with stale preview env', () => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = PREVIEW_URL;
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'preview-key';
+  it('uses the explicitly configured environment on the public standalone hostname', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = KSPCENTER_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'configured-public-key';
 
     expect(resolveIncSupabaseConfig('ksp-os-inc.vercel.app')).toEqual({
-      url: PROD_URL,
-      anonKey: PROD_KEY,
+      url: KSPCENTER_URL,
+      anonKey: 'configured-public-key',
     });
   });
 
-  it('normalizes a host header with a port before applying the public fail-safe', () => {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = PREVIEW_URL;
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'preview-key';
+  it('does not change the configured project when the host header includes a port', () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = KSPCENTER_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'configured-public-key';
 
     expect(resolveIncSupabaseConfig('KSP-OS-INC.VERCEL.APP:443')).toEqual({
-      url: PROD_URL,
-      anonKey: PROD_KEY,
+      url: KSPCENTER_URL,
+      anonKey: 'configured-public-key',
     });
   });
 
@@ -48,5 +47,13 @@ describe('KSP INC Auth routing', () => {
       url: PREVIEW_URL,
       anonKey: 'preview-key',
     });
+  });
+
+  it('fails closed when the Supabase public environment is incomplete', () => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    expect(resolveIncSupabaseConfig('ksp-os-inc.vercel.app')).toBeNull();
   });
 });

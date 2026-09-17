@@ -1,7 +1,4 @@
 const PUBLIC_INC_HOSTNAME = "ksp-os-inc.vercel.app";
-const PRODUCTION_SUPABASE_URL = "https://tqwnsxjrlomosfblleqy.supabase.co";
-const PRODUCTION_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_NpvF7WGaA8Iy3xGWFRbZsQ_vvCxsiSs";
 
 function normalizeHostname(hostname?: string): string | undefined {
   if (!hostname) return undefined;
@@ -9,20 +6,21 @@ function normalizeHostname(hostname?: string): string | undefined {
 }
 
 export function resolveIncSupabaseConfig(hostname?: string) {
-  // KSP INC's exact public hostname is a production owner surface. Browser,
-  // middleware, and Server Components must all resolve the same Supabase
-  // project; otherwise a successful browser login can be rejected server-side.
-  if (normalizeHostname(hostname) === PUBLIC_INC_HOSTNAME) {
-    return {
-      url: PRODUCTION_SUPABASE_URL,
-      anonKey: PRODUCTION_SUPABASE_PUBLISHABLE_KEY,
-    };
-  }
-
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
   if (!url || !anonKey) return null;
+
+  // Production, preview, middleware, Server Components, and browser code must
+  // all use the environment-selected Supabase project. Historically this helper
+  // pinned the public INC hostname to a specific project/key in source, which
+  // made a backend promotion impossible without a code deploy and could route
+  // auth to a stale project. next.config.ts remains responsible for preventing a
+  // main-branch deployment from using the isolated preview Supabase environment.
+  normalizeHostname(hostname);
   return { url, anonKey };
 }
+
+export { PUBLIC_INC_HOSTNAME };
