@@ -29,12 +29,13 @@ Promote the existing Supabase project named **KSPCENTER** to the canonical backe
   - a simplified KSP platform lineage (`ksp_profiles`, `ksp_organizations`, `ksp_inc_*`, `ksp_command_*`, `ksp_portal_*`, `ksp_network_*`).
 - The repository KSP OS schema is a separate, substantially larger model built around `organizations`, `profiles`, `organization_memberships`, CRM, projects, approvals, finance, documents, operations, Portal, Network, Founder OS, and subsequent migrations.
 - KSPCENTER currently has no Supabase development branches.
+- `public.memberships`, `public.ksp_members`, and `auth.users` each had zero rows at the deeper read-only preflight; `ksp_modules` was the only observed non-empty public table with four rows.
 
 ## Confirmed compatibility blocker
 
 `public.memberships` already exists in KSPCENTER as the commerce/membership table. KSP OS migration `202607150001_foundation.sql` also creates `memberships`, and migration `202607150002_identity_portal_finance_security.sql` then renames that table to `organization_memberships`.
 
-Therefore the repository migration chain cannot be replayed safely against KSPCENTER in its current state.
+Therefore the repository migration chain cannot be replayed safely against KSPCENTER in its current state. The live commerce `memberships` table had zero rows at preflight time and its only direct foreign-key dependency was `membership_events.membership_id`, which materially reduces rehearsal risk but does not remove the need for an isolated migration rehearsal.
 
 ## Runtime coupling found in the repository
 
@@ -48,6 +49,18 @@ The repository still contained source-level coupling to the legacy Supabase proj
 
 The promotion-preflight branch removes those runtime hardcoded fallbacks and makes the selected Supabase environment explicit. It does **not** repoint production to KSPCENTER.
 
+## Dependency security gate discovered during CI
+
+The first exact-head CI attempt stopped at the production dependency audit before lint, typecheck, tests, or builds. The existing baseline included critical Next.js advisories plus vulnerable `fast-uri` and `sharp` resolutions.
+
+The branch now applies patch-only remediation and regenerates the pnpm lockfile through pnpm itself:
+
+- Next.js `15.5.23` -> `15.5.24` across Command, INC, Network, and Portal;
+- `fast-uri` 3.x -> `3.1.8` through the existing root override mechanism;
+- vulnerable `sharp` resolutions below `0.35.4` -> `0.35.4`.
+
+The one-shot lockfile workflow ran `pnpm install --frozen-lockfile` and `pnpm audit --prod --audit-level high` successfully before committing the generated lockfile, then removed itself from the branch. Full canonical CI still has to pass on the resulting exact head.
+
 ## Promotion strategy
 
 ### Phase 0 — source decoupling
@@ -56,7 +69,8 @@ The promotion-preflight branch removes those runtime hardcoded fallbacks and mak
 - Require environment-specific Supabase configuration.
 - Fail closed when OAuth/Supabase runtime config is absent.
 - Keep Preview and Production environment isolation intact.
-- Run full repository CI.
+- Repair any production dependency vulnerability that prevents the canonical CI gate from running.
+- Run full repository CI on the exact PR head.
 
 ### Phase 1 — isolated database rehearsal
 
@@ -115,6 +129,7 @@ KSPCENTER is not canonical merely because the app can connect to it. Promotion r
 - Security Advisor has no blocking findings;
 - RLS deny/allow tests pass for internal, client, project, finance, founder, and cross-tenant paths;
 - generated TypeScript types match the promoted schema;
+- production dependency audit passes;
 - `test:db`, `test:rls`, `test:migrations`, `test:lineage`, and `test:parity` pass;
 - Command, INC, Portal and Network build successfully;
 - login/session resolution works against the target environment;
@@ -124,4 +139,4 @@ KSPCENTER is not canonical merely because the app can connect to it. Promotion r
 
 ## Current decision
 
-Proceed with GitHub source decoupling and CI now. Keep KSPCENTER production DDL blocked until an isolated Supabase branch rehearsal is available and verified.
+Proceed with GitHub source decoupling and exact-head CI now. Keep KSPCENTER production DDL blocked until an isolated Supabase branch rehearsal is available and verified.
