@@ -1,6 +1,6 @@
 # KSPCENTER promotion preflight — 2026-09-17
 
-**Status:** PREPARED / DATABASE DDL BLOCKED  
+**Status:** CRITICAL REHEARSAL PASSED / FULL PRODUCTION PROMOTION BLOCKED  
 **Application repository:** `kauanszpaiva/KSP-OS`  
 **Candidate Supabase backend:** `KSPCENTER` / `rmaxqwbjizivkhurvuvx`  
 **Observed candidate status:** `ACTIVE_HEALTHY`  
@@ -8,7 +8,7 @@
 
 ## Objective
 
-Promote the existing Supabase project named **KSPCENTER** to the canonical backend for **KSP OS** without silently discarding current database objects, weakening RLS, or repointing production before the repository schema and runtime have been reconciled.
+Promote the existing Supabase project named **KSPCENTER** to the canonical backend for **KSP OS** without silently discarding existing objects, weakening RLS, or repointing production before schema, data, runtime, and lineage are reconciled.
 
 ## Authoritative sources
 
@@ -19,47 +19,96 @@ Promote the existing Supabase project named **KSPCENTER** to the canonical backe
 5. Repository migrations under `supabase/migrations/`
 6. Live Supabase state captured in `docs/deployment/KSPCENTER_CURRENT_STATE_2026-09-17.json`
 
-## Observed live candidate state
+## Production preflight observations
 
 - KSPCENTER is reachable and healthy.
 - No Supabase Auth users were observed at preflight time.
-- Security Advisor returned no findings at preflight time.
-- The project contains two distinct schema families:
+- Security Advisor returned no findings before any rehearsal DDL.
+- The project contains two pre-existing schema families:
   - a Lumendor/commerce lineage (`products`, `orders`, inventory, membership commerce, etc.);
   - a simplified KSP platform lineage (`ksp_profiles`, `ksp_organizations`, `ksp_inc_*`, `ksp_command_*`, `ksp_portal_*`, `ksp_network_*`).
-- The repository KSP OS schema is a separate, substantially larger model built around `organizations`, `profiles`, `organization_memberships`, CRM, projects, approvals, finance, documents, operations, Portal, Network, Founder OS, and subsequent migrations.
-- KSPCENTER currently has no Supabase development branches.
-- `public.memberships`, `public.ksp_members`, and `auth.users` each had zero rows at the deeper read-only preflight; `ksp_modules` was the only observed non-empty public table with four rows.
+- The repository KSP OS schema is a separate, substantially larger model built around `organizations`, `profiles`, `organization_memberships`, CRM, projects, approvals, finance, documents, operations, Portal, Network, Founder OS, and later migrations.
+- At the deeper read-only preflight, `public.memberships`, `public.ksp_members`, and `auth.users` each had zero rows; `ksp_modules` was the only observed non-empty public table with four rows.
 
 ## Confirmed compatibility blocker
 
-`public.memberships` already exists in KSPCENTER as the commerce/membership table. KSP OS migration `202607150001_foundation.sql` also creates `memberships`, and migration `202607150002_identity_portal_finance_security.sql` then renames that table to `organization_memberships`.
+`public.memberships` already exists in KSPCENTER as the commerce/membership table. KSP OS migration `202607150001_foundation.sql` also creates `memberships`, and migration `202607150002_identity_portal_finance_security.sql` then renames that canonical table to `organization_memberships`.
 
-Therefore the repository migration chain cannot be replayed safely against KSPCENTER in its current state. The live commerce `memberships` table had zero rows at preflight time and its only direct foreign-key dependency was `membership_events.membership_id`, which materially reduces rehearsal risk but does not remove the need for an isolated migration rehearsal.
+Direct migration replay against KSPCENTER production is therefore unsafe.
 
-## Runtime coupling found in the repository
+## GitHub source decoupling
 
-The repository still contained source-level coupling to the legacy Supabase project, including:
+The promotion-preflight branch removes active source-level coupling to the legacy Supabase project and requires environment-selected Supabase configuration. It does **not** repoint production.
 
-- `.env.example`;
-- `.github/workflows/setup-login.yml`;
-- KSP INC auth routing;
-- Founder AI OAuth issuer fallback;
-- protected-resource metadata fallback.
+The branch also repaired inherited production dependency audit blockers with patch-level updates. The exact pre-rehearsal head passed canonical CI, including dependency audit, lint, typecheck, unit/E2E, DB/RLS/migration/lineage/parity tests, secret scan, and builds for Command, Portal, Network, and INC.
 
-The promotion-preflight branch removes those runtime hardcoded fallbacks and makes the selected Supabase environment explicit. It does **not** repoint production to KSPCENTER.
+## Isolated Supabase rehearsal — executed 2026-09-17
 
-## Dependency security gate discovered during CI
+Supabase reported the development-branch price for the KSPCENTER organization as **US$0.01344/hour**. After explicit authorization, an isolated branch was created:
 
-The first exact-head CI attempt stopped at the production dependency audit before lint, typecheck, tests, or builds. The existing baseline included critical Next.js advisories plus vulnerable `fast-uri` and `sharp` resolutions.
+- branch name: `ksp-os-rehearsal-20260917`
+- branch project ref: `wkmbibqyfmiykrftosvr`
+- parent project ref: `rmaxqwbjizivkhurvuvx`
+- `with_data=false`
+- branch status reached `ACTIVE_HEALTHY`
 
-The branch now applies patch-only remediation and regenerates the pnpm lockfile through pnpm itself:
+No production data was copied into the branch.
 
-- Next.js `15.5.23` -> `15.5.24` across Command, INC, Network, and Portal;
-- `fast-uri` 3.x -> `3.1.8` through the existing root override mechanism;
-- vulnerable `sharp` resolutions below `0.35.4` -> `0.35.4`.
+### Existing-object classification tested on the branch
 
-The one-shot lockfile workflow ran `pnpm install --frozen-lockfile` and `pnpm audit --prod --audit-level high` successfully before committing the generated lockfile, then removed itself from the branch. Full canonical CI still has to pass on the resulting exact head.
+The rehearsal preserved both pre-existing schema families while clearing the canonical `public` namespace:
+
+- Lumendor/commerce objects were moved to `legacy_lumendor`.
+- Simplified KSPCENTER v1 objects were moved to `legacy_kspcenter_v1`.
+- No legacy table was dropped.
+- No production object was moved or altered.
+
+Observed after quarantine and canonical replay prefix:
+
+- `legacy_lumendor`: 20 tables preserved
+- `legacy_kspcenter_v1`: 15 tables preserved
+- `public`: 50 canonical KSP OS tables at the captured checkpoint
+- `public.organization_memberships`: present
+- `public.memberships`: absent
+- `legacy_lumendor.memberships`: present
+- `legacy_kspcenter_v1.ksp_members`: present
+- all 50 captured canonical `public` tables had RLS enabled
+- 81 `public` RLS policies were present at the captured checkpoint
+
+### Canonical migration evidence
+
+An exact migration bundle was generated from the PR branch by GitHub Actions:
+
+- workflow run: `35260592420`
+- source head: `9e6f3cbf10d6c26a8d32c39fbbff84862cd13007`
+- migration files: 72
+- artifact digest: `sha256:ba048bd01bbb6c385358ed6bdafacf18f196ad5bb9242fc58053100fb5173948`
+
+The following canonical migration path was then executed successfully against the real Supabase development branch after legacy quarantine:
+
+1. `202607150001_foundation.sql`
+2. full `202607150002_identity_portal_finance_security.sql`, applied in statement-boundary-safe chunks
+3. `202607210001_operational_slice.sql`
+4. `202607230001_signals_decisions.sql`
+
+This proves the KSPCENTER-specific `memberships` collision can be neutralized without deleting the legacy commerce membership model, and that the critical canonical identity/RBAC transition to `organization_memberships` succeeds on a real Supabase branch.
+
+## Advisor result at the intermediate checkpoint
+
+The branch was intentionally inspected before the later hardening migrations in the 72-file chain.
+
+Security Advisor reported warnings including mutable function `search_path` and externally executable `SECURITY DEFINER` functions. Performance Advisor reported intermediate-state optimization findings such as unindexed foreign keys, auth-RLS init-plan opportunities, and multiple permissive policies.
+
+These findings mean this **intermediate checkpoint is not production-promotable**. Later repository migrations include dedicated security/function/policy hardening, so final production approval still requires full-chain replay followed by fresh Advisors on the final branch state.
+
+Reference remediation documentation returned by Supabase includes:
+
+- function search path: https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
+- anonymous SECURITY DEFINER execution: https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable
+- authenticated SECURITY DEFINER execution: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+- unindexed foreign keys: https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys
+- auth RLS init-plan: https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan
+- multiple permissive policies: https://supabase.com/docs/guides/database/database-linter?lint=0006_multiple_permissive_policies
 
 ## Promotion strategy
 
@@ -69,68 +118,64 @@ The one-shot lockfile workflow ran `pnpm install --frozen-lockfile` and `pnpm au
 - Require environment-specific Supabase configuration.
 - Fail closed when OAuth/Supabase runtime config is absent.
 - Keep Preview and Production environment isolation intact.
-- Repair any production dependency vulnerability that prevents the canonical CI gate from running.
-- Run full repository CI on the exact PR head.
+- Keep exact-head CI green.
 
 ### Phase 1 — isolated database rehearsal
 
-Create a Supabase development branch from KSPCENTER only after the platform-reported branch cost is explicitly confirmed.
+Completed for the critical collision and identity/RBAC prefix. Remaining work before production:
 
-On that isolated branch:
+1. replay all remaining canonical repository migrations in order on a fresh isolated KSPCENTER branch;
+2. generate TypeScript database types from the final branch state;
+3. run Security and Performance Advisors after all hardening migrations;
+4. run cross-tenant denial, founder authorization, client Portal isolation, finance and login/session checks against the final branch state;
+5. preserve immutable evidence of all legacy objects and the final schema.
 
-1. capture a schema/migration snapshot;
-2. classify every existing object as `preserve`, `quarantine`, `supersede`, or `canonical`;
-3. perform a complete collision scan against all repository migrations;
-4. quarantine legacy commerce objects that collide with KSP OS, preserving data and dependency evidence;
-5. replay the repository KSP OS migration chain;
-6. generate TypeScript database types;
-7. run Security and Performance Advisors;
-8. run repository DB, RLS, migration, lineage, and parity tests against the rehearsal branch;
-9. test cross-tenant denial, founder authorization, client portal isolation, and login/session resolution.
+### Phase 2 — data migration and lineage reconciliation
 
-### Phase 2 — lineage reconciliation
+Schema promotion alone is insufficient because the historical `appkspos` environment contains prior KSP OS application state while KSPCENTER is currently nearly empty.
 
-If rehearsal passes:
+Before cutover:
 
-- update `APPROVED_DATABASE_LINEAGE.json` to the KSPCENTER project ref;
-- replace stale environment-topology evidence with fresh KSPCENTER evidence;
-- record any preserved live-only objects with immutable version/hash evidence;
-- bind Preview to a tested non-production branch/project;
-- keep production DDL blocked until the exact-head release preflight is complete.
+1. inventory old `appkspos` production rows, Auth identities, Storage objects, and required runtime metadata;
+2. define table-by-table and identity-by-identity data mapping into the final KSPCENTER schema;
+3. rehearse the data migration in isolation;
+4. verify row counts, hashes/spot checks, foreign keys, Auth linkage, RLS and tenant boundaries;
+5. only then update `APPROVED_DATABASE_LINEAGE.json` and environment-topology evidence to KSPCENTER.
 
 ### Phase 3 — controlled production promotion
 
 Only after explicit production-release authorization:
 
 1. take a fresh KSPCENTER backup/preflight snapshot;
-2. execute the reviewed promotion migration/package;
-3. verify schema parity and migration history;
-4. provision/verify required internal auth identities;
+2. execute the reviewed schema/data promotion package;
+3. verify schema and data parity;
+4. provision/verify required internal Auth identities;
 5. configure Vercel/GitHub environment variables to KSPCENTER;
 6. smoke-test Command, INC, Portal, Network and Founder/MCP auth paths;
 7. run Security and Performance Advisors again;
-8. preserve rollback evidence and legacy schema until acceptance is complete.
+8. preserve rollback evidence and legacy schemas until acceptance is complete.
 
-## Explicit non-actions in this preflight
+## Explicit production non-actions
 
-- No KSPCENTER tables were dropped, renamed, moved, or altered.
-- No Supabase migration was applied to KSPCENTER.
-- No Auth user was created.
+- No KSPCENTER production table was dropped, renamed, moved, or altered.
+- No canonical KSP OS migration was applied to KSPCENTER production.
+- No production Auth user was created.
 - No production URL/key was changed.
-- No legacy project was deleted or modified.
-- No Supabase development branch was created because branch cost confirmation is a required gate.
+- No legacy Supabase project was deleted or modified.
+- No production lineage manifest was changed to KSPCENTER.
+- No GitHub PR was merged.
 
 ## Acceptance criteria for KSPCENTER becoming canonical
 
 KSPCENTER is not canonical merely because the app can connect to it. Promotion requires all of the following:
 
-- repository migrations replay successfully in an isolated rehearsal;
+- full repository migration chain replays successfully in isolated KSPCENTER rehearsal;
 - no unresolved table/type/function/policy collisions remain;
-- Security Advisor has no blocking findings;
+- Security Advisor has no unresolved blocking findings after final hardening;
 - RLS deny/allow tests pass for internal, client, project, finance, founder, and cross-tenant paths;
 - generated TypeScript types match the promoted schema;
-- production dependency audit passes;
-- `test:db`, `test:rls`, `test:migrations`, `test:lineage`, and `test:parity` pass;
+- old `appkspos` state that must survive cutover has a verified data-migration path;
+- production dependency audit and canonical repository test suites pass;
 - Command, INC, Portal and Network build successfully;
 - login/session resolution works against the target environment;
 - runtime environment configuration contains no stale production project reference;
@@ -139,4 +184,4 @@ KSPCENTER is not canonical merely because the app can connect to it. Promotion r
 
 ## Current decision
 
-Proceed with GitHub source decoupling and exact-head CI now. Keep KSPCENTER production DDL blocked until an isolated Supabase branch rehearsal is available and verified.
+**KEEP PRODUCTION BLOCKED.** The KSPCENTER-specific schema collision is technically solvable and the critical canonical identity/RBAC prefix has passed on a real isolated Supabase branch. The next promotion gate is full-chain isolated replay plus final Advisor validation and a separate rehearsed migration of historical `appkspos` data into KSPCENTER.
