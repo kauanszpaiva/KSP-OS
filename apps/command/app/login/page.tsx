@@ -54,8 +54,8 @@ export default function LoginPage() {
     }
 
     setRecoveryPending(true);
-    const { error: recoveryError } = await supabase.functions.invoke('ksp-auth-recovery-request', {
-      body: { email: normalizedEmail }
+    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: window.location.origin
     });
     setRecoveryPending(false);
 
