@@ -7,9 +7,9 @@ Current project mapping is verified from the GitHub Vercel integration on PR #12
 - Project name: `ksp-os-command`
 - Project ID: `prj_Ajm8CXfHQEdsC6LtMN6gayR9mi7r`
 - Root directory: `apps/command`
-- Canonical production domain: `appkspdominion.com`
-- Canonical production URL: `https://appkspdominion.com`
-- Set `NEXT_PUBLIC_COMMAND_BASE_URL=https://appkspdominion.com` in the Production environment so generated Command links use the canonical origin.
+- Canonical production domain: `www.appkspdominion.com`
+- Canonical production URL: `https://www.appkspdominion.com`
+- Set `NEXT_PUBLIC_COMMAND_BASE_URL=https://www.appkspdominion.com` in the Production environment so generated Command links use the canonical origin.
 
 ## Client Portal
 
