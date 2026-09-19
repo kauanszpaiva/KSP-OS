@@ -63,6 +63,33 @@ function recoveryUrl(origin: string, tokenHash: string): string {
   return url.toString();
 }
 
+function recoveryEmail(actionUrl: string): { subject: string; text: string; html: string } {
+  const safeUrl = actionUrl.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+  return {
+    subject: "Reset your KSP OS password",
+    text: [
+      "KSP OS password recovery",
+      "",
+      "Use the secure link below to choose a new password:",
+      actionUrl,
+      "",
+      "This link is time-limited. If you did not request a password reset, you can ignore this email.",
+    ].join("\n"),
+    html: `<!doctype html>
+<html>
+  <body style="margin:0;background:#0b0b0d;color:#f7f7f8;font-family:Arial,sans-serif;">
+    <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
+      <p style="margin:0 0 8px;color:#a78bfa;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">KSP OS Security</p>
+      <h1 style="margin:0 0 16px;font-size:24px;line-height:1.2;">Reset your password</h1>
+      <p style="margin:0 0 24px;color:#c7c7cc;line-height:1.6;">Use the secure link below to choose a new KSP OS password.</p>
+      <a href="${safeUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#7c3aed;color:#fff;text-decoration:none;font-weight:700;">Reset password</a>
+      <p style="margin:24px 0 0;color:#8f8f96;font-size:12px;line-height:1.6;">This link is time-limited. If you did not request a password reset, you can ignore this email.</p>
+    </div>
+  </body>
+</html>`,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     if (!allowedOrigin(req.headers.get("Origin"))) {
@@ -136,6 +163,7 @@ Deno.serve(async (req: Request) => {
 
   const actionUrl = recoveryUrl(linkOrigin, linkData.properties.hashed_token);
   const idempotencyDigest = await sha256Hex(`${email}:${linkData.properties.hashed_token}`);
+  const content = recoveryEmail(actionUrl);
   const resend = new Resend(resendKey);
 
   try {
@@ -144,10 +172,9 @@ Deno.serve(async (req: Request) => {
         from: "KSP OS Security <notifications@mail.kspdominion.group>",
         to: [email],
         replyTo: "kauan@kspdominion.group",
-        template: {
-          id: "ksp-auth-password-recovery",
-          variables: { ACTION_URL: actionUrl },
-        },
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
       },
       { idempotencyKey: `ksp-auth/recovery/${idempotencyDigest}`.slice(0, 240) },
     );
