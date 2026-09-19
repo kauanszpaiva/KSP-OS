@@ -25,7 +25,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_-0aveLl4f5ZbtooQWa_lRg_E3MG4eEB
       SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       LOGIN_PASSWORD: ${{ secrets.KSP_LOGIN_PASSWORD }}
-      PROVISION_ENABLED: "false"
+      PROVISION_ENABLED: "true"
     steps:
       - uses: actions/checkout@v4
 
