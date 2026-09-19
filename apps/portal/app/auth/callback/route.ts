@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getServerSupabase } from '../../../lib/supabase';
 
 function safeNextPath(value: string | null): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/home';
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value === '/login') return '/home';
   return value;
 }
 

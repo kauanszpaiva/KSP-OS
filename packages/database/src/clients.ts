@@ -3,7 +3,7 @@ import { createClient as createSupabaseClient, type SupabaseClient } from '@supa
 import { readPublicEnv, readServiceRoleKey } from './env';
 import { metrics, logger, getRequestId } from '@ksp/observability';
 
-export type { SupabaseClient } from '@supabase/supabase-js';
+export type { SupabaseClient, EmailOtpType } from '@supabase/supabase-js';
 
 /**
  * Cookie adapter the caller (Next app) supplies. Keeps this package free of any
