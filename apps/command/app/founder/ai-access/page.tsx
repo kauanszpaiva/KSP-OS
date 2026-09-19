@@ -12,7 +12,7 @@ export default async function FounderAiAccessPage() {
   await requireSession();
   const configured = process.env.NEXT_PUBLIC_COMMAND_BASE_URL?.replace(/\/$/, '');
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null;
-  const baseUrl = configured || vercel || 'https://appkspdominion.com';
+  const baseUrl = configured || vercel || 'https://www.appkspdominion.com';
   const endpoint = `${baseUrl}/api/founder/mcp`;
   const supabaseBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
   const oauthIssuer = supabaseBase ? `${supabaseBase}/auth/v1` : 'Not configured';
