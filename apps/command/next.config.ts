@@ -1,9 +1,14 @@
-import { readFileSync } from 'node:fs';
 import type { NextConfig } from 'next';
 import { assertCanonicalProductionSupabaseUrl } from './lib/production-supabase-target';
 
 const PREVIEW_SUPABASE_URL = 'https://qfnriufuahlcwbxgprmy.supabase.co';
 const PREVIEW_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_9cj39NCHGF-bQGy-1Fmyyg_7oEoz8kE';
+
+// Browser-safe production binding. These values are intentionally versioned:
+// the publishable key is public by design and is shipped to the browser bundle.
+// Production must not inherit a stale Supabase public target from Vercel.
+const KSPCENTER_SUPABASE_URL = 'https://rmaxqwbjizivkhurvuvx.supabase.co';
+const KSPCENTER_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-0aveLl4f5ZbtooQWa_lRg_E3MG4eEB';
 
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -29,26 +34,15 @@ function readVersionedPublicEnv(): Record<string, string> {
 
   if (process.env.VERCEL_ENV !== 'production') return {};
 
-  const workflow = readFileSync(new URL('../../.github/workflows/setup-login.yml', import.meta.url), 'utf8');
-  const readWorkflowEnv = (name: string) =>
-    workflow.match(new RegExp(`^\\s*${name}:\\s*(\\S+)\\s*$`, 'm'))?.[1];
+  const canonicalUrl = assertCanonicalProductionSupabaseUrl(KSPCENTER_SUPABASE_URL);
+  process.env.NEXT_PUBLIC_SUPABASE_URL = canonicalUrl;
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = KSPCENTER_SUPABASE_PUBLISHABLE_KEY;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? readWorkflowEnv('NEXT_PUBLIC_SUPABASE_URL');
-  const publishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    readWorkflowEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
   const portalBaseUrl = process.env.NEXT_PUBLIC_PORTAL_BASE_URL?.trim() || 'https://kspdominionportal.com';
-
-  if (!url || !publishableKey) {
-    throw new Error('production_supabase_public_env_missing');
-  }
-
-  const canonicalUrl = assertCanonicalProductionSupabaseUrl(url);
 
   return {
     NEXT_PUBLIC_SUPABASE_URL: canonicalUrl,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: KSPCENTER_SUPABASE_PUBLISHABLE_KEY,
     NEXT_PUBLIC_PORTAL_BASE_URL: portalBaseUrl,
     NEXT_PUBLIC_COMMAND_BASE_URL: process.env.NEXT_PUBLIC_COMMAND_BASE_URL ?? 'https://appkspdominion.com'
   };
