@@ -53,9 +53,12 @@ export default function LoginPage() {
       return;
     }
 
+    const commandOrigin =
+      process.env.NEXT_PUBLIC_COMMAND_BASE_URL?.replace(/\/$/, '') || 'https://www.appkspdominion.com';
+
     setRecoveryPending(true);
-    const { error: recoveryError } = await supabase.functions.invoke('ksp-auth-recovery-request', {
-      body: { email: normalizedEmail }
+    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: `${commandOrigin}/account/update-password`
     });
     setRecoveryPending(false);
 
