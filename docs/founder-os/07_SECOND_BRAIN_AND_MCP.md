@@ -119,13 +119,13 @@ The returned output remains private and can become context for a later AI. It is
 Canonical production endpoint:
 
 ```text
-https://appkspdominion.com/api/founder/mcp
+https://www.appkspdominion.com/api/founder/mcp
 ```
 
 `NEXT_PUBLIC_COMMAND_BASE_URL` is the application-level override for non-production environments. When no custom Command URL is configured, the application falls back to the canonical production origin:
 
 ```text
-https://appkspdominion.com
+https://www.appkspdominion.com
 ```
 
 Transport: stateless Streamable HTTP.
@@ -157,7 +157,7 @@ These writes are bounded to founder-private tables. The Founder MCP intentionall
 The MCP endpoint advertises OAuth Protected Resource Metadata at:
 
 ```text
-https://appkspdominion.com/.well-known/oauth-protected-resource/api/founder/mcp
+https://www.appkspdominion.com/.well-known/oauth-protected-resource/api/founder/mcp
 ```
 
 The metadata points clients to the project's Supabase Auth OAuth issuer (`<supabase-url>/auth/v1`). Supabase-issued OAuth access tokens are normal user JWTs, so the same KSP membership checks and Row Level Security apply.
@@ -165,13 +165,13 @@ The metadata points clients to the project's Supabase Auth OAuth issuer (`<supab
 The KSP OS contains the founder-only authorization UI:
 
 ```text
-https://appkspdominion.com/oauth/consent?authorization_id=...
+https://www.appkspdominion.com/oauth/consent?authorization_id=...
 ```
 
 and the decision route:
 
 ```text
-https://appkspdominion.com/oauth/consent/decision
+https://www.appkspdominion.com/oauth/consent/decision
 ```
 
 If the founder is logged out, login preserves a safe local `next` path and returns to the consent screen. Non-founders cannot approve a Second Brain OAuth authorization request.
@@ -181,7 +181,7 @@ If the founder is logged out, login preserves a safe local `next` path and retur
 The Supabase project must have its OAuth 2.1 Server enabled in Authentication settings, set the Site URL to the canonical Command origin, allow the required Command redirect URLs, and use the application authorization path:
 
 ```text
-Site URL: https://appkspdominion.com
+Site URL: https://www.appkspdominion.com
 Authorization path: /oauth/consent
 ```
 
@@ -191,7 +191,7 @@ A raw bearer user access token remains compatible with MCP clients that support 
 
 ## Connection workflow
 
-1. Add `https://appkspdominion.com/api/founder/mcp` in a client that supports remote Streamable HTTP MCP.
+1. Add `https://www.appkspdominion.com/api/founder/mcp` in a client that supports remote Streamable HTTP MCP.
 2. Prefer OAuth when the client offers authentication.
 3. Sign in as the KSP founder user and approve the KSP consent screen.
 4. Call `brain_search` or `list_truth` to verify private access.
