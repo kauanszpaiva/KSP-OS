@@ -37,7 +37,7 @@ export default function Home() {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           window.history.replaceState({}, '', '/');
           if (!error && !cancelled) {
-            router.replace('/account/update-password');
+            router.replace('/home');
             router.refresh();
             return;
           }
