@@ -6,12 +6,23 @@ type RecoveryBody = {
 };
 
 const PORTAL_ORIGIN = "https://kspdominionportal.com";
-const COMMAND_ORIGIN = "https://appkspdominion.com";
+const COMMAND_ORIGIN = "https://www.appkspdominion.com";
+const LEGACY_COMMAND_ORIGIN = "https://appkspdominion.com";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function allowedOrigin(origin: string | null): string | null {
-  if (origin === PORTAL_ORIGIN || origin === COMMAND_ORIGIN) return origin;
+  if (
+    origin === PORTAL_ORIGIN ||
+    origin === COMMAND_ORIGIN ||
+    origin === LEGACY_COMMAND_ORIGIN
+  ) {
+    return origin;
+  }
   return null;
+}
+
+function canonicalRecoveryOrigin(origin: string): string {
+  return origin === PORTAL_ORIGIN ? PORTAL_ORIGIN : COMMAND_ORIGIN;
 }
 
 function corsHeaders(req: Request): Record<string, string> {
@@ -67,6 +78,7 @@ Deno.serve(async (req: Request) => {
   // wildcard preview domain: that would let another origin receive token_hash.
   const requestOrigin = allowedOrigin(req.headers.get("Origin"));
   if (!requestOrigin) return json(req, { ok: false, error: "origin_not_allowed" }, 403);
+  const linkOrigin = canonicalRecoveryOrigin(requestOrigin);
 
   let body: RecoveryBody;
   try {
@@ -108,7 +120,7 @@ Deno.serve(async (req: Request) => {
   const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
     type: "recovery",
     email,
-    options: { redirectTo: `${requestOrigin}/account/update-password` },
+    options: { redirectTo: `${linkOrigin}/account/update-password` },
   });
 
   if (linkError || !linkData.properties?.hashed_token) {
@@ -122,7 +134,7 @@ Deno.serve(async (req: Request) => {
     return genericSuccess(req);
   }
 
-  const actionUrl = recoveryUrl(requestOrigin, linkData.properties.hashed_token);
+  const actionUrl = recoveryUrl(linkOrigin, linkData.properties.hashed_token);
   const idempotencyDigest = await sha256Hex(`${email}:${linkData.properties.hashed_token}`);
   const resend = new Resend(resendKey);
 
