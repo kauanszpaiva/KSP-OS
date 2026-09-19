@@ -20,14 +20,14 @@ export default function Home() {
       const code = url.searchParams.get('code');
 
       try {
-        if (supabase && recoveryType === 'recovery' && accessToken && refreshToken) {
+        if (supabase && accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
           });
           window.history.replaceState({}, '', '/');
           if (!error && !cancelled) {
-            router.replace('/account/update-password');
+            router.replace(recoveryType === 'recovery' ? '/account/update-password' : '/home');
             router.refresh();
             return;
           }
