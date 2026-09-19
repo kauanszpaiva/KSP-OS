@@ -30,7 +30,9 @@ export default function LoginPage() {
       setError('Invalid email or password.');
       return;
     }
-    router.push('/home');
+    const requested = new URLSearchParams(window.location.search).get('next');
+    const safeNext = requested?.startsWith('/') && !requested.startsWith('//') && requested !== '/login' ? requested : '/home';
+    router.push(safeNext);
     router.refresh();
   }
 

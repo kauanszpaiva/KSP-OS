@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
-import { createServerClient, isSupabaseConfigured, type SupabaseClient } from '@ksp/database';
+import { createServerClient, isSupabaseConfigured, type SupabaseClient, type EmailOtpType } from '@ksp/database';
 
-export { isSupabaseConfigured };
+export { isSupabaseConfigured, type EmailOtpType };
 
 /**
  * Request-scoped Supabase client bound to the caller's session cookies. Returns
