@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { NextConfig } from 'next';
+import { assertCanonicalProductionSupabaseUrl } from './lib/production-supabase-target';
 
 const PREVIEW_SUPABASE_URL = 'https://qfnriufuahlcwbxgprmy.supabase.co';
 const PREVIEW_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_9cj39NCHGF-bQGy-1Fmyyg_7oEoz8kE';
@@ -43,8 +44,10 @@ function readVersionedPublicEnv(): Record<string, string> {
     throw new Error('production_supabase_public_env_missing');
   }
 
+  const canonicalUrl = assertCanonicalProductionSupabaseUrl(url);
+
   return {
-    NEXT_PUBLIC_SUPABASE_URL: url,
+    NEXT_PUBLIC_SUPABASE_URL: canonicalUrl,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
     NEXT_PUBLIC_PORTAL_BASE_URL: portalBaseUrl,
     NEXT_PUBLIC_COMMAND_BASE_URL: process.env.NEXT_PUBLIC_COMMAND_BASE_URL ?? 'https://appkspdominion.com'
