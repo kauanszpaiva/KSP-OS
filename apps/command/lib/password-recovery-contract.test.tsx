@@ -24,6 +24,17 @@ describe('Command password recovery contract', () => {
     expect(recovery).toContain('recoveryUrl(linkOrigin, linkData.properties.hashed_token)');
   });
 
+  it('sends recovery email with inline text and html instead of a remote Resend template', () => {
+    const recovery = repoFile('supabase/functions/ksp-auth-recovery-request/index.ts');
+
+    expect(recovery).toContain('const content = recoveryEmail(actionUrl);');
+    expect(recovery).toContain('subject: content.subject');
+    expect(recovery).toContain('text: content.text');
+    expect(recovery).toContain('html: content.html');
+    expect(recovery).not.toContain('template: {');
+    expect(recovery).not.toContain('ksp-auth-password-recovery');
+  });
+
   it('keeps the Command production base on the official www origin', () => {
     const nextConfig = repoFile('apps/command/next.config.ts');
     const envExample = repoFile('.env.example');
