@@ -44,7 +44,7 @@ function readVersionedPublicEnv(): Record<string, string> {
     NEXT_PUBLIC_SUPABASE_URL: canonicalUrl,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: KSPCENTER_SUPABASE_PUBLISHABLE_KEY,
     NEXT_PUBLIC_PORTAL_BASE_URL: portalBaseUrl,
-    NEXT_PUBLIC_COMMAND_BASE_URL: process.env.NEXT_PUBLIC_COMMAND_BASE_URL ?? 'https://appkspdominion.com'
+    NEXT_PUBLIC_COMMAND_BASE_URL: process.env.NEXT_PUBLIC_COMMAND_BASE_URL ?? 'https://www.appkspdominion.com'
   };
 }
 
