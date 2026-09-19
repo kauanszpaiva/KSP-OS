@@ -1,156 +1,93 @@
-# One-shot backend setup: applies missing Supabase migrations, provisions the
-# internal logins listed in scripts/provision-users.json, and verifies sign-in
-# end to end (public-key sign-in + RLS reads, mirroring the app's auth path).
-#
-# Credentials are read from repository secrets (preferred) or, as a fallback,
-# from workflow_dispatch inputs so a run can be triggered without repo settings
-# access. Dispatch inputs are visible in the run's event metadata to repo
-# collaborators — prefer secrets for anything long-lived, and rotate keys after
-# using inputs.
-#
-#   SUPABASE_SECRET_KEY / input supabase_secret_key
-#       privileged server key for the Supabase project
-#   KSP_LOGIN_PASSWORD / input login_password
-#       initial password set for every provisioned user
-#   SUPABASE_DB_URL / input db_url (only needed if migrations are not applied)
-#       Postgres connection string from Supabase -> Connect -> Session pooler
-#
-# Values are masked from step logs; provisioning prints emails/roles only.
+# KSP Command one-shot internal login bootstrap against canonical KSPCENTER only.
+# This branch is operational; production source remains main.
 name: setup-login
 
 on:
   workflow_dispatch:
-    inputs:
-      supabase_secret_key:
-        description: Privileged Supabase server key (fallback when the secret is unset)
-        required: false
-        default: ''
-      login_password:
-        description: Initial login password for provisioned users (fallback when the secret is unset)
-        required: false
-        default: ''
-      db_url:
-        description: Postgres connection string for migrations (fallback when the secret is unset)
-        required: false
-        default: ''
   push:
     branches: [claude/login-fix-ecf2g2]
     paths:
       - .github/workflows/setup-login.yml
       - scripts/provision-users.json
 
-concurrency: setup-login
+concurrency:
+  group: setup-login-kspcenter
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   setup:
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_SUPABASE_URL: https://tqwnsxjrlomosfblleqy.supabase.co
-      # Browser-safe publishable key (public by design; ships in the app bundle).
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_NpvF7WGaA8Iy3xGWFRbZsQ_vvCxsiSs
-      # Repository secret wins; workflow_dispatch input is the fallback.
-      SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY || inputs.supabase_secret_key }}
-      LOGIN_PASSWORD: ${{ secrets.KSP_LOGIN_PASSWORD || inputs.login_password }}
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL || inputs.db_url }}
+      NEXT_PUBLIC_SUPABASE_URL: https://rmaxqwbjizivkhurvuvx.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_-0aveLl4f5ZbtooQWa_lRg_E3MG4eEB
+      SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      LOGIN_PASSWORD: ${{ secrets.KSP_LOGIN_PASSWORD }}
+      PROVISION_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check required credentials
-        run: |
-          [ -n "$SECRET_KEY" ] && echo "::add-mask::$SECRET_KEY"
-          [ -n "$LOGIN_PASSWORD" ] && echo "::add-mask::$LOGIN_PASSWORD"
-          [ -n "$SUPABASE_DB_URL" ] && echo "::add-mask::$SUPABASE_DB_URL"
-          missing=""
-          [ -z "$SECRET_KEY" ] && missing="$missing SUPABASE_SECRET_KEY"
-          [ -z "$LOGIN_PASSWORD" ] && missing="$missing KSP_LOGIN_PASSWORD"
-          if [ -n "$missing" ]; then
-            echo "::error::Missing credentials:$missing. Add repository secrets (Settings -> Secrets and variables -> Actions) or pass the workflow_dispatch inputs, then re-run."
-            exit 1
-          fi
-          echo "Required credentials are present."
-
-      - name: Apply missing migrations
+      - name: Validate KSPCENTER credentials and schema
         run: |
           set -euo pipefail
-          status=$(curl -s -o /dev/null -w '%{http_code}' \
-            "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/organization_memberships?limit=0" \
-            -H "apikey: $SECRET_KEY" -H "Authorization: Bearer $SECRET_KEY")
-          if [ "$status" = "200" ] && [ -z "${SUPABASE_DB_URL:-}" ]; then
-            echo "Schema already present; skipping migrations (no SUPABASE_DB_URL set)."
-            exit 0
-          fi
-          if [ -z "${SUPABASE_DB_URL:-}" ]; then
-            echo "::error::Schema is missing (organization_memberships -> HTTP $status) and SUPABASE_DB_URL is not set. Add the SUPABASE_DB_URL secret (Supabase -> Connect -> Session pooler URI) and re-run."
+          [ -n "$SECRET_KEY" ] && echo "::add-mask::$SECRET_KEY"
+          [ -n "$LOGIN_PASSWORD" ] && echo "::add-mask::$LOGIN_PASSWORD"
+
+          if [ -z "${SECRET_KEY:-}" ]; then
+            echo "::error::SUPABASE_SECRET_KEY is missing."
             exit 1
           fi
-          # Direct-connection hosts (db.<ref>.supabase.co) are IPv6-only and
-          # unreachable from GitHub runners. If the given URL fails, derive the
-          # IPv4 session-pooler equivalent by probing AWS regions.
-          export PGCONNECT_TIMEOUT=6
-          if ! psql "$SUPABASE_DB_URL" -tAc 'select 1' >/dev/null 2>&1; then
-            echo "Provided DB URL is unreachable; probing session pooler regions..."
-            ref=$(printf '%s' "$SUPABASE_DB_URL" | sed -nE 's|.*@db\.([a-z0-9]+)\.supabase\.co.*|\1|p')
-            pass=$(printf '%s' "$SUPABASE_DB_URL" | sed -nE 's|^postgres(ql)?://[^:]+:([^@]*)@.*|\2|p')
-            if [ -z "$ref" ] || [ -z "$pass" ]; then
-              echo "::error::Could not reach the database and could not derive a pooler URL from the given connection string. Provide the Session pooler URI (Supabase -> Connect -> Session pooler)."
-              exit 1
-            fi
-            found=""
-            for region in us-east-1 us-east-2 sa-east-1 us-west-1 us-west-2 eu-west-1 eu-west-2 eu-west-3 eu-central-1 eu-central-2 eu-north-1 ap-southeast-1 ap-southeast-2 ap-northeast-1 ap-northeast-2 ap-south-1 ca-central-1; do
-              for n in 0 1; do
-                candidate="postgresql://postgres.${ref}:${pass}@aws-${n}-${region}.pooler.supabase.com:5432/postgres"
-                if psql "$candidate" -tAc 'select 1' >/dev/null 2>&1; then
-                  echo "Connected via session pooler in ${region}."
-                  found="$candidate"
-                  break 2
-                fi
-              done
-            done
-            if [ -z "$found" ]; then
-              echo "::error::No reachable pooler endpoint found (or the database password is wrong). Copy the exact Session pooler URI from Supabase -> Connect and pass it as db_url."
-              exit 1
-            fi
-            SUPABASE_DB_URL="$found"
+          if [ -z "${LOGIN_PASSWORD:-}" ]; then
+            echo "::error::KSP_LOGIN_PASSWORD is missing."
+            exit 1
           fi
-          # Each migration runs in a single transaction (-1) so a failure rolls
-          # back cleanly. The presence check targets the LAST object each file
-          # creates, so a previously interrupted run is retried, not skipped.
-          apply_if_missing() {
-            check="$1"; file="$2"
-            present=$(psql "$SUPABASE_DB_URL" -tAc "$check")
-            if [ -n "$present" ]; then
-              echo "Already applied: $file"
-            else
-              echo "Applying: $file"
-              psql "$SUPABASE_DB_URL" -1 -v ON_ERROR_STOP=1 -q -f "supabase/migrations/$file"
+          if [ "$NEXT_PUBLIC_SUPABASE_URL" != "https://rmaxqwbjizivkhurvuvx.supabase.co" ]; then
+            echo "::error::Refusing any target except canonical KSPCENTER."
+            exit 1
+          fi
+
+          admin_status=$(curl -sS -o /tmp/admin.json -w '%{http_code}'             "$NEXT_PUBLIC_SUPABASE_URL/auth/v1/admin/users?page=1&per_page=1"             -H "apikey: $SECRET_KEY"             -H "Authorization: Bearer $SECRET_KEY")
+          if [ "$admin_status" != "200" ]; then
+            echo "::error::Stored SUPABASE_SECRET_KEY is not authorized for KSPCENTER (HTTP $admin_status)."
+            exit 1
+          fi
+
+          for table in profiles organizations organization_memberships; do
+            status=$(curl -sS -o "/tmp/${table}.json" -w '%{http_code}'               "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/${table}?select=*&limit=0"               -H "apikey: $SECRET_KEY"               -H "Authorization: Bearer $SECRET_KEY")
+            if [ "$status" != "200" ]; then
+              echo "::error::Canonical table ${table} is unavailable (HTTP $status)."
+              exit 1
             fi
-          }
-          apply_if_missing "select 1 from pg_policies where policyname='no_self_approval_insert'" 202607150001_foundation.sql
-          apply_if_missing "select 1 from pg_policies where policyname='change_client_decisions_read'" 202607150002_identity_portal_finance_security.sql
-          apply_if_missing "select 1 from pg_policies where policyname='founder_vault_delete'" 202607210001_operational_slice.sql
-          echo "Migrations are in place."
+          done
+
+          echo "KSPCENTER credential and canonical schema verification passed."
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Provision internal users
+        if: env.PROVISION_ENABLED == 'true'
         run: |
           set -euo pipefail
           export SUPABASE_SERVER_ONLY_SECRET_KEY="$SECRET_KEY"
           export PROVISION_PASSWORD="$LOGIN_PASSWORD"
           jq -c '.[]' scripts/provision-users.json | while read -r user; do
-            PROVISION_EMAIL=$(jq -r '.email' <<<"$user") \
-            PROVISION_NAME=$(jq -r '.name' <<<"$user") \
-            PROVISION_ROLE=$(jq -r '.role' <<<"$user") \
-            node scripts/provision-internal-user.mjs || exit 1
+            PROVISION_EMAIL=$(jq -r '.email' <<<"$user")             PROVISION_NAME=$(jq -r '.name' <<<"$user")             PROVISION_ROLE=$(jq -r '.role' <<<"$user")             node scripts/provision-internal-user.mjs
           done
 
       - name: Verify login end to end
+        if: env.PROVISION_ENABLED == 'true'
         run: |
           set -euo pipefail
           export VERIFY_PASSWORD="$LOGIN_PASSWORD"
           jq -r '.[].email' scripts/provision-users.json | while read -r email; do
-            VERIFY_EMAIL="$email" node scripts/verify-login.mjs || exit 1
+            VERIFY_EMAIL="$email" node scripts/verify-login.mjs
           done
           echo "All provisioned users can sign in and resolve an internal session."
+
+      - name: Read-only validation complete
+        if: env.PROVISION_ENABLED != 'true'
+        run: echo "Read-only validation completed; no Auth user was created or changed."
