@@ -127,10 +127,19 @@ Deno.serve(async (req: Request) => {
     return genericSuccess(req);
   }
 
-  const { data: resendKeyData, error: resendKeyError } = await admin.rpc("ksp_get_resend_api_key");
-  const resendKey = typeof resendKeyData === "string" ? resendKeyData.trim() : "";
-  if (resendKeyError || resendKey.length < 10) {
-    console.error("KSP auth recovery could not load the Resend credential");
+  const envResendKey = Deno.env.get("RESEND_API_KEY")?.trim() || "";
+  let resendKey = envResendKey;
+
+  if (resendKey.length < 10) {
+    const { data: resendKeyData, error: resendKeyError } = await admin.rpc("ksp_get_resend_api_key");
+    resendKey = typeof resendKeyData === "string" ? resendKeyData.trim() : "";
+    if (resendKeyError) {
+      console.error("KSP auth recovery could not load the fallback Resend credential");
+    }
+  }
+
+  if (resendKey.length < 10) {
+    console.error("KSP auth recovery has no usable Resend credential");
     return genericSuccess(req);
   }
 
