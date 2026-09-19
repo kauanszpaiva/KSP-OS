@@ -7,11 +7,13 @@ function repoFile(path: string): string {
 }
 
 describe('Command password recovery contract', () => {
-  it('uses the governed KSP recovery function instead of the native recover endpoint', () => {
+  it('uses Supabase native recovery SMTP with the official KSP password-update redirect', () => {
     const login = repoFile('apps/command/app/login/page.tsx');
 
-    expect(login).toContain("supabase.functions.invoke('ksp-auth-recovery-request'");
-    expect(login).not.toContain('/auth/v1/recover');
+    expect(login).toContain('supabase.auth.resetPasswordForEmail(normalizedEmail');
+    expect(login).toContain("https://www.appkspdominion.com");
+    expect(login).toContain('redirectTo: `${commandOrigin}/account/update-password`');
+    expect(login).not.toContain("supabase.functions.invoke('ksp-auth-recovery-request'");
   });
 
   it('pins Command recovery links to the official www origin', () => {
