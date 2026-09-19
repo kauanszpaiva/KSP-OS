@@ -53,13 +53,36 @@ export default function LoginPage() {
       return;
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
+    const publishableKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !publishableKey) {
+      setError('Password recovery is unavailable in this environment.');
+      return;
+    }
+
     setRecoveryPending(true);
-    const { error: recoveryError } = await supabase.functions.invoke('ksp-auth-recovery-request', {
-      body: { email: normalizedEmail }
-    });
+    let recoveryOk = false;
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/auth/v1/recover?redirect_to=${encodeURIComponent(window.location.origin)}`,
+        {
+          method: 'POST',
+          headers: {
+            apikey: publishableKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email: normalizedEmail })
+        }
+      );
+      recoveryOk = response.ok;
+    } catch {
+      recoveryOk = false;
+    }
     setRecoveryPending(false);
 
-    if (recoveryError) {
+    if (!recoveryOk) {
       setError('We could not send the password recovery email. Please try again or contact KSP.');
       return;
     }
