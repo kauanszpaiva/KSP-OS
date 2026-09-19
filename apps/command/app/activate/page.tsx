@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createBrowserClient, isSupabaseConfigured } from '@ksp/database';
 
@@ -11,17 +11,17 @@ type InviteValidation = {
 
 export default function ActivateInternalAccountPage() {
   const configured = isSupabaseConfigured();
-  const inviteId = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    return new URLSearchParams(window.location.search).get('invite')?.trim() ?? '';
-  }, []);
-
+  const [inviteId, setInviteId] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pending, setPending] = useState(false);
   const [complete, setComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInviteId(new URLSearchParams(window.location.search).get('invite')?.trim() ?? '');
+  }, []);
 
   const field =
     'mt-1 w-full rounded-lg border border-line-2 bg-surface px-3.5 py-2.5 text-[15px] text-ink transition-[border-color,box-shadow] duration-fast focus:border-brand focus:outline-none focus:shadow-focus';
