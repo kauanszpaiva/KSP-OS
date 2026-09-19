@@ -79,21 +79,44 @@ export default function ActivateInternalAccountPage() {
       return;
     }
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/login?activation=confirmed`,
-        data: {
-          display_name: invite.display_name || normalizedEmail.split('@')[0],
-          ksp_internal_invite_id: inviteId
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '');
+    const publishableKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !publishableKey) {
+      setPending(false);
+      setError('Account activation is unavailable in this environment.');
+      return;
+    }
+
+    let signUpOk = false;
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/auth/v1/signup?redirect_to=${encodeURIComponent(window.location.origin)}`,
+        {
+          method: 'POST',
+          headers: {
+            apikey: publishableKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: normalizedEmail,
+            password,
+            data: {
+              display_name: invite.display_name || normalizedEmail.split('@')[0],
+              ksp_internal_invite_id: inviteId
+            }
+          })
         }
-      }
-    });
+      );
+      signUpOk = response.ok;
+    } catch {
+      signUpOk = false;
+    }
 
     setPending(false);
 
-    if (signUpError) {
+    if (!signUpOk) {
       setError('We could not activate this account. Use the same KSP email from the invitation or contact KSP.');
       return;
     }
