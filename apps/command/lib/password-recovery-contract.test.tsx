@@ -24,6 +24,16 @@ describe('Command password recovery contract', () => {
     expect(recovery).toContain('recoveryUrl(linkOrigin, linkData.properties.hashed_token)');
   });
 
+  it('loads the Resend credential from the Edge Function environment before Vault fallback', () => {
+    const recovery = repoFile('supabase/functions/ksp-auth-recovery-request/index.ts');
+
+    expect(recovery).toContain('Deno.env.get("RESEND_API_KEY")');
+    expect(recovery).toContain('admin.rpc("ksp_get_resend_api_key")');
+    expect(recovery.indexOf('Deno.env.get("RESEND_API_KEY")')).toBeLessThan(
+      recovery.indexOf('admin.rpc("ksp_get_resend_api_key")')
+    );
+  });
+
   it('keeps the Command production base on the official www origin', () => {
     const nextConfig = repoFile('apps/command/next.config.ts');
     const envExample = repoFile('.env.example');
