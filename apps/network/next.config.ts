@@ -1,8 +1,13 @@
-import { readFileSync } from 'node:fs';
 import type { NextConfig } from 'next';
 
 const PREVIEW_SUPABASE_URL = 'https://qfnriufuahlcwbxgprmy.supabase.co';
 const PREVIEW_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_9cj39NCHGF-bQGy-1Fmyyg_7oEoz8kE';
+
+// Browser-safe production binding. The publishable key is public by design and
+// ships to the browser bundle. Production must not depend on stale/missing
+// Vercel public env values for the canonical KSPCENTER target.
+const KSPCENTER_SUPABASE_URL = 'https://rmaxqwbjizivkhurvuvx.supabase.co';
+const KSPCENTER_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_-0aveLl4f5ZbtooQWa_lRg_E3MG4eEB';
 
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -28,23 +33,12 @@ function readVersionedSupabaseEnv(): Record<string, string> {
 
   if (process.env.VERCEL_ENV !== 'production') return {};
 
-  const workflow = readFileSync(new URL('../../.github/workflows/setup-login.yml', import.meta.url), 'utf8');
-  const readWorkflowEnv = (name: string) =>
-    workflow.match(new RegExp(`^\\s*${name}:\\s*(\\S+)\\s*$`, 'm'))?.[1];
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? readWorkflowEnv('NEXT_PUBLIC_SUPABASE_URL');
-  const publishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    readWorkflowEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
-
-  if (!url || !publishableKey) {
-    throw new Error('production_supabase_public_env_missing');
-  }
+  process.env.NEXT_PUBLIC_SUPABASE_URL = KSPCENTER_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = KSPCENTER_SUPABASE_PUBLISHABLE_KEY;
 
   return {
-    NEXT_PUBLIC_SUPABASE_URL: url,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey
+    NEXT_PUBLIC_SUPABASE_URL: KSPCENTER_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: KSPCENTER_SUPABASE_PUBLISHABLE_KEY
   };
 }
 
