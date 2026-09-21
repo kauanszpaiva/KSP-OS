@@ -29,7 +29,7 @@ const securityHeaders = [
 function readVersionedSupabaseEnv(): Record<string, string> {
   // main is the canonical production source. Treat it as production even if a
   // provider temporarily labels the deployment as Preview, so the public INC
-  // hostname can never silently authenticate against the isolated test project.
+  // hostname can never silently authenticate against the isolated preview project.
   const isProductionSource =
     process.env.VERCEL_ENV === "production" ||
     process.env.VERCEL_GIT_COMMIT_REF === "main";
@@ -80,7 +80,18 @@ const nextConfig: NextConfig = {
     return config;
   },
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      {
+        source: "/login",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "private, no-store, max-age=0, must-revalidate",
+          },
+        ],
+      },
+    ];
   },
 };
 
