@@ -1,9 +1,15 @@
-import { readFileSync } from "node:fs";
 import type { NextConfig } from "next";
 
 const PREVIEW_SUPABASE_URL = "https://qfnriufuahlcwbxgprmy.supabase.co";
 const PREVIEW_SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable_9cj39NCHGF-bQGy-1Fmyyg_7oEoz8kE";
+
+// Browser-safe production binding. The publishable key is intentionally public
+// and ships to the browser bundle. KSP INC must resolve the same canonical
+// KSPCENTER identity/data plane as Command, Portal, and Network.
+const KSPCENTER_SUPABASE_URL = "https://rmaxqwbjizivkhurvuvx.supabase.co";
+const KSPCENTER_SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_-0aveLl4f5ZbtooQWa_lRg_E3MG4eEB";
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -21,10 +27,9 @@ const securityHeaders = [
 ];
 
 function readVersionedSupabaseEnv(): Record<string, string> {
-  // `main` is the repository's canonical production branch. Treat a main-branch
-  // deployment as production even if Vercel mislabels the deployment as Preview;
-  // otherwise the public standalone INC hostname can silently authenticate
-  // against the isolated staging project.
+  // main is the canonical production source. Treat it as production even if a
+  // provider temporarily labels the deployment as Preview, so the public INC
+  // hostname can never silently authenticate against the isolated test project.
   const isProductionSource =
     process.env.VERCEL_ENV === "production" ||
     process.env.VERCEL_GIT_COMMIT_REF === "main";
@@ -35,38 +40,21 @@ function readVersionedSupabaseEnv(): Record<string, string> {
       PREVIEW_SUPABASE_PUBLISHABLE_KEY;
     return {
       NEXT_PUBLIC_SUPABASE_URL: PREVIEW_SUPABASE_URL,
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: PREVIEW_SUPABASE_PUBLISHABLE_KEY,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+        PREVIEW_SUPABASE_PUBLISHABLE_KEY,
     };
   }
 
   if (!isProductionSource) return {};
 
-  const workflow = readFileSync(
-    new URL("../../.github/workflows/setup-login.yml", import.meta.url),
-    "utf8",
-  );
-  const readWorkflowEnv = (name: string) =>
-    workflow.match(new RegExp(`^\\s*${name}:\\s*(\\S+)\\s*$`, "m"))?.[1];
-
-  const url =
-    readWorkflowEnv("NEXT_PUBLIC_SUPABASE_URL") ??
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey =
-    readWorkflowEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !publishableKey) {
-    throw new Error("production_supabase_public_env_missing");
-  }
-
-  if (process.env.VERCEL_GIT_COMMIT_REF === "main" && url === PREVIEW_SUPABASE_URL) {
-    throw new Error("main_branch_cannot_use_preview_supabase");
-  }
+  process.env.NEXT_PUBLIC_SUPABASE_URL = KSPCENTER_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY =
+    KSPCENTER_SUPABASE_PUBLISHABLE_KEY;
 
   return {
-    NEXT_PUBLIC_SUPABASE_URL: url,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
+    NEXT_PUBLIC_SUPABASE_URL: KSPCENTER_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+      KSPCENTER_SUPABASE_PUBLISHABLE_KEY,
   };
 }
 
