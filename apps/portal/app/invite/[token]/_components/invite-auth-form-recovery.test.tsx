@@ -2,16 +2,11 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InviteAuthForm } from './invite-auth-form';
-
 const mocks = vi.hoisted(() => ({ invoke: vi.fn(), signIn: vi.fn(), refresh: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: mocks.refresh }) }));
-vi.mock('@ksp/database', () => ({
-  isSupabaseConfigured: () => true,
-  createBrowserClient: () => ({ auth: { signInWithPassword: mocks.signIn }, functions: { invoke: mocks.invoke } })
-}));
+vi.mock('@ksp/database', () => ({ isSupabaseConfigured: () => true, createBrowserClient: () => ({ auth: { signInWithPassword: mocks.signIn }, functions: { invoke: mocks.invoke } }) }));
 afterEach(cleanup);
 beforeEach(() => vi.resetAllMocks());
-
 function form(mode: 'signin' | 'signup' = 'signin') {
   const view = render(<InviteAuthForm token={'a'.repeat(64)} />);
   if (mode === 'signup') fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
@@ -19,7 +14,6 @@ function form(mode: 'signin' | 'signup' = 'signin') {
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'synthetic-test-password' } });
   return view.container.querySelector('form')!;
 }
-
 describe('invitation request recovery', () => {
   it.each(['signin', 'signup'] as const)('unlocks %s after a rejected network request', async (mode) => {
     mocks.signIn.mockRejectedValue(new Error('private-network-detail'));
@@ -32,7 +26,6 @@ describe('invitation request recovery', () => {
     expect(screen.queryByText(/private-network-detail/)).toBeNull();
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
-
   it('signs in an existing account without calling the signup relay', async () => {
     mocks.signIn.mockResolvedValue({ error: null });
     fireEvent.submit(form());
@@ -40,7 +33,6 @@ describe('invitation request recovery', () => {
     expect(mocks.signIn).toHaveBeenCalledWith({ email: 'client@example.invalid', password: 'synthetic-test-password' });
     expect(mocks.invoke).not.toHaveBeenCalled();
   });
-
   it('does not submit a second signup while the first is pending', async () => {
     let finish!: (value: unknown) => void;
     mocks.invoke.mockReturnValue(new Promise((resolve) => { finish = resolve; }));

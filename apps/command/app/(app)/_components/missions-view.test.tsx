@@ -36,13 +36,13 @@ vi.mock('./progressive-list', () => ({ ProgressiveList: ({ children }: { childre
 
 afterEach(cleanup);
 
-function project(id: string, name: string, status: string): MissionView {
+function project(id: string, name: string, status: MissionView['status']): MissionView {
   return {
     id, name, status, organization_id: 'synthetic-org', project_type: 'product',
     client_id: null, clientName: null, health: 'unknown', next_action: null,
-    budget_minor: null, currency: 'USD', created_at: '2026-01-01T00:00:00Z',
+    budget_minor: null, currency: 'USD', created_at: '2026-01-01T00:00:00Z', archived_at: null,
     milestones: [], dependencies: [], memberIds: [], commitmentCount: 0
-  } as MissionView;
+  };
 }
 
 function directory(container: HTMLElement) {

@@ -3,10 +3,12 @@ name: projects-portal-regression
 on:
   pull_request:
     paths:
-      - 'apps/command/app/(app)/_components/missions-view*'
-      - 'apps/portal/app/invite/**'
-      - 'apps/portal/lib/invite-signup-error*'
+      - 'apps/command/**'
+      - 'apps/portal/**'
+      - 'packages/domain/**'
       - 'supabase/functions/ksp-portal-invite-signup/**'
+      - 'supabase/migrations/**'
+      - 'vitest.config.ts'
       - '.github/workflows/projects-portal-regression.yml'
 
 permissions:
@@ -18,11 +20,20 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive reviewed source for offline verification
+        run: git archive --format=tar.gz -o /tmp/ksp-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ksp-source
+          path: /tmp/ksp-source.tar.gz
+          retention-days: 1
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Project and client invitation regressions (synthetic only)
-        run: pnpm exec vitest run 'apps/command/app/(app)/_components/missions-view.test.tsx' 'apps/portal/app/invite/[token]/_components/invite-auth-form.test.tsx'
+      - name: Synthetic component regressions
+        run: pnpm exec vitest run 'apps/command/app/(app)/_components/missions-view.test.tsx' 'apps/portal/app/invite/' 'apps/portal/lib/invite-signup-error.test.tsx'
