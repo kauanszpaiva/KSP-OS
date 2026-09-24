@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { describeInviteSignupError } from '../../../../lib/invite-signup-error';
 import { createBrowserClient, isSupabaseConfigured } from '@ksp/database';
 
 /**
@@ -21,41 +22,43 @@ export function InviteAuthForm({ token }: { token: string }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (pending) return;
     setError(null);
     setMessage(null);
 
     const supabase = createBrowserClient();
     if (!supabase) {
-      setError('Supabase is not configured in this environment.');
+      setError('Account activation is temporarily unavailable. Please contact KSP.');
       return;
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     setPending(true);
-
-    if (mode === 'signin') {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
-      setPending(false);
-      if (signInError) {
-        setError('Invalid email or password.');
+    try {
+      if (mode === 'signin') {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+        if (signInError) {
+          setError('We could not sign in. Check your email and password, and confirm your email address before signing in.');
+          return;
+        }
+        router.refresh();
         return;
       }
-      router.refresh();
-      return;
+
+      const { data: relayData, error: relayError } = await supabase.functions.invoke('ksp-portal-invite-signup', {
+        body: { token, email: normalizedEmail, password }
+      });
+      if (relayError || relayData?.ok !== true) {
+        setError(await describeInviteSignupError(relayData, relayError));
+        return;
+      }
+      setPassword('');
+      setMessage('Check your email to confirm your account. The confirmation link will bring you back to this invitation.');
+    } catch {
+      setError('We could not connect. Check your connection and try again; if this continues, contact KSP.');
+    } finally {
+      setPending(false);
     }
-
-    const { data: relayData, error: relayError } = await supabase.functions.invoke('ksp-portal-invite-signup', {
-      body: { token, email: normalizedEmail, password }
-    });
-    setPending(false);
-
-    if (relayError || !relayData?.ok) {
-      setError('We could not create this account from the invitation. If you already created an account, switch to Sign in.');
-      return;
-    }
-
-    setPassword('');
-    setMessage('Check your email to confirm your account. The confirmation link will bring you back to this invitation.');
   }
 
   const field =
@@ -66,6 +69,7 @@ export function InviteAuthForm({ token }: { token: string }) {
       <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-ksp-paper p-1">
         <button
           type="button"
+          disabled={pending}
           onClick={() => {
             setMode('signin');
             setError(null);
@@ -77,6 +81,7 @@ export function InviteAuthForm({ token }: { token: string }) {
         </button>
         <button
           type="button"
+          disabled={pending}
           onClick={() => {
             setMode('signup');
             setError(null);
@@ -101,6 +106,7 @@ export function InviteAuthForm({ token }: { token: string }) {
             id="email"
             type="email"
             required
+            disabled={pending}
             autoComplete="email"
             inputMode="email"
             placeholder="you@company.com"
@@ -115,15 +121,17 @@ export function InviteAuthForm({ token }: { token: string }) {
             id="password"
             type="password"
             required
-            minLength={8}
+            disabled={pending}
+            minLength={mode === 'signup' ? 8 : undefined}
+            maxLength={mode === 'signup' ? 128 : undefined}
             autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-            placeholder="Minimum 8 characters"
+            placeholder={mode === 'signup' ? '8 to 128 characters' : 'Your password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className={field}
           />
         </div>
-        {error && <p className="text-[13px] text-risk">{error}</p>}
+        {error && <p role="alert" className="text-[13px] text-risk">{error}</p>}
         {message && (
           <p role="status" className="rounded-lg border border-ksp-signal/35 bg-ksp-signal/10 px-3 py-2 text-[13px] leading-5 text-ksp-carbon">
             {message}
