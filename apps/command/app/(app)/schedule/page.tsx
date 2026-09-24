@@ -20,7 +20,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   ]) : [[], [], [], { data: null, error: { message: 'unavailable' } }];
   const rows = (result.data ?? []) as Array<{ id: string; task_id: string; work_date: string; start_minute: number; end_minute: number; revision: number }>;
   const slots: DaySlot[] = rows.map((row) => ({ id: row.id, taskId: row.task_id, date: row.work_date, startMinute: row.start_minute, endMinute: row.end_minute, revision: row.revision }));
-  const tasks = allTasks.filter((task) => task.organization_id === ctx.organizationId && ['draft', 'active', 'pending_approval', 'approved'].includes(task.status));
+  const tasks = allTasks.filter((task) => task.organization_id === ctx.organizationId);
   const selected = missions.find((mission) => mission.id === projectId);
   const items: TimelineItem[] = [];
   // Company commitments do not have a project link; do not imply one by showing them inside a project filter.
@@ -45,7 +45,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
     </form>
     {projectId && !selected && <p role="alert" className="text-sm text-warn">This project is unavailable. No other project has been substituted.</p>}
     <DayScheduler key={`${ctx.user.id}:${date}:${projectId ?? 'all'}`} date={date} projectId={projectId} initialSlots={slots} unavailable={!!result.error}
-      tasks={tasks.map((task) => ({ id: task.id, title: task.title, projectId: task.project_id, projectName: task.projectName, dueDate: task.due_date }))}
+      tasks={tasks.map((task) => ({ id: task.id, title: task.title, projectId: task.project_id, projectName: task.projectName, dueDate: task.due_date, schedulable: ['draft', 'active', 'pending_approval', 'approved'].includes(task.status) }))}
       saveSlot={saveDaySlot} removeSlot={removeDaySlot} />
     <section aria-label="Project dates" className="space-y-3"><h2 className="text-lg font-semibold text-ink">Project dates and milestones</h2>
       {items.length ? <TimelineView items={items} /> : <EmptyState icon="schedule" title="No dated work in this scope." hint="Add task dates or milestones to see the project timeline. Undated work is not assigned artificial dates." />}

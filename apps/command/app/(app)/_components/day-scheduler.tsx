@@ -30,14 +30,28 @@ export function DayScheduler({ date, tasks, initialSlots, projectId, unavailable
   const scroll = useRef<HTMLDivElement>(null);
   const drag = useRef<{ slot: DaySlot; mode: RangeEdit; x: number; scrollLeft: number; pointerId: number; candidate: DaySlot } | null>(null);
   const taskById = new Map(tasks.map((task) => [task.id, task]));
-  const options = tasks.filter((task) => !projectId || task.projectId === projectId);
-  const visible = slots.filter((slot) => options.some((task) => task.id === slot.taskId)).sort((a, b) => a.startMinute - b.startMinute);
+  const scopedTasks = tasks.filter((task) => !projectId || task.projectId === projectId);
+  const options = scopedTasks.filter((task) => task.schedulable !== false);
+  // Existing reservations stay visible when a task completes, so the owner can
+  // remove them. RLS still controls which task metadata is available.
+  const visible = slots.filter((slot) => scopedTasks.some((task) => task.id === slot.taskId)).sort((a, b) => a.startMinute - b.startMinute);
+  const focusedSlot = visible[0];
+  const focusedId = focusedSlot?.id;
+  const focusedStart = focusedSlot?.startMinute;
 
   useEffect(() => { setSlots(initialSlots); }, [initialSlots]);
-  useEffect(() => { if (scroll.current) scroll.current.scrollLeft = 8 * 60 * pxPerMinute; }, [date]);
+  useEffect(() => {
+    if (scroll.current && focusedStart !== undefined && !drag.current) {
+      scroll.current.scrollLeft = Math.max(0, focusedStart - 15) * pxPerMinute;
+    }
+  }, [date, focusedId, focusedStart]);
 
   async function persist(candidate: DaySlot, expectedRevision: number) {
     if (busy.current || unavailable) return;
+    if (taskById.get(candidate.taskId)?.schedulable === false) {
+      setError('This task is no longer active. You can remove its existing time block.');
+      return;
+    }
     const input = { ...candidate, expectedRevision };
     const invalid = validateSlotInput(input);
     if (invalid) { setError(invalid); return; }
@@ -150,7 +164,7 @@ export function DayScheduler({ date, tasks, initialSlots, projectId, unavailable
         </select>
       </label>
       <div className="flex items-end gap-2">
-        <button type="submit" className={button} disabled={pending || unavailable || options.length === 0}>{editing ? 'Save times' : 'Schedule task'}</button>
+        <button type="submit" className={button} disabled={pending || unavailable || options.length === 0 || (!!editing && taskById.get(editing.taskId)?.schedulable === false)}>{editing ? 'Save times' : 'Schedule task'}</button>
         {editing && <button type="button" className={button} disabled={pending} onClick={() => setEditing(null)}>Cancel</button>}
       </div>
     </form>
@@ -175,9 +189,9 @@ export function DayScheduler({ date, tasks, initialSlots, projectId, unavailable
               <div className="relative min-h-20" style={{ width: 1440 * pxPerMinute }}>
                 {Array.from({ length: 24 }, (_, hour) => <span key={hour} aria-hidden className="pointer-events-none absolute inset-y-0 border-l border-line" style={{ left: hour * 60 * pxPerMinute }} />)}
                 <div data-testid={`slot-${slot.id}`} className="absolute top-4 flex h-11 rounded-lg bg-brand text-on-brand" style={{ left: shown.startMinute * pxPerMinute, width: (shown.endMinute - shown.startMinute) * pxPerMinute }}>
-                  <button type="button" aria-label={`Change start of ${task.title}`} disabled={pending || unavailable} {...events(slot, 'start')} className="w-2 shrink-0 cursor-ew-resize touch-none rounded-l-lg border-r border-white/30 focus-visible:outline focus-visible:outline-2" />
-                  <button type="button" aria-label={`Move ${task.title}`} disabled={pending || unavailable} {...events(slot, 'move')} className="min-w-0 flex-1 cursor-grab touch-none truncate px-1 text-xs focus-visible:outline focus-visible:outline-2" title={`${task.title}: ${minuteLabel(shown.startMinute)} - ${minuteLabel(shown.endMinute)}`}>{minuteLabel(shown.startMinute)} - {minuteLabel(shown.endMinute)}</button>
-                  <button type="button" aria-label={`Change end of ${task.title}`} disabled={pending || unavailable} {...events(slot, 'end')} className="w-2 shrink-0 cursor-ew-resize touch-none rounded-r-lg border-l border-white/30 focus-visible:outline focus-visible:outline-2" />
+                  <button type="button" aria-label={`Change start of ${task.title}`} disabled={pending || unavailable || task.schedulable === false} {...events(slot, 'start')} className="w-2 shrink-0 cursor-ew-resize touch-none rounded-l-lg border-r border-white/30 focus-visible:outline focus-visible:outline-2" />
+                  <button type="button" aria-label={`Move ${task.title}`} disabled={pending || unavailable || task.schedulable === false} {...events(slot, 'move')} className="min-w-0 flex-1 cursor-grab touch-none truncate px-1 text-xs focus-visible:outline focus-visible:outline-2" title={`${task.title}: ${minuteLabel(shown.startMinute)} - ${minuteLabel(shown.endMinute)}`}>{minuteLabel(shown.startMinute)} - {minuteLabel(shown.endMinute)}</button>
+                  <button type="button" aria-label={`Change end of ${task.title}`} disabled={pending || unavailable || task.schedulable === false} {...events(slot, 'end')} className="w-2 shrink-0 cursor-ew-resize touch-none rounded-r-lg border-l border-white/30 focus-visible:outline focus-visible:outline-2" />
                 </div>
               </div>
             </div>;
@@ -188,7 +202,7 @@ export function DayScheduler({ date, tasks, initialSlots, projectId, unavailable
         {visible.map((slot) => <li key={slot.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
           <div className="min-w-0"><p className="break-words text-sm font-medium text-ink">{taskById.get(slot.taskId)?.title}</p><p className="text-xs text-ink-3">{minuteLabel(slot.startMinute)} - {minuteLabel(slot.endMinute)} / {taskById.get(slot.taskId)?.projectName ?? 'No project'}</p></div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={button} disabled={pending || unavailable} onClick={() => { setEditing(slot); setError(''); }}>Edit times</button>
+            <button type="button" className={button} disabled={pending || unavailable || taskById.get(slot.taskId)?.schedulable === false} onClick={() => { setEditing(slot); setError(''); }}>Edit times</button>
             <button type="button" className={button} disabled={pending || unavailable} onClick={() => void unschedule(slot)}>Unschedule</button>
           </div>
         </li>)}

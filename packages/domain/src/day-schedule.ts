@@ -15,7 +15,7 @@ export interface DaySlot extends MinuteRange {
   date: string;
   revision: number;
 }
-export interface ScheduleTask { id: string; title: string; projectId: string | null; projectName: string | null; dueDate: string | null }
+export interface ScheduleTask { id: string; title: string; projectId: string | null; projectName: string | null; dueDate: string | null; schedulable?: boolean }
 export type SlotResult = { ok: true; slot?: DaySlot } | { ok: false; error: string };
 
 export function isScheduleDate(value: unknown): value is string {

@@ -5,7 +5,6 @@ import { getServerSupabase } from '../../../lib/supabase';
 import { getClientRefs, getCommentsForObjects, getMissions, type CommentView } from '../data';
 import { BusinessUnitMissionForm } from '../_components/business-unit-mission-form';
 import { EmptyState, PageHeader } from '../_components/ui';
-import { MissionForm } from '../_components/mission-workspace-forms';
 import { MissionsView } from '../_components/missions-view';
 
 export default async function MissionsPage() {
@@ -49,7 +48,7 @@ export default async function MissionsPage() {
           {units.length > 0 ? (
             <BusinessUnitMissionForm clients={clients} units={units} defaultBusinessUnitId={activeBusinessUnitId} />
           ) : (
-            <MissionForm clients={clients} />
+            <p role="status" className="text-sm text-ink-3">No accessible KSP division. Ask an administrator to review your division access before creating a project.</p>
           )}
         </div>
       </details>
