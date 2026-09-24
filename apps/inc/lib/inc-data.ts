@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@ksp/database";
+import { formatMinorUnits } from "./visual-data";
 
 export type MetricState = {
   label: string;
@@ -11,6 +12,16 @@ export type ListRow = {
   primary: string;
   secondary: string;
   meta?: string;
+  /** Canonical source family of the row (task, invoice, audit, …). */
+  group?: string;
+  /** Raw status token, used for semantic tone and status distribution. */
+  status?: string;
+  /** Temporal anchor (ISO timestamp) used only for activity trends. */
+  at?: string;
+  /** Integer minor units when the source row carries money. */
+  amountMinor?: number;
+  /** ISO currency code for `amountMinor`. */
+  currency?: string;
 };
 
 async function safeCount(
@@ -52,6 +63,9 @@ export async function getWorkRows(supabase: SupabaseClient): Promise<ListRow[]> 
     primary: row.title ?? "Untitled task",
     secondary: row.status ?? "unknown",
     meta: row.due_date ? `Due ${row.due_date}` : row.project_id ? `Project ${row.project_id}` : "Company task",
+    group: "task",
+    status: row.status ?? null,
+    at: row.due_date ?? undefined,
   }));
 }
 
@@ -69,6 +83,8 @@ export async function getPeopleRows(supabase: SupabaseClient): Promise<ListRow[]
       primary: profile?.display_name ?? profile?.email ?? String(row.profile_id),
       secondary: row.suspended_at ? "Suspended" : String(row.internal_role ?? "Internal"),
       meta: row.scope ? `Scope: ${row.scope}` : undefined,
+      group: "membership",
+      status: row.suspended_at ? "suspended" : "active",
     };
   });
 }
@@ -100,6 +116,8 @@ export async function getAccessRows(supabase: SupabaseClient): Promise<ListRow[]
         primary: `Unit · ${item.access_level}`,
         secondary: item.suspended_at ? "Suspended" : `Profile ${item.profile_id}`,
         meta: `Business unit ${item.business_unit_id}`,
+        group: "unit",
+        status: item.suspended_at ? "suspended" : "active",
       });
     }
   }
@@ -111,6 +129,8 @@ export async function getAccessRows(supabase: SupabaseClient): Promise<ListRow[]
         primary: `Permission · ${item.action}`,
         secondary: `Profile ${item.profile_id}`,
         meta: item.resource_type ? `${item.resource_type} ${item.resource_id ?? ""}` : "Organization-wide",
+        group: "permission",
+        status: "active",
       });
     }
   }
@@ -122,6 +142,9 @@ export async function getAccessRows(supabase: SupabaseClient): Promise<ListRow[]
         primary: `Temporary · ${item.action}`,
         secondary: `Profile ${item.profile_id}`,
         meta: item.effective_until ? `Until ${item.effective_until}` : "Time-bound grant",
+        group: "temporary",
+        status: item.effective_until ? "time-bound" : "active",
+        at: item.effective_until ?? undefined,
       });
     }
   }
@@ -140,6 +163,8 @@ export async function getClientRows(supabase: SupabaseClient): Promise<ListRow[]
     primary: row.display_name ?? row.legal_name ?? "Client",
     secondary: row.status ?? "unknown",
     meta: row.relationship_health ? `Health: ${row.relationship_health}` : undefined,
+    group: "client",
+    status: row.status ?? null,
   }));
 }
 
@@ -155,6 +180,8 @@ export async function getNetworkRows(supabase: SupabaseClient): Promise<ListRow[
     primary: row.display_name ?? "Partner",
     secondary: row.status ?? "unknown",
     meta: row.business_unit_id ? `Unit ${row.business_unit_id}` : "No unit assigned",
+    group: "partner",
+    status: row.status ?? null,
   }));
 }
 
@@ -168,19 +195,47 @@ export async function getFinanceRows(supabase: SupabaseClient): Promise<ListRow[
   if (!invoiceResult.error) {
     for (const row of invoiceResult.data ?? []) {
       const item: any = row;
-      rows.push({ id: `invoice-${item.id}`, primary: `Invoice · ${item.status}`, secondary: item.currency ?? "", meta: item.total_minor == null ? undefined : `Amount ${item.total_minor}` });
+      rows.push({
+        id: `invoice-${item.id}`,
+        primary: `Invoice · ${item.status}`,
+        secondary: item.currency ?? "",
+        meta: item.total_minor == null ? undefined : `Amount ${formatMinorUnits(item.total_minor, item.currency)}`,
+        group: "invoice",
+        status: item.status ?? null,
+        at: item.issued_at ?? undefined,
+        amountMinor: item.total_minor ?? undefined,
+        currency: item.currency ?? undefined,
+      });
     }
   }
   if (!approvalResult.error) {
     for (const row of approvalResult.data ?? []) {
       const item: any = row;
-      rows.push({ id: `approval-${item.id}`, primary: `Approval · ${item.approval_type}`, secondary: item.status ?? "pending", meta: item.risk_level ? `Risk ${item.risk_level}` : undefined });
+      rows.push({
+        id: `approval-${item.id}`,
+        primary: `Approval · ${item.approval_type}`,
+        secondary: item.status ?? "pending",
+        meta: item.risk_level ? `Risk ${item.risk_level}` : undefined,
+        group: "approval",
+        status: item.status ?? "pending",
+        amountMinor: item.amount_minor ?? undefined,
+        currency: item.currency ?? undefined,
+      });
     }
   }
   if (!subscriptionResult.error) {
     for (const row of subscriptionResult.data ?? []) {
       const item: any = row;
-      rows.push({ id: `subscription-${item.id}`, primary: `${item.vendor ?? "Vendor"} · ${item.product ?? "Subscription"}`, secondary: item.status ?? "active", meta: item.cost_minor == null ? undefined : `${item.currency ?? ""} ${item.cost_minor}` });
+      rows.push({
+        id: `subscription-${item.id}`,
+        primary: `${item.vendor ?? "Vendor"} · ${item.product ?? "Subscription"}`,
+        secondary: item.status ?? "active",
+        meta: item.cost_minor == null ? undefined : formatMinorUnits(item.cost_minor, item.currency),
+        group: "subscription",
+        status: item.status ?? "active",
+        amountMinor: item.cost_minor ?? undefined,
+        currency: item.currency ?? undefined,
+      });
     }
   }
   return rows.slice(0, 80);
@@ -198,6 +253,9 @@ export async function getAuditRows(supabase: SupabaseClient): Promise<ListRow[]>
     primary: row.action ?? "Audit event",
     secondary: row.target_table ? `${row.target_table}${row.target_id ? ` · ${row.target_id}` : ""}` : "Platform",
     meta: row.created_at ?? row.classification,
+    group: "audit",
+    status: row.classification ?? null,
+    at: row.created_at ?? undefined,
   }));
 }
 

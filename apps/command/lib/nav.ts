@@ -47,6 +47,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { key: 'control', label: 'Control', items: [
     { label: 'Finance', href: '/finance', status: 'live', icon: 'finance' },
     { label: 'Software', href: '/software', status: 'live', icon: 'software' },
+    { label: 'Blueprints', href: '/blueprints', status: 'live', icon: 'layers' },
     { label: 'Knowledge', href: '/knowledge', status: 'live', icon: 'knowledge' },
     { label: 'Connections', href: '/connections', status: 'live', icon: 'connections' }
   ]},

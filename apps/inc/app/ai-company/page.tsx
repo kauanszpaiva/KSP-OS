@@ -24,9 +24,10 @@ export default async function IncAiCompanyPage() {
       };
 
   return (
-    <IncShell ownerName={ctx.user.displayName} roleLabel={ownerRoleLabel(ctx.internalRoles)}>
+    <IncShell mfa={ctx.mfa} ownerName={ctx.user.displayName} roleLabel={ownerRoleLabel(ctx.internalRoles)}>
       <OwnerPageHeader
         eyebrow="KSP AI workforce"
+        icon="ai"
         title="AI Company"
         description="Turn a one-sentence mission into a governed execution tree across KSP INC and every operating vertical."
         aside="SUPER ULTRA → SUPER → ULTRA → AGENT → SUB AGENT. CLIENT and INTERNAL are separate execution planes. Evidence, scope and budget are mandatory."
