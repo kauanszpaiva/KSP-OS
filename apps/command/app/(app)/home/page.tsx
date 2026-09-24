@@ -388,8 +388,12 @@ export default async function HomePage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand">{eyebrow}</p>
           </div>
           <h1 className="mt-2 font-display text-[28px] font-semibold leading-none text-ink sm:text-[32px]">{title}</h1>
-          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-ink-3">{description}</p>
-          <p className="mt-1 text-[11px] font-medium text-ink-4">{roleLabel}{department ? ` · ${department}` : ''}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-line bg-surface px-2.5 py-1 text-[10.5px] font-semibold text-ink-2">{roleLabel}</span>
+            {department ? <span className="rounded-full bg-surface-2 px-2.5 py-1 text-[10.5px] text-ink-4">{department}</span> : null}
+            {contextCount > 0 ? <span className="rounded-full bg-warn-tint px-2.5 py-1 text-[10.5px] font-semibold text-warn">{contextCount} need attention</span> : null}
+          </div>
+          <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-ink-4">{description}</p>
         </div>
 
         <nav aria-label="Quick access" className="flex max-w-full gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -404,6 +408,58 @@ export default async function HomePage() {
           })}
         </nav>
       </header>
+
+      <VizBoard
+        aside={roleLabel}
+        note="Live operating data"
+        title="HQ dashboard"
+      >
+        <VisualGrid>
+          <VizPanel
+            index={0}
+            note={`State of the ${tasks.length} tasks visible to this cockpit`}
+            title="Work mix"
+          >
+            <DonutChart
+              caption="Share of loaded tasks by state"
+              centerLabel="tasks"
+              centerValue={String(tasks.length)}
+              empty="No task was returned for this session."
+              items={taskStateMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={1} note="health field of the active projects in this window" title="Project health">
+            <DistributionBars empty="No active project was returned." items={projectHealthMix} />
+          </VizPanel>
+
+          <VizPanel
+            index={2}
+            note={`Task due dates per UTC day · last 14 days (${datedTasks} of ${tasks.length} dated)`}
+            title="Due-date load"
+          >
+            {datedTasks === 0 ? (
+              <VisualEmpty>No loaded task carries a due date, so no load curve can be shown.</VisualEmpty>
+            ) : (
+              <ActivityStrip buckets={dueLoad} caption="Tasks due per day" />
+            )}
+          </VizPanel>
+
+          {cockpit === 'founder' && teamLoadMix.length > 0 ? (
+            <VizPanel index={3} note="Open tasks plus open commitments per active member" title="Team load">
+              <DistributionBars empty="No active member was returned." items={teamLoadMix} tone="scale" />
+            </VizPanel>
+          ) : (
+            <VizPanel
+              index={3}
+              note={`State of the ${openCommitments.length} open commitments in this window`}
+              title="Commitment states"
+            >
+              <DistributionBars empty="No open commitment was returned." items={commitmentStateMix} tone="scale" />
+            </VizPanel>
+          )}
+        </VisualGrid>
+      </VizBoard>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(310px,0.75fr)]">
         <Panel className="overflow-hidden">
@@ -487,57 +543,7 @@ export default async function HomePage() {
         </Panel>
       </div>
 
-      <VizBoard
-        aside={roleLabel}
-        note="Every figure is derived from the rows this session already loaded"
-        title="Operating board"
-      >
-        <VisualGrid>
-          <VizPanel
-            index={0}
-            note={`State of the ${tasks.length} tasks visible to this cockpit`}
-            title="Work mix"
-          >
-            <DonutChart
-              caption="Share of loaded tasks by state"
-              centerLabel="tasks"
-              centerValue={String(tasks.length)}
-              empty="No task was returned for this session."
-              items={taskStateMix}
-            />
-          </VizPanel>
 
-          <VizPanel index={1} note="health field of the active projects in this window" title="Project health">
-            <DistributionBars empty="No active project was returned." items={projectHealthMix} />
-          </VizPanel>
-
-          <VizPanel
-            index={2}
-            note={`Task due dates per UTC day · last 14 days (${datedTasks} of ${tasks.length} dated)`}
-            title="Due-date load"
-          >
-            {datedTasks === 0 ? (
-              <VisualEmpty>No loaded task carries a due date, so no load curve can be shown.</VisualEmpty>
-            ) : (
-              <ActivityStrip buckets={dueLoad} caption="Tasks due per day" />
-            )}
-          </VizPanel>
-
-          {cockpit === 'founder' && teamLoadMix.length > 0 ? (
-            <VizPanel index={3} note="Open tasks plus open commitments per active member" title="Team load">
-              <DistributionBars empty="No active member was returned." items={teamLoadMix} tone="scale" />
-            </VizPanel>
-          ) : (
-            <VizPanel
-              index={3}
-              note={`State of the ${openCommitments.length} open commitments in this window`}
-              title="Commitment states"
-            >
-              <DistributionBars empty="No open commitment was returned." items={commitmentStateMix} tone="scale" />
-            </VizPanel>
-          )}
-        </VisualGrid>
-      </VizBoard>
 
       <Panel className="overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
