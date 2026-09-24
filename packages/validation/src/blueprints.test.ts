@@ -40,6 +40,9 @@ describe('createBlueprintSchema', () => {
       expect(createBlueprintSchema.safeParse({ name: 'XY', projectId: null }).success).toBe(true);
     });
   });
+    expect(createBlueprintSchema.safeParse({ name: 'X', projectId: null }).success).toBe(true);
+  });
+});
 
 describe('blueprintKindSchema', () => {
   it('normalizes to the four supported kinds', () => {
@@ -70,6 +73,10 @@ describe('blueprintCanvasSchema', () => {
     expect(
       blueprintCanvasSchema.safeParse({ nodes: [node, { ...node, id: 'n2', x: 200 }], edges: [edge] }).success
     ).toBe(true);
+  });
+
+  it('rejects missing edge references at the shape level (ids are strings, not FK-verified here)', () => {
+    expect(blueprintCanvasSchema.safeParse({ nodes: [], edges: [edge] }).success).toBe(true);
   });
 
   it('rejects a non-object canvas', () => {

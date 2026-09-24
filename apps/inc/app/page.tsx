@@ -25,6 +25,10 @@ import {
   riseDelay,
   singleCurrencyTotal
 } from '../lib/visual-data';
+import { getAuditRows, getOwnerMetrics, getWorkRows } from '../lib/inc-data';
+import { requireIncOwner } from '../lib/inc-session';
+import { getServerSupabase } from '../lib/supabase';
+import { bucketByDay, distribution, isPastDue, riseDelay } from '../lib/visual-data';
 
 /**
  * `[title, href, icon, description]`. The title/href pairs are asserted by the
@@ -55,6 +59,10 @@ export default async function IncHomePage() {
     supabase ? getWorkRows(supabase) : Promise.resolve([] as ListRow[]),
     supabase ? getAuditRows(supabase) : Promise.resolve([] as ListRow[]),
     supabase ? getFinanceRows(supabase) : Promise.resolve([] as ListRow[])
+  const [metrics, workRows, auditRows] = await Promise.all([
+    supabase ? getOwnerMetrics(supabase) : Promise.resolve([] as MetricState[]),
+    supabase ? getWorkRows(supabase) : Promise.resolve([] as ListRow[]),
+    supabase ? getAuditRows(supabase) : Promise.resolve([] as ListRow[])
   ]);
 
   const now = new Date();
