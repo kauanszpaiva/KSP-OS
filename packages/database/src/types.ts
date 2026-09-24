@@ -685,3 +685,54 @@ export interface ClientMeeting {
   created_by: string | null;
   created_at: string;
 }
+
+/* ------------------------------------------------------------- blueprints -- */
+
+export type BlueprintKind = 'software' | 'system' | 'process' | 'infrastructure';
+
+export type BlueprintStatus = 'draft' | 'active' | 'archived';
+
+/** One interactive flowchart node on a blueprint canvas. */
+export interface BlueprintCanvasNode {
+  id: string;
+  /** Node category — service, database, api, decision, etc. */
+  type: string;
+  label: string;
+  x: number;
+  y: number;
+  data?: Record<string, unknown>;
+}
+
+/** One interactive flowchart edge (directed node -> node). */
+export interface BlueprintCanvasEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
+
+/** Saved canvas payload — the shape enforced by the blueprints RLS check. */
+export interface BlueprintCanvas {
+  nodes: BlueprintCanvasNode[];
+  edges: BlueprintCanvasEdge[];
+}
+
+/** Persisted row of public.blueprints. */
+export interface Blueprint {
+  id: string;
+  organization_id: string;
+  project_id: string | null;
+  name: string;
+  description: string;
+  kind: BlueprintKind;
+  status: BlueprintStatus;
+  canvas: BlueprintCanvas;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Blueprint enriched with its linked project display name, if any. */
+export interface BlueprintView extends Blueprint {
+  projectName: string | null;
+}

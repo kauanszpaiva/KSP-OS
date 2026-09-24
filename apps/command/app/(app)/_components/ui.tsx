@@ -168,3 +168,64 @@ export function Figure({ label, value, tone = 'neutral', suffix }: { label: stri
     </div>
   );
 }
+
+/* -------------------------------------------------------------- dashboards -- */
+
+export type StatTone = Tone;
+
+const STAT_TONE_CLASS: Record<StatTone, { chip: string; value: string }> = {
+  neutral: { chip: 'bg-surface-2 text-ink-3', value: 'text-ink' },
+  brand: { chip: 'bg-brand-tint text-brand', value: 'text-brand' },
+  good: { chip: 'bg-good-tint text-good', value: 'text-good' },
+  warn: { chip: 'bg-warn-tint text-warn', value: 'text-warn' },
+  risk: { chip: 'bg-risk-tint text-risk', value: 'text-risk' }
+};
+
+export interface StatCardData {
+  icon: IconName;
+  label: string;
+  value: string | number;
+  hint?: string;
+  href?: string;
+  tone?: StatTone;
+}
+
+/**
+ * Dashboard metric card — icon chip, big tabular value and a one-line hint.
+ * Links are optional; when present the card gets a hover affordance.
+ */
+export function StatCard({ icon, label, value, hint, href, tone = 'neutral' }: StatCardData) {
+  const tones = STAT_TONE_CLASS[tone];
+  const body = (
+    <>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tones.chip}`}>
+          <Icon name={icon} className="h-[18px] w-[18px]" />
+        </span>
+        {href && <Icon name="arrow-up-right" className="h-4 w-4 shrink-0 text-ink-4 opacity-0 transition-opacity duration-fast group-hover:opacity-100" />}
+      </div>
+      <p className={`tnum mt-3 truncate text-[26px] font-semibold leading-none sm:text-[28px] ${tones.value}`}>{value}</p>
+      <p className="mt-1.5 truncate text-[12px] font-medium text-ink-2">{label}</p>
+      {hint && <p className="mt-0.5 truncate text-[10.5px] text-ink-4">{hint}</p>}
+    </>
+  );
+  const className =
+    'group min-w-0 rounded-2xl border border-line bg-surface p-3.5 transition-[border-color,transform] duration-fast hover:-translate-y-px hover:border-line-2 sm:rounded-xl sm:p-4';
+  return href ? (
+    <a href={href} className={`block ${className}`}>
+      {body}
+    </a>
+  ) : (
+    <div className={className}>{body}</div>
+  );
+}
+
+/** Responsive dashboard strip of metric cards (2 → 3 → 4 columns). */
+export function StatStrip({ stats, className = '' }: { stats: StatCardData[]; className?: string }) {
+  if (stats.length === 0) return null;
+  return (
+    <div className={`grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4 ${className}`}>
+      {stats.map((stat) => <StatCard key={stat.label} {...stat} />)}
+    </div>
+  );
+}
