@@ -1,0 +1,63 @@
+name: projects-portal-regression
+
+on:
+  pull_request:
+    paths:
+      - 'apps/command/**'
+      - 'apps/portal/**'
+      - 'packages/domain/**'
+      - 'supabase/functions/ksp-portal-invite-signup/**'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/task_day_schedule.test.sql'
+      - 'scripts/check-db-tests.mjs'
+      - 'scripts/check-day-scheduler-browser.mjs'
+      - 'scripts/check-portal-invite-relay.mjs'
+      - 'vitest.config.ts'
+      - '.github/workflows/projects-portal-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove checkout authentication without traversing the legacy orphan gitlink
+        run: git config --local --unset-all http.https://github.com/.extraheader
+      - name: Archive reviewed source for offline verification
+        run: git archive --format=tar.gz -o /tmp/ksp-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ksp-source
+          path: /tmp/ksp-source.tar.gz
+          retention-days: 1
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Portal invitation relay with isolated provider adapters
+        run: node scripts/check-portal-invite-relay.mjs
+      - name: Synthetic component and scheduling regressions
+        run: pnpm exec vitest run 'apps/command/app/(app)/' 'packages/domain/src/day-schedule.test.ts' 'apps/portal/app/invite/' 'apps/portal/lib/invite-signup-error.test.tsx'
+      - name: Install browser for isolated UI verification
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Desktop and mobile daily Gantt browser verification (synthetic persistence)
+        run: node scripts/check-day-scheduler-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: day-scheduler-browser-evidence
+          path: artifacts/day-scheduler-browser/
+          retention-days: 7
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portal-relay-evidence
+          path: artifacts/portal-relay/
+          retention-days: 7
+          if-no-files-found: warn

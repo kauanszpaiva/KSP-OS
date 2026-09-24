@@ -53,6 +53,7 @@ const reconciliation = fs.readFileSync(`supabase/migrations/${reconciliationName
 const managedFilesTest = fs.readFileSync('supabase/tests/managed_files.test.sql', 'utf8');
 const taskDeliveryEvidenceTest = fs.readFileSync('supabase/tests/task_delivery_evidence.test.sql', 'utf8');
 const businessUnitsAccessTest = fs.readFileSync('supabase/tests/business_units_access.test.sql', 'utf8');
+const taskDayScheduleTest = fs.readFileSync('supabase/tests/task_day_schedule.test.sql', 'utf8');
 if (!migrations.includes(reconciliationName)) throw new Error(`${reconciliationName} missing`);
 
 function dockerExec(args, options = {}) {
@@ -425,6 +426,7 @@ try {
   psql('drift', managedFilesTest);
   psql('drift', taskDeliveryEvidenceTest);
   psql('drift', businessUnitsAccessTest);
+  psql('drift', taskDayScheduleTest);
 
   psql('drift', `insert into organizations (name, slug) values ('Recovery Marker', 'runtime-recovery-marker');`);
   const dump = dockerExec([containerName, 'pg_dump', '-U', 'postgres', '-d', 'drift', '-Fc'], { encoding: null }).stdout;

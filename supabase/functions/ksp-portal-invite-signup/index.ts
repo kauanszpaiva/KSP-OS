@@ -2,9 +2,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@6.0.2";
 
 type SignupBody = {
-  token?: string;
-  email?: string;
-  password?: string;
+  token: string;
+  email: string;
+  password: string;
 };
 
 type InvitationRow = {
@@ -18,6 +18,49 @@ type InvitationRow = {
 const PORTAL_ORIGIN = "https://kspdominionportal.com";
 const INVITE_TOKEN_RE = /^[0-9a-f]{64}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_BODY_BYTES = 8192;
+
+// Bound actual streamed bytes, not only a caller-controlled Content-Length.
+async function readSignupBody(req: Request): Promise<
+  { body: SignupBody } | { status: number; error: string }
+> {
+  const declared = Number(req.headers.get("Content-Length") || "0");
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+    return { status: 413, error: "payload_too_large" };
+  }
+  const reader = req.body?.getReader();
+  if (!reader) return { status: 400, error: "invalid_request" };
+  try {
+    const chunks: Uint8Array[] = [];
+    let length = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > MAX_BODY_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return { status: 413, error: "payload_too_large" };
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return { status: 400, error: "invalid_request" };
+    }
+    const body = value as Record<string, unknown>;
+    if (typeof body.token !== "string" || typeof body.email !== "string" || typeof body.password !== "string") {
+      return { status: 400, error: "invalid_request" };
+    }
+    return { body: { token: body.token, email: body.email, password: body.password } };
+  } catch {
+    return { status: 400, error: "invalid_request" };
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 function allowedOrigin(origin: string | null): string | null {
   if (!origin) return null;
@@ -79,16 +122,11 @@ Deno.serve(async (req: Request) => {
     return json(req, { ok: false, error: "origin_not_allowed" }, 403);
   }
 
-  let body: SignupBody;
-  try {
-    body = await req.json();
-  } catch {
-    return json(req, { ok: false, error: "invalid_request" }, 400);
-  }
-
-  const inviteToken = String(body.token || "").trim();
-  const email = String(body.email || "").trim().toLowerCase();
-  const password = String(body.password || "");
+  const parsed = await readSignupBody(req);
+  if ("error" in parsed) return json(req, { ok: false, error: parsed.error }, parsed.status);
+  const inviteToken = parsed.body.token.trim();
+  const email = parsed.body.email.trim().toLowerCase();
+  const password = parsed.body.password;
 
   if (!INVITE_TOKEN_RE.test(inviteToken) || !EMAIL_RE.test(email) || password.length < 8 || password.length > 128) {
     return json(req, { ok: false, error: "invalid_request" }, 400);
@@ -105,17 +143,20 @@ Deno.serve(async (req: Request) => {
   });
 
   const inviteTokenHash = await sha256Hex(inviteToken);
-  const { data: invitationData, error: invitationError } = await admin
+  const invitationResult = await Promise.resolve(admin
     .from("portal_invitations")
     .select("id, email, expires_at, revoked_at, accepted_at")
     .or(`token_hash.eq.${inviteTokenHash},email_token_hash.eq.${inviteTokenHash}`)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle())
+    .catch(() => null);
 
-  const invitation = invitationData as InvitationRow | null;
+  if (!invitationResult || invitationResult.error) {
+    return json(req, { ok: false, error: "signup_relay_unavailable" }, 503);
+  }
+  const invitation = invitationResult.data as InvitationRow | null;
   const invitationReady =
-    !invitationError &&
     invitation &&
     !invitation.revoked_at &&
     !invitation.accepted_at &&
@@ -129,12 +170,14 @@ Deno.serve(async (req: Request) => {
   // Create the user explicitly first. This makes rollback ownership unambiguous:
   // if this call fails because the email already exists, the relay never mutates
   // or deletes that pre-existing account.
-  const { data: createdData, error: createError } = await admin.auth.admin.createUser({
+  const createdResult = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: false,
-  });
+  }).catch(() => null);
 
+  if (!createdResult) return json(req, { ok: false, error: "signup_relay_unavailable" }, 503);
+  const { data: createdData, error: createError } = createdResult;
   if (createError || !createdData?.user?.id) {
     return json(req, { ok: false, error: "account_could_not_be_created" }, 409);
   }
@@ -142,38 +185,38 @@ Deno.serve(async (req: Request) => {
   const createdUserId = createdData.user.id;
 
   const rollbackCreatedUser = async () => {
-    const { error } = await admin.auth.admin.deleteUser(createdUserId);
-    if (error) {
+    const result = await admin.auth.admin.deleteUser(createdUserId).catch(() => null);
+    if (!result || result.error) {
+      // Provider error messages may contain private request details. Log IDs only.
       console.error("KSP portal invite signup rollback failed", {
         invitation_id: invitation.id,
         user_id: createdUserId,
-        message: error.message,
       });
     }
   };
 
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+  const linkResult = await admin.auth.admin.generateLink({
     type: "signup",
     email,
     password,
     options: { redirectTo: `${PORTAL_ORIGIN}/invite/${inviteToken}` },
-  });
+  }).catch(() => null);
 
-  if (linkError || !linkData.properties?.hashed_token) {
+  if (!linkResult || linkResult.error || !linkResult.data?.properties?.hashed_token) {
     await rollbackCreatedUser();
     return json(req, { ok: false, error: "confirmation_link_unavailable" }, 503);
   }
 
-  const { data: resendKeyData, error: resendKeyError } = await admin.rpc("ksp_get_resend_api_key");
-  const resendKey = typeof resendKeyData === "string" ? resendKeyData.trim() : "";
+  const resendKeyResult = await Promise.resolve(admin.rpc("ksp_get_resend_api_key")).catch(() => null);
+  const resendKey = typeof resendKeyResult?.data === "string" ? resendKeyResult.data.trim() : "";
 
-  if (resendKeyError || resendKey.length < 10) {
+  if (!resendKeyResult || resendKeyResult.error || resendKey.length < 10) {
     await rollbackCreatedUser();
     return json(req, { ok: false, error: "confirmation_email_unavailable" }, 503);
   }
 
   const resend = new Resend(resendKey);
-  const actionUrl = confirmationUrl(linkData.properties.hashed_token, inviteToken);
+  const actionUrl = confirmationUrl(linkResult.data.properties.hashed_token, inviteToken);
 
   try {
     const { data: sent, error: sendError } = await resend.emails.send(

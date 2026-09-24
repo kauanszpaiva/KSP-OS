@@ -317,18 +317,10 @@ export async function createMissionInBusinessUnit(_prev: DivisionActionResult, f
     .single();
   if (error || !data) return { ok: false, error: 'Could not create the project.' };
 
-  const { error: membershipError } = await supabase.from('project_memberships').insert({
-    organization_id: ctx.organizationId,
-    project_id: data.id,
-    profile_id: ctx.user.id,
-    role: ctx.internalRoles[0] ?? 'contractor'
-  });
-  if (membershipError) {
-    // This is a compatibility cleanup, not a transaction guarantee. The release
-    // plan keeps transactional project + membership creation as a follow-up.
-    await supabase.from('projects').delete().eq('id', data.id);
-    return { ok: false, error: 'Project access could not be initialized.' };
-  }
+  // The canonical AFTER INSERT trigger creates the creator membership in the
+  // same transaction as the project. A second INSERT would violate uniqueness;
+  // deleting the successful project in response would destroy valid work.
+  // Required migration: 20260824023100_project_creator_membership.sql.
 
   await record(
     supabase,

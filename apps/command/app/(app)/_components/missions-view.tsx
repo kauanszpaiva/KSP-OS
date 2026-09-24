@@ -62,6 +62,11 @@ function MissionDetail({ mission, allMissions, clients, comments }: { mission: M
         </details>
       </div>
 
+      <nav className="flex flex-wrap gap-3 text-sm font-medium text-brand" aria-label="Project work">
+        <a className="inline-flex min-h-11 items-center hover:underline" href={`/workspace?project=${mission.id}`}>Tasks and timeline</a>
+        <a className="inline-flex min-h-11 items-center hover:underline" href={`/schedule?project=${mission.id}`}>Plan my day</a>
+      </nav>
+
       <DetailSection title={`Milestones · ${mission.milestones.length}`}>
         {mission.milestones.length === 0 ? (
           <p className="text-[12.5px] text-ink-4">No milestones yet.</p>
@@ -124,6 +129,7 @@ function MobileMissionCard({ mission, allMissions, clients, comments }: { missio
             <Icon name="chevron-down" className="mt-0.5 h-4 w-4 shrink-0 text-ink-4 transition-transform group-open:rotate-180" />
           </div>
           <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 pl-10">
+            <StatePill state={mission.status} />
             <StatePill state={mission.health} />
             <span className="tnum text-[10.5px] text-ink-4">{mission.memberIds.length} members</span>
           </div>
@@ -137,16 +143,17 @@ function MobileMissionCard({ mission, allMissions, clients, comments }: { missio
 }
 
 function ProjectDirectory({ missions, clients, commentsByMission }: { missions: MissionView[]; clients: ClientRef[]; commentsByMission: Map<string, CommentView[]> }) {
-  const active = missions.filter((mission) => mission.status === 'active');
-  const archived = missions.filter((mission) => mission.status !== 'active');
+  // Draft and paused projects remain actionable; only explicit archives belong below.
+  const current = missions.filter((mission) => mission.status !== 'archived');
+  const archived = missions.filter((mission) => mission.status === 'archived');
   const [query, setQuery] = useState('');
-  const [selectedId, setSelectedId] = useState(active[0]?.id ?? '');
+  const [selectedId, setSelectedId] = useState(current[0]?.id ?? '');
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return active;
-    return active.filter((mission) => [mission.name, mission.clientName ?? '', mission.project_type, mission.next_action ?? ''].some((value) => value.toLowerCase().includes(q)));
-  }, [active, query]);
+    if (!q) return current;
+    return current.filter((mission) => [mission.name, mission.clientName ?? '', mission.project_type, mission.next_action ?? ''].some((value) => value.toLowerCase().includes(q)));
+  }, [current, query]);
 
   const selected = filtered.find((mission) => mission.id === selectedId) ?? filtered[0];
 
@@ -158,7 +165,7 @@ function ProjectDirectory({ missions, clients, commentsByMission }: { missions: 
       </label>
 
       {filtered.length === 0 ? (
-        <EmptyState icon="missions" title="No projects match this search." hint="Try a project name, client, type or next action." />
+        <EmptyState icon="missions" title={query.trim() ? "No projects match this search." : "No current projects."} hint={query.trim() ? "Try a project name, client, type or next action." : "Create a project or review the archived projects below."} />
       ) : (
         <>
           <Panel className="overflow-hidden md:hidden">
@@ -171,7 +178,7 @@ function ProjectDirectory({ missions, clients, commentsByMission }: { missions: 
 
           <div className="hidden gap-3 md:grid md:grid-cols-[minmax(230px,0.75fr)_minmax(0,1.45fr)] xl:grid-cols-[minmax(280px,0.65fr)_minmax(0,1.6fr)]">
             <Panel className="self-start overflow-hidden">
-              <div className="border-b border-line px-3 py-2.5 text-[11px] font-medium text-ink-4">{filtered.length} active project{filtered.length === 1 ? '' : 's'}</div>
+              <div className="border-b border-line px-3 py-2.5 text-[11px] font-medium text-ink-4">{filtered.length} project{filtered.length === 1 ? '' : 's'}</div>
               <div className="divide-y divide-line">
                 {filtered.map((mission) => {
                   const selectedRow = mission.id === selected?.id;
@@ -182,7 +189,7 @@ function ProjectDirectory({ missions, clients, commentsByMission }: { missions: 
                           <p className={cx('truncate text-[13px] font-medium', selectedRow ? 'text-brand' : 'text-ink')}>{mission.name}</p>
                           <p className="mt-0.5 truncate text-[10.5px] text-ink-4">{mission.clientName || mission.project_type.replace(/_/g, ' ')}</p>
                         </div>
-                        <StatePill state={mission.health} />
+                        <div className="flex flex-wrap justify-end gap-1"><StatePill state={mission.status} /><StatePill state={mission.health} /></div>
                       </div>
                       <p className="mt-1.5 line-clamp-1 text-[11px] text-ink-3">{mission.next_action || 'No next action recorded'}</p>
                       <p className="tnum mt-1 text-[10px] text-ink-4">{mission.milestones.length} milestones · {mission.memberIds.length} members</p>
@@ -194,7 +201,7 @@ function ProjectDirectory({ missions, clients, commentsByMission }: { missions: 
 
             {selected && (
               <Panel className="self-start p-4 md:sticky md:top-20 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto xl:p-5">
-                <MissionDetail mission={selected} allMissions={missions} clients={clients} comments={commentsByMission.get(selected.id) ?? []} />
+                <MissionDetail key={selected.id} mission={selected} allMissions={missions} clients={clients} comments={commentsByMission.get(selected.id) ?? []} />
               </Panel>
             )}
           </div>
