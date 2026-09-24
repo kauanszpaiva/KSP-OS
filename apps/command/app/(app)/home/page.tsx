@@ -1,5 +1,23 @@
 import Link from 'next/link';
-import { Icon, ProgressRing, ShapeMark, type IconName, type ShapeKind, type Tone } from '@ksp/ui';
+import {
+  ActivityStrip,
+  DistributionBars,
+  DonutChart,
+  Icon,
+  ProgressRing,
+  ShapeMark,
+  StatCard,
+  StatGrid,
+  VizPanel,
+  VizBoard,
+  VisualEmpty,
+  VisualGrid,
+  bucketByDay,
+  distribution,
+  type IconName,
+  type ShapeKind,
+  type Tone
+} from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate, isOverdue } from '../../../lib/format';
@@ -158,6 +176,32 @@ export default async function HomePage() {
   const knownPipelineMinor = myLeads.reduce((sum, lead) => sum + (lead.expected_value_minor ?? 0), 0);
   const dueThisWeek = myTasks.filter((task) => dueSoon(task.due_date)).length;
   const first = ctx.user.displayName.split(' ')[0];
+
+  // Visual-data board. Every aggregate below is derived from the rows this page
+  // already loaded; an empty window charts nothing instead of showing zero.
+  const now = new Date();
+  const taskStateMix = distribution(
+    tasks.map((task) => (task.blocked ? 'blocked' : task.status)),
+    { limit: 6, otherLabel: 'Other states' }
+  );
+  const projectHealthMix = distribution(activeProjects.map((project) => project.health));
+  const commitmentStateMix = distribution(openCommitments.map((commitment) => commitment.state), {
+    limit: 6,
+    otherLabel: 'Other states'
+  });
+  const dueLoad = bucketByDay(tasks.map((task) => task.due_date), 14, now);
+  const datedTasks = tasks.filter((task) => Boolean(task.due_date)).length;
+  const loadItems = teamLoad
+    .filter((member) => !member.suspended)
+    .map((member) => ({ label: member.displayName, open: member.openTasks + member.openCommitments }))
+    .sort((a, b) => b.open - a.open)
+    .slice(0, 8);
+  const loadMax = loadItems.reduce((acc, item) => Math.max(acc, item.open), 0);
+  const teamLoadMix = loadItems.map((item) => ({
+    label: item.label,
+    value: item.open,
+    ratio: loadMax === 0 ? 0 : item.open / loadMax
+  }));
 
   let eyebrow = 'My work';
   let title = `Home — ${first}`;
@@ -415,30 +459,85 @@ export default async function HomePage() {
             <h2 className="text-[13px] font-semibold text-ink">Operating pulse</h2>
             <p className="mt-0.5 text-[10.5px] text-ink-4">Live counts from recorded work</p>
           </div>
-          <div className="grid grid-cols-2">
-            {metrics.map((metric, index) => {
-              const visual = visualForHref(metric.href, metric.tone);
-              const tone = metricTone(metric.tone);
-              const isLastOdd = metrics.length % 2 === 1 && index === metrics.length - 1;
-              const hasRowBelow = !isLastOdd && index < metrics.length - (metrics.length % 2 === 1 ? 1 : 2);
-              return (
-                <Link
-                  key={metric.label}
-                  href={metric.href}
-                  className={`group flex min-w-0 items-center gap-3 px-3 py-3.5 transition-colors hover:bg-surface-2/70 sm:px-4 ${index % 2 === 0 && !isLastOdd ? 'border-r border-line' : ''} ${hasRowBelow ? 'border-b border-line' : ''} ${isLastOdd ? 'col-span-2' : ''}`}
-                >
-                  <ShapeMark shape={visual.shape} icon={visual.icon} label={metric.label} tone={tone} size="md" />
-                  <span className="min-w-0">
-                    <span className="tnum block truncate text-[20px] font-semibold leading-none text-ink sm:text-[22px]">{metric.value}</span>
-                    <span className="mt-1 block truncate text-[10.5px] font-medium text-ink-3">{metric.label}</span>
-                    <span className="block truncate text-[9.5px] text-ink-4">{metric.hint}</span>
-                  </span>
-                </Link>
-              );
-            })}
+          <div className="p-3">
+            <StatGrid className="lg:grid-cols-2">
+              {metrics.map((metric, index) => {
+                const visual = visualForHref(metric.href, metric.tone);
+                const numeric = typeof metric.value === 'number';
+                return (
+                  <Link
+                    key={metric.label}
+                    href={metric.href}
+                    className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    <StatCard
+                      icon={visual.icon}
+                      index={index}
+                      label={metric.label}
+                      note={metric.hint}
+                      tone={metricTone(metric.tone)}
+                      value={numeric ? (metric.value as number) : undefined}
+                      valueText={numeric ? undefined : String(metric.value)}
+                    />
+                  </Link>
+                );
+              })}
+            </StatGrid>
           </div>
         </Panel>
       </div>
+
+      <VizBoard
+        aside={roleLabel}
+        note="Every figure is derived from the rows this session already loaded"
+        title="Operating board"
+      >
+        <VisualGrid>
+          <VizPanel
+            index={0}
+            note={`State of the ${tasks.length} tasks visible to this cockpit`}
+            title="Work mix"
+          >
+            <DonutChart
+              caption="Share of loaded tasks by state"
+              centerLabel="tasks"
+              centerValue={String(tasks.length)}
+              empty="No task was returned for this session."
+              items={taskStateMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={1} note="health field of the active projects in this window" title="Project health">
+            <DistributionBars empty="No active project was returned." items={projectHealthMix} />
+          </VizPanel>
+
+          <VizPanel
+            index={2}
+            note={`Task due dates per UTC day · last 14 days (${datedTasks} of ${tasks.length} dated)`}
+            title="Due-date load"
+          >
+            {datedTasks === 0 ? (
+              <VisualEmpty>No loaded task carries a due date, so no load curve can be shown.</VisualEmpty>
+            ) : (
+              <ActivityStrip buckets={dueLoad} caption="Tasks due per day" />
+            )}
+          </VizPanel>
+
+          {cockpit === 'founder' && teamLoadMix.length > 0 ? (
+            <VizPanel index={3} note="Open tasks plus open commitments per active member" title="Team load">
+              <DistributionBars empty="No active member was returned." items={teamLoadMix} tone="scale" />
+            </VizPanel>
+          ) : (
+            <VizPanel
+              index={3}
+              note={`State of the ${openCommitments.length} open commitments in this window`}
+              title="Commitment states"
+            >
+              <DistributionBars empty="No open commitment was returned." items={commitmentStateMix} tone="scale" />
+            </VizPanel>
+          )}
+        </VisualGrid>
+      </VizBoard>
 
       <Panel className="overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">

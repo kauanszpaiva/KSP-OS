@@ -37,6 +37,9 @@ describe('createBlueprintSchema', () => {
   });
 
   it('accepts projectId null as an explicit unlink', () => {
+      expect(createBlueprintSchema.safeParse({ name: 'XY', projectId: null }).success).toBe(true);
+    });
+  });
     expect(createBlueprintSchema.safeParse({ name: 'X', projectId: null }).success).toBe(true);
   });
 });

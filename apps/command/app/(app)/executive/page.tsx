@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { DistributionBars, DonutChart, VizBoard, VizPanel, VisualGrid, distribution } from '@ksp/ui';
 import { BarChart, Donut, Icon, ProgressRing, ShapeMark } from '@ksp/ui';
 import { getServerSupabase } from '../../../lib/supabase';
 import { requireSession } from '../../../lib/session';
@@ -102,6 +103,21 @@ export default async function ExecutiveDashboard() {
   const atRiskMissions = activeMissions.filter((m) => ['at_risk', 'off_track', 'watch'].includes(m.health));
   const activeClients = clients.filter((c) => c.status === 'active');
 
+  // Executive board. Every chart is derived from the records this page already
+  // loaded, so the board adds no query and no estimate.
+  const missionHealthMix = distribution(activeMissions.map((mission) => mission.health));
+  const commitmentStateMix = distribution(commitments.map((commitment) => commitment.state), {
+    limit: 6,
+    otherLabel: 'Other states'
+  });
+  const clientStatusMix = distribution(clients.map((client) => client.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const taskStateMix = distribution(
+    tasks.map((task) => (task.blocked ? 'blocked' : task.status)),
+    { limit: 6, otherLabel: 'Other states' }
+  );
   const healthStats: StatCardData[] = [
     { icon: 'outcomes', label: 'Active outcomes', value: activeOutcomes.length, hint: `${activeOutcomes.length}/3 outcome slots`, href: '/outcomes', tone: activeOutcomes.length ? 'brand' : 'neutral' },
     { icon: 'missions', label: 'Active missions', value: activeMissions.length, hint: `${atRiskMissions.length} at risk or watched`, href: '/missions', tone: atRiskMissions.length ? 'warn' : 'good' },
@@ -265,6 +281,49 @@ export default async function ExecutiveDashboard() {
           </div>
         </Panel>
       </div>
+
+      <VizBoard
+        aside="No estimate or projection is shown"
+        note="Charts built only from the records this page already loaded"
+        title="Executive board"
+      >
+        <VisualGrid>
+          <VizPanel
+            index={0}
+            note={`health field of the ${activeMissions.length} active missions`}
+            title="Mission health"
+          >
+            <DistributionBars empty="No active mission was returned." items={missionHealthMix} />
+          </VizPanel>
+
+          <VizPanel
+            index={1}
+            note={`state of the ${commitments.length} commitments in this window`}
+            title="Commitment states"
+          >
+            <DonutChart
+              caption="Share of commitments by state"
+              centerLabel="commitments"
+              centerValue={String(commitments.length)}
+              empty="No commitment was returned."
+              items={commitmentStateMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={2} note="Client organizations by recorded status" title="Client mix">
+            <DistributionBars empty="No client organization was returned." items={clientStatusMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel
+            index={3}
+            note={`State of the ${tasks.length} tasks in this window (blocked overrides status)`}
+            title="Task state"
+          >
+            <DistributionBars empty="No task was returned." items={taskStateMix} />
+          </VizPanel>
+        </VisualGrid>
+      </VizBoard>
+
     </div>
   );
 }

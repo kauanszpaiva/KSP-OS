@@ -21,7 +21,7 @@ const config: Config = {
   content: [
     './apps/command/**/*.{js,ts,jsx,tsx,mdx}',
     './apps/portal/**/*.{js,ts,jsx,tsx,mdx}',
-    './packages/ui/**/*.{js,ts,jsx,tsx,mdx}'
+    './packages/ui/src/**/*.{ts,tsx}'
   ],
   theme: {
     extend: {
@@ -138,6 +138,17 @@ const config: Config = {
         'slide-out-down': {
           from: { opacity: '1', transform: 'translateY(0)' },
           to: { opacity: '0', transform: 'translateY(8px)' }
+        },
+        // Data-visualisation entrances: a magnitude bar grows from its origin and
+        // a sparkline draws itself. Transform/opacity only, so they stay on the
+        // compositor and can be disabled by `motion-reduce:animate-none`.
+        'grow-x': {
+          from: { transform: 'scaleX(0)' },
+          to: { transform: 'scaleX(1)' }
+        },
+        'ring-draw': {
+          from: { strokeDashoffset: '1' },
+          to: { strokeDashoffset: '0' }
         }
       },
       animation: {
@@ -148,7 +159,9 @@ const config: Config = {
         'fade-out': 'fade-out 160ms cubic-bezier(0.2, 0, 0, 1) both',
         'scale-out': 'scale-out 160ms cubic-bezier(0.2, 0, 0, 1) both',
         'slide-out-right': 'slide-out-right 200ms cubic-bezier(0.2, 0, 0, 1) both',
-        'slide-out-down': 'slide-out-down 200ms cubic-bezier(0.2, 0, 0, 1) both'
+        'slide-out-down': 'slide-out-down 200ms cubic-bezier(0.2, 0, 0, 1) both',
+        'grow-x': 'grow-x 320ms cubic-bezier(0.2, 0, 0, 1) both',
+        'ring-draw': 'ring-draw 320ms cubic-bezier(0.2, 0, 0, 1) both'
       }
     }
   },

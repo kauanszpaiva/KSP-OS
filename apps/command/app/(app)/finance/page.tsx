@@ -1,4 +1,15 @@
 import { canViewFinance } from '@ksp/auth';
+import {
+  DistributionBars,
+  DonutChart,
+  Meter,
+  VizBoard,
+  VizPanel,
+  VisualEmpty,
+  VisualGrid,
+  distribution,
+  groupSums
+} from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getFinanceOverview, getSubscriptions, getAccountingPeriods, getJournalEntries } from '../data';
@@ -73,6 +84,29 @@ export default async function FinancePage() {
           ? `${cash.unreconciledCount} unreconciled`
           : 'Reconciled';
 
+  // Finance board. Every figure below comes from a record this page already
+  // loaded; a mixed-currency set refuses to total instead of inventing one.
+  const invoices = invoiceData.invoices;
+  const invoiceStatusMix = distribution(invoices.map((invoice) => invoice.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const invoiceValueByStatus = groupSums(
+    invoices,
+    (invoice) => invoice.status,
+    (invoice) => invoice.amount_minor,
+    { limit: 6, otherLabel: 'Other statuses', currency: (invoice) => invoice.currency }
+  );
+  const spendByVendor = groupSums(
+    subscriptions,
+    (subscription) => subscription.vendor,
+    (subscription) => subscription.cost_minor,
+    { limit: 6, otherLabel: 'Other vendors', currency: (subscription) => subscription.currency }
+  );
+  const reconciledCount = cash.transactions.filter(
+    (transaction) => transaction.reconciliation_status === 'reconciled'
+  ).length;
+
   return (
     <div className="min-w-0 overflow-x-clip">
       <PageHeader
@@ -87,6 +121,95 @@ export default async function FinancePage() {
           </div>
         }
       />
+
+      <VizBoard
+        aside={`${invoices.length} invoice${invoices.length === 1 ? '' : 's'} · ${subscriptions.length} subscription${subscriptions.length === 1 ? '' : 's'}`}
+        className="mb-5"
+        note="Recorded amounts only — nothing is accrued or forecast"
+        title="Finance board"
+      >
+        <VisualGrid>
+          <VizPanel index={0} note="Status of every invoice in this window" title="Invoice status">
+            <DonutChart
+              caption="Share of invoices by status"
+              centerLabel="invoices"
+              centerValue={String(invoices.length)}
+              empty="No invoice was returned, or the invoice schema is not promoted here."
+              items={invoiceStatusMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={1} note="amount_minor per invoice status" title="Invoice value by status">
+            {invoiceValueByStatus.mixedCurrency ? (
+              <VisualEmpty>
+                The returned invoices use more than one currency, so no value chart is shown.
+              </VisualEmpty>
+            ) : (
+              <DistributionBars
+                empty="No invoice value was returned in this window."
+                items={invoiceValueByStatus.items}
+                valueFormatter={money}
+              />
+            )}
+          </VizPanel>
+
+          <VizPanel index={2} note="cost_minor per recorded vendor" title="Recurring spend by vendor">
+            {spendByVendor.mixedCurrency ? (
+              <VisualEmpty>
+                The returned subscriptions use more than one currency, so no spend chart is shown.
+              </VisualEmpty>
+            ) : (
+              <DistributionBars
+                empty="No subscription was returned in this window."
+                items={spendByVendor.items}
+                tone="scale"
+                valueFormatter={money}
+              />
+            )}
+          </VizPanel>
+
+          <VizPanel index={3} note="Reconciliation state and balance confidence" title="Cash reconciliation">
+            <div className="grid gap-4">
+              <Meter
+                detail={
+                  cash.transactions.length === 0
+                    ? 'No cash transaction was returned in this window.'
+                    : `${reconciledCount} of ${cash.transactions.length} returned transactions are reconciled.`
+                }
+                index={0}
+                label="Transactions reconciled"
+                max={Math.max(cash.transactions.length, 1)}
+                tone={cash.unreconciledCount > 0 ? 'warn' : 'good'}
+                value={reconciledCount}
+              />
+              <Meter
+                detail={`${cash.unknownBalanceAccountCount} of ${cash.accounts.length || 0} returned accounts have no known balance.`}
+                index={1}
+                label="Accounts with a known balance"
+                max={Math.max(cash.accounts.length, 1)}
+                tone={cash.unknownBalanceAccountCount > 0 ? 'warn' : 'good'}
+                value={cash.accounts.length - cash.unknownBalanceAccountCount}
+              />
+              <p className="text-[11px] leading-snug text-ink-3">
+                Statements on record: <span className="tnum font-semibold text-ink">{cash.statements.length}</span> ·
+                draft journal entries:{' '}
+                <span className="tnum font-semibold text-ink">{overview.draftEntryCount}</span> ·
+                posted: <span className="tnum font-semibold text-ink">{overview.postedEntryCount}</span>
+                {overview.chartAccounts.length > 0 ? (
+                  <>
+                    {' '}
+                    · chart accounts:{' '}
+                    <span className="tnum font-semibold text-ink">{overview.chartAccounts.length}</span>
+                  </>
+                ) : null}
+                {' '}
+                · periods: <span className="tnum font-semibold text-ink">{periods.length}</span> · entries:{' '}
+                <span className="tnum font-semibold text-ink">{entries.length}</span>
+              </p>
+            </div>
+          </VizPanel>
+        </VisualGrid>
+      </VizBoard>
 
       <FinanceView
         cash={cash}
