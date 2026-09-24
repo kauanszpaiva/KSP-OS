@@ -20,8 +20,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
+      - name: Remove checkout authentication without traversing the legacy orphan gitlink
+        run: git config --local --unset-all http.https://github.com/.extraheader
       - name: Archive reviewed source for offline verification
         run: git archive --format=tar.gz -o /tmp/ksp-source.tar.gz HEAD
       - uses: actions/upload-artifact@v4
