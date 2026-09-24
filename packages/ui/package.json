@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.tsx"
+    ".": "./src/index.tsx",
+    "./blueprint-canvas": "./src/blueprint-canvas.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -13,5 +14,8 @@
   },
   "peerDependencies": {
     "react": "19.0.0"
+  },
+  "dependencies": {
+    "@xyflow/react": "12.11.6"
   }
 }
