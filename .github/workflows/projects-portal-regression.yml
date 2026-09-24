@@ -39,7 +39,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Synthetic component and scheduling regressions
-        run: pnpm exec vitest run 'apps/command/app/(app)/_components/missions-view.test.tsx' 'apps/command/app/(app)/_components/day-scheduler.test.tsx' 'apps/command/app/(app)/day-schedule-actions.test.tsx' 'packages/domain/src/day-schedule.test.ts' 'apps/portal/app/invite/' 'apps/portal/lib/invite-signup-error.test.tsx'
+        run: pnpm exec vitest run 'apps/command/app/(app)/' 'packages/domain/src/day-schedule.test.ts' 'apps/portal/app/invite/' 'apps/portal/lib/invite-signup-error.test.tsx'
       - name: Install browser for isolated UI verification
         run: pnpm exec playwright install --with-deps chromium
       - name: Desktop and mobile daily Gantt browser verification (synthetic persistence)
