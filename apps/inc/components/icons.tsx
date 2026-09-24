@@ -41,6 +41,7 @@ export type IconName =
   | 'filter'
   | 'spark'
   | 'target'
+  | 'blueprint'
   | 'calendar'
   | 'chart'
   | 'database'
@@ -208,6 +209,14 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="12" cy="12" r="8.8" />
       <circle cx="12" cy="12" r="4.6" />
       <path d="M12 12h.01" />
+    </>
+  ),
+  blueprint: (
+    <>
+      <rect x="3.2" y="3.2" width="6.6" height="5.6" rx="1.6" />
+      <rect x="14.2" y="15.2" width="6.6" height="5.6" rx="1.6" />
+      <rect x="14.2" y="3.2" width="6.6" height="5.6" rx="1.6" />
+      <path d="M6.5 8.8v4a2 2 0 0 0 2 2h5.7M17.5 8.8v6.4" />
     </>
   ),
   calendar: (

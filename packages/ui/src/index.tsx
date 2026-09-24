@@ -8,3 +8,6 @@ export * from './confirm-dialog';
 export * from './theme';
 export * from './theme-script';
 export * from './ksp-operating';
+export * from './data-viz-model';
+export * from './data-viz';
+export * from './count-up';

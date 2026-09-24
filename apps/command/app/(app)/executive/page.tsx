@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { DistributionBars, DonutChart, VizPanel, VisualGrid, distribution } from '@ksp/ui';
 import { getServerSupabase } from '../../../lib/supabase';
 import { requireSession } from '../../../lib/session';
 import {
@@ -46,6 +47,22 @@ export default async function ExecutiveDashboard() {
   const cashSignals = signals.filter((s) => s.item_type === 'finance' || s.item_type === 'revenue');
   const activeMissions = missions.filter((m) => m.status === 'active');
   const activeClients = clients.filter((c) => c.status === 'active');
+
+  // Executive board. Every chart is derived from the records this page already
+  // loaded, so the board adds no query and no estimate.
+  const missionHealthMix = distribution(activeMissions.map((mission) => mission.health));
+  const commitmentStateMix = distribution(commitments.map((commitment) => commitment.state), {
+    limit: 6,
+    otherLabel: 'Other states'
+  });
+  const clientStatusMix = distribution(clients.map((client) => client.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const taskStateMix = distribution(
+    tasks.map((task) => (task.blocked ? 'blocked' : task.status)),
+    { limit: 6, otherLabel: 'Other states' }
+  );
 
   return (
     <div>
@@ -115,6 +132,55 @@ export default async function ExecutiveDashboard() {
           </div>
         </Panel>
       </div>
+
+      <section aria-label="Executive board" className="space-y-3">
+        <div className="flex min-w-0 flex-wrap items-end justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="font-display text-[15px] font-semibold text-ink">Executive board</h2>
+            <p className="mt-0.5 text-[11px] text-ink-3">
+              Charts built only from the records this page already loaded
+            </p>
+          </div>
+          <span className="shrink-0 text-[10.5px] font-medium text-ink-4">
+            No estimate or projection is shown
+          </span>
+        </div>
+        <VisualGrid>
+          <VizPanel
+            index={0}
+            note={`health field of the ${activeMissions.length} active missions`}
+            title="Mission health"
+          >
+            <DistributionBars empty="No active mission was returned." items={missionHealthMix} />
+          </VizPanel>
+
+          <VizPanel
+            index={1}
+            note={`state of the ${commitments.length} commitments in this window`}
+            title="Commitment states"
+          >
+            <DonutChart
+              caption="Share of commitments by state"
+              centerLabel="commitments"
+              centerValue={String(commitments.length)}
+              empty="No commitment was returned."
+              items={commitmentStateMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={2} note="Client organizations by recorded status" title="Client mix">
+            <DistributionBars empty="No client organization was returned." items={clientStatusMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel
+            index={3}
+            note={`State of the ${tasks.length} tasks in this window (blocked overrides status)`}
+            title="Task state"
+          >
+            <DistributionBars empty="No task was returned." items={taskStateMix} />
+          </VizPanel>
+        </VisualGrid>
+      </section>
 
     </div>
   );

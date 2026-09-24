@@ -15,7 +15,8 @@ const navSections = [
       ['Overview', '/'],
       ['AI Company', '/ai-company'],
       ['WhatsApp', '/ai-company/communications'],
-      ['Work', '/work']
+      ['Work', '/work'],
+      ['Blueprints', '/blueprints']
     ]
   ],
   [
@@ -43,6 +44,7 @@ const NAV_ICONS: Record<string, IconName> = {
   '/ai-company': 'ai',
   '/ai-company/communications': 'message',
   '/work': 'layers',
+  '/blueprints': 'blueprint',
   '/structure': 'sitemap',
   '/people': 'users',
   '/access': 'key',

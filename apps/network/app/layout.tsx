@@ -1,6 +1,7 @@
 import './globals.css';
+import './ksp-inc.css';
 import type { ReactNode } from 'react';
-import { Bricolage_Grotesque, Inter } from 'next/font/google';
+import { Inter, Sora } from 'next/font/google';
 import { ThemeProvider, themeInitScript } from '@ksp/ui';
 
 const sans = Inter({
@@ -9,7 +10,7 @@ const sans = Inter({
   display: 'swap'
 });
 
-const display = Bricolage_Grotesque({
+const display = Sora({
   subsets: ['latin'],
   variable: '--font-display',
   display: 'swap',

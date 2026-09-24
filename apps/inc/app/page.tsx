@@ -13,10 +13,18 @@ import {
   VisualGrid
 } from '../components/visual-data';
 import type { ListRow, MetricState } from '../lib/inc-data';
-import { getAuditRows, getOwnerMetrics, getWorkRows } from '../lib/inc-data';
+import { getAuditRows, getFinanceRows, getOwnerMetrics, getWorkRows } from '../lib/inc-data';
 import { requireIncOwner } from '../lib/inc-session';
 import { getServerSupabase } from '../lib/supabase';
-import { bucketByDay, distribution, isPastDue, riseDelay } from '../lib/visual-data';
+import {
+  bucketByDay,
+  distribution,
+  formatMinorUnits,
+  groupRows,
+  isPastDue,
+  riseDelay,
+  singleCurrencyTotal
+} from '../lib/visual-data';
 
 /**
  * `[title, href, icon, description]`. The title/href pairs are asserted by the
@@ -42,10 +50,11 @@ export default async function IncHomePage() {
   const ctx = await requireIncOwner();
   const supabase = await getServerSupabase();
 
-  const [metrics, workRows, auditRows] = await Promise.all([
+  const [metrics, workRows, auditRows, financeRows] = await Promise.all([
     supabase ? getOwnerMetrics(supabase) : Promise.resolve([] as MetricState[]),
     supabase ? getWorkRows(supabase) : Promise.resolve([] as ListRow[]),
-    supabase ? getAuditRows(supabase) : Promise.resolve([] as ListRow[])
+    supabase ? getAuditRows(supabase) : Promise.resolve([] as ListRow[]),
+    supabase ? getFinanceRows(supabase) : Promise.resolve([] as ListRow[])
   ]);
 
   const now = new Date();
@@ -55,6 +64,30 @@ export default async function IncHomePage() {
   const datedTasks = workRows.filter((row) => Boolean(row.at));
   const pastDue = datedTasks.filter((row) => isPastDue(row.at, row.status, now)).length;
   const distinctActions = new Set(auditRows.map((row) => row.primary)).size;
+
+  const invoices = groupRows(financeRows, 'invoice');
+  const approvals = groupRows(financeRows, 'approval');
+  const invoiceMix = distribution(invoices.map((row) => row.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const approvalRiskMix = distribution(
+    approvals.map((row) => (row.meta?.startsWith('Risk ') ? row.meta.slice('Risk '.length) : undefined))
+  );
+  const invoiceTotal = singleCurrencyTotal(invoices);
+  const pendingApprovals = approvals.filter((row) => /pending|open|review|await/i.test(row.status ?? '')).length;
+  const invoiceValueText =
+    invoiceTotal.count === 0
+      ? '—'
+      : invoiceTotal.mixed
+        ? `${invoiceTotal.count} rows`
+        : formatMinorUnits(invoiceTotal.total, invoiceTotal.currency);
+  const invoiceValueNote =
+    invoiceTotal.count === 0
+      ? 'No returned invoice carried an amount.'
+      : invoiceTotal.mixed
+        ? 'More than one currency is present, so no single total is shown.'
+        : `Sum of the ${invoiceTotal.count} returned invoices that carry an amount.`;
 
   const posture: PostureItem[] = [
     { label: 'Authorization', value: 'Server + RLS authoritative', tone: 'ok', icon: 'shield' },
@@ -149,6 +182,21 @@ export default async function IncHomePage() {
             note="Unique action keys in the returned window"
             value={distinctActions}
           />
+          <StatCard
+            icon="banknote"
+            index={4}
+            label="Invoice value returned"
+            note={invoiceValueNote}
+            valueText={invoiceValueText}
+          />
+          <StatCard
+            icon="shield"
+            index={5}
+            label="Approvals awaiting decision"
+            note="Returned approvals whose status reads as pending, open or review"
+            tone={pendingApprovals > 0 ? 'warning' : 'ok'}
+            value={pendingApprovals}
+          />
         </StatGrid>
 
         <div className="visualGrid visualGridSpaced">
@@ -186,6 +234,23 @@ export default async function IncHomePage() {
                 value={pastDue}
               />
             )}
+          </Panel>
+
+          <Panel index={4} note="Status of the most recent 30 invoices returned to this owner session" title="Invoice status">
+            <DonutChart
+              caption="Share of returned invoices by status"
+              centerLabel="invoices"
+              centerValue={String(invoices.length)}
+              emptyLabel="No invoice was returned in this environment."
+              items={invoiceMix}
+            />
+          </Panel>
+
+          <Panel index={5} note="risk_level recorded on the returned approval requests" title="Approval risk">
+            <DistributionBars
+              emptyLabel="No approval request was returned in this environment."
+              items={approvalRiskMix}
+            />
           </Panel>
         </div>
       </section>

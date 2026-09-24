@@ -1,5 +1,21 @@
 import Link from 'next/link';
-import { Card, Icon, ProgressRing, ShapeMark, type Tone } from '@ksp/ui';
+import {
+  ActivityStrip,
+  Card,
+  DistributionBars,
+  DonutChart,
+  Icon,
+  ProgressRing,
+  ShapeMark,
+  StatCard,
+  StatGrid,
+  TrendSparkline,
+  VizPanel,
+  VisualGrid,
+  bucketByDay,
+  distribution,
+  type Tone
+} from '@ksp/ui';
 import { requirePortalSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate, isOverdue } from '../../../lib/format';
@@ -30,7 +46,6 @@ function progressTone(value: number): Tone {
   if (value >= 50) return 'accent';
   return 'brand';
 }
-
 function twoColumnCellClass(index: number, total: number): string {
   const mobileBottom = index < total - 1 ? 'border-b border-line' : '';
   const desktopBottom = total > 2 && index < 2 ? 'md:border-b' : 'md:border-b-0';
@@ -68,6 +83,27 @@ export default async function PortalHomePage() {
     { label: 'Milestones', value: allUpcoming.length, hint: 'Upcoming', href: '/projects', shape: 'diamond' as const, icon: 'schedule' as const, tone: 'accent' as const },
     { label: 'Updates', value: updates.length, hint: 'Recent', href: '/files', shape: 'circle' as const, icon: 'check' as const, tone: 'neutral' as const }
   ];
+
+  const now = new Date();
+  const requestMix = distribution(requests.map((request) => request.status), {
+    limit: 6,
+    otherLabel: 'Other states'
+  });
+  const milestoneLoad = bucketByDay(
+    milestones.map((milestone) => milestone.due_date),
+    14,
+    now
+  );
+  const updateCadence = bucketByDay(
+    updates.map((update) => update.created_at),
+    14,
+    now
+  );
+  const datedMilestones = milestones.filter((milestone) => Boolean(milestone.due_date)).length;
+  const projectProgressItems = homeProjects.map((project) => {
+    const value = projectProgress(project.project_id, milestones);
+    return { label: project.title, value, ratio: value / 100 };
+  });
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -149,15 +185,21 @@ export default async function PortalHomePage() {
                 <h2 className="text-[13px] font-semibold text-ink">At a glance</h2>
                 <p className="mt-0.5 text-[10.5px] text-ink-4">Published activity from your workspace</p>
               </div>
-              <div className="grid grid-cols-2">
+              <div className="grid grid-cols-2 p-3">
                 {summary.map((item, index) => (
-                  <Link key={item.label} href={item.href} className={`flex items-center gap-3 px-3 py-3.5 transition-colors hover:bg-surface-2/70 sm:px-4 ${index % 2 === 0 ? 'border-r border-line' : ''} ${index < 2 ? 'border-b border-line' : ''}`}>
-                    <ShapeMark shape={item.shape} icon={item.icon} label={item.label} tone={item.tone} />
-                    <span className="min-w-0">
-                      <span className="tnum block text-[22px] font-semibold leading-none text-ink">{item.value}</span>
-                      <span className="mt-1 block truncate text-[10.5px] font-medium text-ink-3">{item.label}</span>
-                      <span className="block truncate text-[9.5px] text-ink-4">{item.hint}</span>
-                    </span>
+                  <Link
+                    className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    href={item.href}
+                    key={item.label}
+                  >
+                    <StatCard
+                      icon={item.icon}
+                      index={index}
+                      label={item.label}
+                      note={item.hint}
+                      tone={item.tone}
+                      value={item.value}
+                    />
                   </Link>
                 ))}
               </div>
@@ -197,6 +239,45 @@ export default async function PortalHomePage() {
               </div>
             )}
           </Card>
+
+          <div>
+            <div className="mb-2.5 flex min-h-6 items-center justify-between gap-3">
+              <h2 className="text-[13px] font-semibold text-ink-2">Delivery signals</h2>
+              <p className="text-[10.5px] text-ink-4">Derived only from what this workspace published</p>
+            </div>
+            <VisualGrid>
+              <VizPanel index={0} note="Status of the requests visible to your workspace" title="Request mix">
+                <DonutChart
+                  caption="Share of visible requests by status"
+                  centerLabel="requests"
+                  centerValue={String(requests.length)}
+                  empty="No requests are open in this workspace yet."
+                  items={requestMix}
+                />
+              </VizPanel>
+
+              <VizPanel
+                index={1}
+                note={`Milestone due dates per UTC day · last 14 days (${datedMilestones} dated)`}
+                title="Milestone load"
+              >
+                <ActivityStrip buckets={milestoneLoad} caption="Milestones due per day" />
+              </VizPanel>
+
+              <VizPanel index={2} note="Milestone completion per published project" title="Project progress">
+                <DistributionBars
+                  empty="No published project has milestones yet."
+                  items={projectProgressItems}
+                  tone="scale"
+                  valueSuffix="%"
+                />
+              </VizPanel>
+
+              <VizPanel index={3} note="Published updates per day over the last 14 days" title="Update cadence">
+                <TrendSparkline buckets={updateCadence} caption="Published updates per day" />
+              </VizPanel>
+            </VisualGrid>
+          </div>
 
           <Card className="grid min-w-0 overflow-hidden lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
             <section className="min-w-0">

@@ -1,17 +1,18 @@
-import type { ListRow } from './inc-data';
-import type { StreamFacet } from '../components/stream-list';
+import type { Tone } from './primitives';
 
 /**
- * Pure presentation helpers for the KSP INC owner dashboards.
+ * Pure aggregation + geometry for the KSP visual-data surfaces.
  *
- * Everything here derives its output from rows that were already returned by
- * the canonical owner queries. Nothing in this file invents a metric, a trend
- * or a benchmark: when a source returns no rows the helpers produce an empty
- * result and the UI renders an explicit "not available" state instead of a
- * fabricated zero.
+ * Shared by Command, Portal and Network so a "status mix", a "daily count" or a
+ * "share of returned rows" means exactly the same thing on every surface.
  *
- * The functions are deliberately pure so the aggregation rules that shape what
- * owners see are unit-testable without a database or a browser.
+ * Two rules the whole module is built around:
+ *  1. Nothing here invents a figure. Every helper consumes rows that a caller
+ *     already fetched, and an empty input produces an empty result — never a
+ *     zero that could be mistaken for real data.
+ *  2. Brand colour is never used as a status. `statusTone` maps a canonical
+ *     token onto good/warn/risk/neutral only, and categorical series use a
+ *     single-hue intensity scale instead.
  */
 
 export type Distribution = {
@@ -26,7 +27,7 @@ export type DistributionOptions = {
   otherLabel?: string;
   /** Label used when the source value is null/empty. */
   fallbackLabel?: string;
-  /** Collapse near-duplicate source values onto one canonical label. */
+  /** Collapse near-duplicate source values onto one canonical key. */
   normalise?: (value: string) => string;
 };
 
@@ -43,9 +44,9 @@ export function normaliseKey(value: string | null | undefined): string {
 }
 
 /**
- * Counts occurrences of a categorical value and computes each slice's share of
- * the returned window. `ratio` is always computed against the full input length
- * (before `limit`), so the visible slices never overstate their share.
+ * Counts a categorical value and reports each slice's share of the returned
+ * window. `ratio` is always computed against the full input length (before
+ * `limit`), so visible slices never overstate their share.
  */
 export function distribution(
   values: Array<string | null | undefined>,
@@ -59,28 +60,21 @@ export function distribution(
     const trimmed = (raw ?? '').trim();
     const key = normalise ? normalise(trimmed) : normaliseKey(trimmed);
     const groupKey = key.length > 0 ? key : fallbackLabel;
-    const label = trimmed.length > 0 ? readableToken(trimmed) : fallbackLabel;
     const current = buckets.get(groupKey);
     if (current) {
       current.value += 1;
     } else {
-      buckets.set(groupKey, { label, value: 1 });
+      buckets.set(groupKey, { label: trimmed.length > 0 ? readableToken(trimmed) : fallbackLabel, value: 1 });
     }
     total += 1;
   }
 
-  const sorted = [...buckets.values()].sort(
-    (a, b) => b.value - a.value || a.label.localeCompare(b.label)
-  );
-
+  const sorted = [...buckets.values()].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
   const limited =
     limit != null && sorted.length > limit
       ? [
           ...sorted.slice(0, limit),
-          {
-            label: otherLabel,
-            value: sorted.slice(limit).reduce((acc, item) => acc + item.value, 0)
-          }
+          { label: otherLabel, value: sorted.slice(limit).reduce((acc, item) => acc + item.value, 0) }
         ]
       : sorted;
 
@@ -92,7 +86,10 @@ export function distribution(
 }
 
 export function sumNumbers(values: Array<number | null | undefined>): number {
-  return values.reduce<number>((acc, value) => acc + (typeof value === 'number' && Number.isFinite(value) ? value : 0), 0);
+  return values.reduce<number>(
+    (acc, value) => acc + (typeof value === 'number' && Number.isFinite(value) ? value : 0),
+    0
+  );
 }
 
 export function ratioOf(part: number, total: number): number {
@@ -100,7 +97,7 @@ export function ratioOf(part: number, total: number): number {
   return Math.min(Math.max(part / total, 0), 1);
 }
 
-/** Rounded percentage of a ratio (already-normalised 0..1). */
+/** Rounded percentage of an already-normalised 0..1 ratio. */
 export function percentLabel(ratio: number): string {
   if (!Number.isFinite(ratio)) return '0%';
   return `${Math.round(ratio * 100)}%`;
@@ -130,8 +127,8 @@ function dayLabel(date: Date): string {
 
 /**
  * Buckets timestamps into the last `days` UTC days, oldest first. Timestamps
- * that fall outside the window or cannot be parsed are ignored rather than
- * folded into another day.
+ * outside the window or unparseable are ignored rather than folded into another
+ * day.
  */
 export function bucketByDay(
   timestamps: Array<string | null | undefined>,
@@ -145,9 +142,8 @@ export function bucketByDay(
 
   for (let offset = span - 1; offset >= 0; offset -= 1) {
     const date = new Date(end - offset * 86_400_000);
-    const key = utcDayKey(date);
-    index.set(key, buckets.length);
-    buckets.push({ key, label: dayLabel(date), value: 0 });
+    index.set(utcDayKey(date), buckets.length);
+    buckets.push({ key: utcDayKey(date), label: dayLabel(date), value: 0 });
   }
 
   for (const raw of timestamps) {
@@ -167,15 +163,14 @@ export type LineGeometry = {
   height: number;
   line: string;
   area: string;
-  /** Vertical position of the plotted points, in SVG user units. */
   points: Array<{ x: number; y: number }>;
 };
 
 /**
- * Builds an SVG line + area path for a numeric series on an absolute baseline
- * (zero to peak), so a small daily count never looks like a full-height swing.
- * A flat series is drawn mid-height, and an all-zero series sits on the baseline,
- * so neither can imply a trend the data does not contain.
+ * Builds an SVG line + area path on an absolute baseline (zero to peak) so a
+ * small daily count never looks like a full-height swing. A flat non-zero series
+ * is drawn mid-height and an all-zero series sits on the baseline, so neither can
+ * imply a trend the data does not contain.
  */
 export function linePath(
   values: number[],
@@ -216,16 +211,11 @@ export type RingSegment = {
   label: string;
   value: number;
   ratio: number;
-  /** `stroke-dasharray` for the segment arc. */
   dashArray: string;
-  /** `stroke-dashoffset` that places the arc after the previous segments. */
   dashOffset: number;
 };
 
-/**
- * Converts a distribution into donut arcs on a circle of `radius`.
- * `gap` keeps a visible break between adjacent slices.
- */
+/** Converts a distribution into donut arcs on a circle of `radius`. */
 export function ringSegments(items: Distribution[], radius: number, gap = 2): RingSegment[] {
   const circumference = 2 * Math.PI * radius;
   let consumed = 0;
@@ -244,43 +234,95 @@ export function ringSegments(items: Distribution[], radius: number, gap = 2): Ri
   });
 }
 
-export type StatusTone = 'ok' | 'warning' | 'risk' | 'neutral';
-
-const OK_TOKENS = ['active', 'approved', 'complete', 'completed', 'done', 'healthy', 'live', 'paid', 'resolved', 'success', 'verified'];
-const WARNING_TOKENS = ['attention', 'at risk', 'draft', 'in progress', 'in review', 'open', 'pending', 'queued', 'review', 'scheduled', 'unknown', 'watch'];
-const RISK_TOKENS = ['blocked', 'cancelled', 'churned', 'critical', 'declined', 'denied', 'error', 'expired', 'failed', 'overdue', 'past due', 'rejected', 'revoked', 'risk', 'suspended'];
+const GOOD_TOKENS = [
+  'accepted',
+  'active',
+  'approved',
+  'complete',
+  'completed',
+  'delivered',
+  'done',
+  'good',
+  'healthy',
+  'live',
+  'on track',
+  'on_track',
+  'paid',
+  'published',
+  'resolved',
+  'success',
+  'verified'
+];
+const WARN_TOKENS = [
+  'at risk',
+  'at_risk',
+  'attention',
+  'awaiting',
+  'draft',
+  'in progress',
+  'in_progress',
+  'in review',
+  'needs',
+  'open',
+  'pending',
+  'queued',
+  'review',
+  'scheduled',
+  'unknown',
+  'watch'
+];
+const RISK_TOKENS = [
+  'blocked',
+  'cancelled',
+  'canceled',
+  'churned',
+  'critical',
+  'declined',
+  'denied',
+  'error',
+  'expired',
+  'failed',
+  'off track',
+  'off_track',
+  'overdue',
+  'past due',
+  'rejected',
+  'revoked',
+  'risk',
+  'suspended'
+];
 
 /**
- * Maps a canonical status token to a semantic tone. Signal Green is never used
- * here: the KSP operating identity keeps success/warning/risk independent of the
- * brand colour, so an owner cannot mistake branding for a status claim.
- * Unrecognised tokens stay neutral rather than being guessed at.
+ * Maps a canonical status token onto a semantic tone. `brand` and `accent` are
+ * never returned: the KSP operating identity keeps selection colour independent
+ * of meaning, so nothing here can make a brand mark read as a status claim.
+ * Unrecognised tokens stay `neutral` instead of being guessed at.
  */
-export function statusTone(label: string | null | undefined): StatusTone {
+export function statusTone(label: string | null | undefined): Tone {
   const token = normaliseKey(label).replace(/[_-]+/g, ' ');
   if (token.length === 0) return 'neutral';
 
-  // Exact matches win first, so `at risk` resolves to warning instead of being
+  // Exact matches win first, so `at risk` resolves to warn instead of being
   // swallowed by the looser `risk` substring below.
   if (RISK_TOKENS.includes(token)) return 'risk';
-  if (OK_TOKENS.includes(token)) return 'ok';
-  if (WARNING_TOKENS.includes(token)) return 'warning';
+  if (GOOD_TOKENS.includes(token)) return 'good';
+  if (WARN_TOKENS.includes(token)) return 'warn';
 
   const loose = (candidates: string[]) =>
     candidates.some((candidate) => token.startsWith(`${candidate} `) || token.includes(candidate));
 
   if (loose(RISK_TOKENS)) return 'risk';
-  if (loose(OK_TOKENS)) return 'ok';
-  if (loose(WARNING_TOKENS)) return 'warning';
+  if (loose(GOOD_TOKENS)) return 'good';
+  if (loose(WARN_TOKENS)) return 'warn';
   return 'neutral';
 }
 
-const CLOSED_TASK_TOKENS = ['done', 'completed', 'complete', 'cancelled', 'canceled', 'archived', 'closed'];
+const CLOSED_TOKENS = ['done', 'completed', 'complete', 'delivered', 'cancelled', 'canceled', 'archived', 'closed'];
 
 /**
- * True when a row carries a real due date that is already in the past and its
- * status is not one of the known closed states. This is a stated rule applied to
- * the returned window, not a claim about the whole table.
+ * True when a row carries a real due date already in the past and its status is
+ * not a known closed state. This is a stated rule applied to the returned window,
+ * not a claim about the whole table.
  */
 export function isPastDue(
   dueDate: string | null | undefined,
@@ -290,29 +332,22 @@ export function isPastDue(
   if (!dueDate) return false;
   const parsed = new Date(dueDate);
   if (Number.isNaN(parsed.getTime())) return false;
-  const statusToken = normaliseKey(status);
-  if (CLOSED_TASK_TOKENS.includes(statusToken)) return false;
+  if (CLOSED_TOKENS.includes(normaliseKey(status))) return false;
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const due = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
   return due < today;
 }
 
-/** `null` means "the source did not answer", which must not render as `0`. */
+/** `null` means the source did not answer, which must not render as `0`. */
 export function formatCount(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('en-US').format(value);
 }
 
-const MINOR_FORMAT = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
+const MINOR_FORMAT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Formats integer minor units (cents) as a display amount, never doing math. */
-export function formatMinorUnits(
-  minor: number | null | undefined,
-  currency?: string | null
-): string {
+/** Formats integer minor units (cents) for display, never doing money math. */
+export function formatMinorUnits(minor: number | null | undefined, currency?: string | null): string {
   if (minor == null || !Number.isFinite(minor)) return '—';
   const amount = MINOR_FORMAT.format(Math.abs(minor) / 100);
   const sign = minor < 0 ? '-' : '';
@@ -320,51 +355,17 @@ export function formatMinorUnits(
   return `${sign}${prefix}${amount}`;
 }
 
-/** Inline stagger delay for entrance animations. */
-export function riseDelay(index: number, step = 40): { animationDelay: string } {
-  return { animationDelay: `${Math.min(Math.max(index, 0), 14) * step}ms` };
-}
-
-/** Stable id helper for SVG gradient/clip definitions. */
-export function visualId(prefix: string, key: string): string {
-  return `${prefix}-${key.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`;
-}
-
-export function groupRows(rows: ListRow[], group: string): ListRow[] {
-  return rows.filter((row) => (row.group ?? 'other') === group);
-}
-
-/**
- * Builds one owner-facing filter per distinct status token in the returned rows.
- * Only tokens that actually appear are offered, so a filter can never promise
- * rows the environment did not answer with.
- */
-export function statusFacets(rows: ListRow[], group?: string): StreamFacet[] {
-  const scoped = group ? groupRows(rows, group) : rows;
-  const tokens = [
-    ...new Set(
-      scoped
-        .map((row) => (row.status ?? '').trim().toLowerCase())
-        .filter((token) => token.length > 0)
-    )
-  ].sort();
-
-  return tokens.map((token) => ({
-    id: `status-${token}`,
-    label: readableToken(token),
-    statuses: [token]
-  }));
-}
-
 /**
  * Totals minor units only when every row shares one currency. Summing across
  * currencies would invent a number, so a mixed set returns `mixed: true` and the
- * caller must show the count instead of a total.
+ * caller must show a count instead.
  */
 export function singleCurrencyTotal(
-  rows: Array<Pick<ListRow, 'amountMinor' | 'currency'>>
+  rows: Array<{ amountMinor?: number | null; currency?: string | null }>
 ): { currency: string | null; total: number; count: number; mixed: boolean } {
-  const valued = rows.filter((row) => typeof row.amountMinor === 'number' && Number.isFinite(row.amountMinor));
+  const valued = rows.filter(
+    (row) => typeof row.amountMinor === 'number' && Number.isFinite(row.amountMinor)
+  );
   const currencies = new Set(
     valued.map((row) => (row.currency ?? '').trim().toUpperCase()).filter((code) => code.length > 0)
   );
@@ -375,4 +376,31 @@ export function singleCurrencyTotal(
     count: valued.length,
     mixed
   };
+}
+
+/** Inline stagger delay for entrance animations. */
+export function stagger(index: number, step = 40): { animationDelay: string } {
+  return { animationDelay: `${Math.min(Math.max(index, 0), 14) * step}ms` };
+}
+
+/**
+ * Monochrome intensity scale for categorical (non-status) series. A single hue at
+ * decreasing strength reads as "most to least" without borrowing the meaning of
+ * success/warning/risk.
+ */
+export function scaleOpacity(index: number, total: number): number {
+  if (total <= 1) return 1;
+  const step = index / (total - 1);
+  return Number((1 - step * 0.72).toFixed(3));
+}
+
+/**
+ * Builds one filter per distinct status token actually present in the rows, so a
+ * filter can never promise values the environment did not answer with.
+ */
+export function statusFacets(values: Array<string | null | undefined>): Array<{ id: string; label: string; statuses: string[] }> {
+  const tokens = [
+    ...new Set(values.map((value) => normaliseKey(value)).filter((token) => token.length > 0))
+  ].sort();
+  return tokens.map((token) => ({ id: `status-${token}`, label: readableToken(token), statuses: [token] }));
 }
