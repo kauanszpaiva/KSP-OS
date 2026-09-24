@@ -1,49 +1,126 @@
 import type { ReactNode } from 'react';
+import { Icon, type IconName } from './icons';
+import { MobileNav, RailNav, type NavSection } from './inc-nav';
 import { SignOutButton } from './sign-out-button';
 
-const nav = [
-  ['Overview', '/'],
-  ['AI Company', '/ai-company'],
-  ['WhatsApp', '/ai-company/communications'],
-  ['Work', '/work'],
-  ['Structure', '/structure'],
-  ['People', '/people'],
-  ['Access', '/access'],
-  ['Clients', '/clients'],
-  ['Network', '/network'],
-  ['Finance', '/finance'],
-  ['Audit', '/audit'],
-  ['Platform', '/platform']
+/**
+ * KSP INC owner sections as `[label, href]` tuples. This shape is asserted by the
+ * INC owner-surface tests, so icons are mapped by href separately rather than
+ * being appended to the tuples.
+ */
+const navSections = [
+  [
+    'Operate',
+    [
+      ['Overview', '/'],
+      ['AI Company', '/ai-company'],
+      ['WhatsApp', '/ai-company/communications'],
+      ['Work', '/work']
+    ]
+  ],
+  [
+    'Govern',
+    [
+      ['Structure', '/structure'],
+      ['People', '/people'],
+      ['Access', '/access'],
+      ['Clients', '/clients'],
+      ['Network', '/network']
+    ]
+  ],
+  [
+    'Enterprise',
+    [
+      ['Finance', '/finance'],
+      ['Audit', '/audit'],
+      ['Platform', '/platform']
+    ]
+  ]
 ] as const;
+
+const NAV_ICONS: Record<string, IconName> = {
+  '/': 'home',
+  '/ai-company': 'ai',
+  '/ai-company/communications': 'message',
+  '/work': 'layers',
+  '/structure': 'sitemap',
+  '/people': 'users',
+  '/access': 'key',
+  '/clients': 'briefcase',
+  '/network': 'globe',
+  '/finance': 'banknote',
+  '/audit': 'history',
+  '/platform': 'server'
+};
+
+function navModel(): NavSection[] {
+  return navSections.map(([label, items]) => ({
+    label,
+    items: items.map(([itemLabel, href]) => ({ label: itemLabel, href, icon: NAV_ICONS[href] ?? 'pulse' }))
+  }));
+}
 
 export function IncShell({
   ownerName,
   roleLabel,
+  mfa = false,
   children
 }: {
   ownerName: string;
   roleLabel: string;
+  /** AAL2 state, surfaced as a posture cue. It is never an authorization decision. */
+  mfa?: boolean;
   children: ReactNode;
 }) {
+  const sections = navModel();
+
   return (
-    <div className="shell">
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="KSP INC home">
-          <div className="brandMark" aria-hidden="true">K</div>
-          <div className="brandText">
+    <div className="appShell">
+      <aside className="rail">
+        <a className="railBrand" href="/" aria-label="KSP INC home">
+          <span className="railMark" aria-hidden="true">K</span>
+          <span className="railBrandText">
             <strong>KSP INC</strong>
             <span>Owner operating system</span>
-          </div>
+          </span>
         </a>
-        <div className="ownerBar">
-          <span>{ownerName} · {roleLabel}</span>
-          <SignOutButton />
+        <RailNav sections={sections} />
+        <div className="railFoot">
+          <span className="railFootLabel">Signed in</span>
+          <strong className="railFootName">{ownerName}</strong>
+          <span className="railFootRole">{roleLabel}</span>
+          <span className={`railFootMfa ${mfa ? 'toneOk' : 'toneWarning'}`}>
+            <Icon name={mfa ? 'shield' : 'alert'} size={14} />
+            {mfa ? 'AAL2 verified' : 'MFA required for writes'}
+          </span>
         </div>
-      </header>
-      <nav className="ownerNav" aria-label="KSP INC owner navigation">
-        {nav.map(([label, href]) => <a href={href} key={href}>{label}</a>)}
-      </nav>
-      <main className="main">{children}</main>
+      </aside>
+
+      <div className="content">
+        <header className="topbar">
+          <a className="mobileBrand" href="/" aria-label="KSP INC home">
+            <span className="railMark" aria-hidden="true">K</span>
+            <span className="railBrandText">
+              <strong>KSP INC</strong>
+              <span>Owner plane</span>
+            </span>
+          </a>
+          <div className="topbarMeta">
+            <span className={`postureBadge ${mfa ? 'toneOk' : 'toneWarning'}`}>
+              <Icon name={mfa ? 'shield' : 'alert'} size={14} />
+              {mfa ? 'AAL2' : 'Step-up MFA pending'}
+            </span>
+            <span className="ownerBar">
+              <span className="ownerName">{ownerName}</span>
+              <span className="ownerRole"> · {roleLabel}</span>
+            </span>
+            <SignOutButton />
+          </div>
+        </header>
+        <main className="main">{children}</main>
+      </div>
+
+      <MobileNav sections={sections} />
     </div>
   );
 }

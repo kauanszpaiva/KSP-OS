@@ -72,7 +72,9 @@ export async function getWhatsAppDashboard(
         id: String(row.id),
         primary: `WHATSAPP · ${row.provider}`,
         secondary: `${row.status} · AI ${row.automation_mode} · inbound ${row.inbound_enabled ? 'on' : 'off'} · outbound ${row.outbound_enabled ? 'on' : 'off'}`,
-        meta: row.channel_key
+        meta: row.channel_key,
+        group: 'channel',
+        status: row.status ?? null
       }));
 
   const conversations: ListRow[] = conversationResult.error
@@ -83,7 +85,10 @@ export async function getWhatsAppDashboard(
         secondary: `${row.scope} · ${row.state}`,
         meta: row.assigned_agent_key
           ? `${row.assigned_agent_key}${row.last_event_at ? ` · ${row.last_event_at}` : ''}`
-          : row.last_event_at || undefined
+          : row.last_event_at || undefined,
+        group: 'conversation',
+        status: row.state ?? null,
+        at: row.last_event_at ?? undefined
       }));
 
   return { schemaReady: true, metrics, channels, conversations };

@@ -3,6 +3,15 @@
 import { useActionState } from 'react';
 import { createAiMission, runAiMission, type AiCompanyActionResult } from '../app/ai-company/actions';
 import { AI_VERTICALS, type AiCompanyDashboard } from '../lib/ai-company';
+import { distribution } from '../lib/visual-data';
+import {
+  DistributionBars,
+  Meter,
+  Panel,
+  StatCard,
+  StatGrid,
+  VisualGrid
+} from './visual-data';
 
 const initial: AiCompanyActionResult = { ok: false };
 
@@ -51,13 +60,45 @@ export function AiCompanyConsole({ data }: { data: AiCompanyDashboard }) {
     evidenceByMission.set(evidence.mission_id, current);
   }
 
+  const missionMix = distribution(data.missions.map((mission) => mission.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const taskMix = distribution(data.tasks.map((task) => task.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const capabilityMix = distribution(data.capabilities.map((capability) => capability.status));
+
   return (
     <div className="adminStack">
-      <section className="metricGrid" aria-label="AI Company runtime metrics">
-        <article className="metricCard"><small>Registered workforce</small><strong>{data.agents.length}</strong><span>agent contracts</span></article>
-        <article className="metricCard"><small>Recent mission ledger</small><strong>{data.missions.length}</strong><span>missions</span></article>
-        <article className="metricCard"><small>API/model spend</small><strong>{money(data.budget.spent)}</strong><span>through {data.budget.end}</span></article>
-        <article className="metricCard"><small>Hard ceiling remaining</small><strong>{money(data.budget.available)}</strong><span>of {money(data.budget.hardCap)}</span></article>
+      <section className="section" aria-label="AI Company runtime metrics">
+        <StatGrid label="AI Company runtime metrics">
+          <StatCard icon="ai" index={0} label="Registered workforce" note="Agent contracts in the runtime" value={data.agents.length} />
+          <StatCard icon="target" index={1} label="Mission ledger" note="Missions recorded for this organization" value={data.missions.length} />
+          <StatCard icon="banknote" index={2} label="Model/API spend" note={`Through ${data.budget.end}`} valueText={money(data.budget.spent)} />
+          <StatCard icon="lock" index={3} label="Ceiling remaining" note={`Of ${money(data.budget.hardCap)} hard ceiling`} valueText={money(data.budget.available)} />
+        </StatGrid>
+        <div className="visualGrid visualGridSpaced">
+          <Panel index={0} note="Hard ceiling, not automatic spending permission" title="Budget governor">
+            <Meter
+              detail={`${money(data.budget.spent)} committed of a ${money(data.budget.hardCap)} ceiling between ${data.budget.start} and ${data.budget.end}.`}
+              label="Ceiling used"
+              max={data.budget.hardCap}
+              tone={data.budget.spent > 0 ? 'warning' : 'ok'}
+              value={data.budget.spent}
+            />
+          </Panel>
+          <Panel index={1} note="Mission status across the returned ledger" title="Mission status">
+            <DistributionBars emptyLabel="No missions have been created yet." items={missionMix} />
+          </Panel>
+          <Panel index={2} note="Task status across every returned mission" title="Task status">
+            <DistributionBars emptyLabel="No mission tasks were returned." items={taskMix} />
+          </Panel>
+          <Panel index={3} note="Capability status across the registered catalog" title="Capability lab">
+            <DistributionBars emptyLabel="No capabilities were returned." items={capabilityMix} tone="scale" />
+          </Panel>
+        </div>
       </section>
 
       <section className="adminPanel">
@@ -152,7 +193,14 @@ export function AiCompanyConsole({ data }: { data: AiCompanyDashboard }) {
                       </article>
                     ))}
                   </div>
-                  <p className="adminFootnote">Progress: {done}/{missionTasks.length} tasks · Evidence: {missionEvidence.length} records · Model tier: {mission.model_tier} · Cost: {money(Number(mission.actual_cost_usd ?? 0))}</p>
+                  <Meter
+                    detail={`${missionEvidence.length} evidence records · Model tier ${mission.model_tier} · Cost ${money(Number(mission.actual_cost_usd ?? 0))}`}
+                    index={0}
+                    label="Task progress"
+                    max={missionTasks.length}
+                    tone={mission.status === 'done' ? 'ok' : 'neutral'}
+                    value={done}
+                  />
                   {mission.output ? <p className="formResult ok">{mission.output}</p> : null}
                   {mission.status !== 'done' ? (
                     <form action={runAction} className="adminForm horizontalForm">
