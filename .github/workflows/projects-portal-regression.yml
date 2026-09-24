@@ -1,0 +1,28 @@
+name: projects-portal-regression
+
+on:
+  pull_request:
+    paths:
+      - 'apps/command/app/(app)/_components/missions-view*'
+      - 'apps/portal/app/invite/**'
+      - 'apps/portal/lib/invite-signup-error*'
+      - 'supabase/functions/ksp-portal-invite-signup/**'
+      - '.github/workflows/projects-portal-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Project and client invitation regressions (synthetic only)
+        run: pnpm exec vitest run 'apps/command/app/(app)/_components/missions-view.test.tsx' 'apps/portal/app/invite/[token]/_components/invite-auth-form.test.tsx'
