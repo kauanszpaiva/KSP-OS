@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BlueprintCanvas, type BlueprintCanvasPayload } from "@ksp/ui/blueprint-canvas";
-import { saveBlueprintCanvas, setBlueprintStatus, deleteBlueprint } from "../blueprints-actions";
+import { saveBlueprintCanvas, setBlueprintStatus, deleteBlueprint } from "../../blueprints-actions";
 import "@xyflow/react/dist/style.css";
 
 export function IncBlueprintEditor({

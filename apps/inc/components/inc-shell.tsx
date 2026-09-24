@@ -17,7 +17,6 @@ const navSections = [
       ['WhatsApp', '/ai-company/communications'],
       ['Work', '/work'],
       ['Blueprints', '/blueprints']
-      ['Work', '/work']
     ]
   ],
   [

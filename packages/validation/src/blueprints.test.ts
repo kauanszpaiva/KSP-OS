@@ -37,10 +37,11 @@ describe('createBlueprintSchema', () => {
   });
 
   it('accepts projectId null as an explicit unlink', () => {
-      expect(createBlueprintSchema.safeParse({ name: 'XY', projectId: null }).success).toBe(true);
-    });
+    expect(createBlueprintSchema.safeParse({ name: 'XY', projectId: null }).success).toBe(true);
   });
-    expect(createBlueprintSchema.safeParse({ name: 'X', projectId: null }).success).toBe(true);
+
+  it('still enforces the minimum name length when explicitly unlinking a project', () => {
+    expect(createBlueprintSchema.safeParse({ name: 'X', projectId: null }).success).toBe(false);
   });
 });
 

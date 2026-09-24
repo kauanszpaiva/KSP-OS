@@ -251,9 +251,6 @@ export type StatusTone = 'ok' | 'warning' | 'risk' | 'neutral';
 const OK_TOKENS = ['accepted', 'active', 'approved', 'complete', 'completed', 'delivered', 'done', 'good', 'healthy', 'live', 'on track', 'on_track', 'paid', 'published', 'resolved', 'success', 'verified'];
 const WARNING_TOKENS = ['at risk', 'at_risk', 'attention', 'awaiting', 'draft', 'in progress', 'in_progress', 'in review', 'needs', 'open', 'pending', 'queued', 'review', 'scheduled', 'unknown', 'watch'];
 const RISK_TOKENS = ['blocked', 'canceled', 'cancelled', 'churned', 'critical', 'declined', 'denied', 'error', 'expired', 'failed', 'off track', 'off_track', 'overdue', 'past due', 'rejected', 'revoked', 'risk', 'suspended'];
-const OK_TOKENS = ['active', 'approved', 'complete', 'completed', 'done', 'healthy', 'live', 'paid', 'resolved', 'success', 'verified'];
-const WARNING_TOKENS = ['attention', 'at risk', 'draft', 'in progress', 'in review', 'open', 'pending', 'queued', 'review', 'scheduled', 'unknown', 'watch'];
-const RISK_TOKENS = ['blocked', 'cancelled', 'churned', 'critical', 'declined', 'denied', 'error', 'expired', 'failed', 'overdue', 'past due', 'rejected', 'revoked', 'risk', 'suspended'];
 
 /**
  * Maps a canonical status token to a semantic tone. Signal Green is never used
@@ -281,17 +278,6 @@ export function statusTone(label: string | null | undefined): StatusTone {
 }
 
 const CLOSED_TASK_TOKENS = ['done', 'completed', 'complete', 'delivered', 'cancelled', 'canceled', 'archived', 'closed'];
-  const matches = (candidates: string[]) =>
-    candidates.some(
-      (candidate) => token === candidate || token.startsWith(`${candidate} `) || token.includes(candidate)
-    );
-  if (matches(RISK_TOKENS)) return 'risk';
-  if (matches(OK_TOKENS)) return 'ok';
-  if (matches(WARNING_TOKENS)) return 'warning';
-  return 'neutral';
-}
-
-const CLOSED_TASK_TOKENS = ['done', 'completed', 'complete', 'cancelled', 'canceled', 'archived', 'closed'];
 
 /**
  * True when a row carries a real due date that is already in the past and its
