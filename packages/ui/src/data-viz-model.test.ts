@@ -4,6 +4,7 @@ import {
   distribution,
   formatCount,
   formatMinorUnits,
+  groupSums,
   isPastDue,
   linePath,
   maxValue,
@@ -156,6 +157,60 @@ describe('visual data status semantics', () => {
     const facets = statusFacets(['Approved', 'approved', 'open', null]);
     expect(facets.map((facet) => facet.id)).toEqual(['status-approved', 'status-open']);
     expect(facets[0].statuses).toEqual(['approved']);
+  });
+});
+
+describe('visual data grouped sums', () => {
+  const rows = [
+    { status: 'paid', amount_minor: 10_000, currency: 'USD' },
+    { status: 'paid', amount_minor: 5_000, currency: 'USD' },
+    { status: 'open', amount_minor: 5_000, currency: 'USD' }
+  ];
+
+  it('sums money per category with the share of the summed total', () => {
+    const { items, mixedCurrency } = groupSums(
+      rows,
+      (row) => row.status,
+      (row) => row.amount_minor,
+      { currency: (row) => row.currency }
+    );
+    expect(mixedCurrency).toBe(false);
+    expect(items).toEqual([
+      { label: 'paid', value: 15_000, ratio: 0.75 },
+      { label: 'open', value: 5_000, ratio: 0.25 }
+    ]);
+  });
+
+  it('refuses to total across currencies instead of inventing a number', () => {
+    const mixed = groupSums(
+      [...rows, { status: 'open', amount_minor: 9_000, currency: 'EUR' }],
+      (row) => row.status,
+      (row) => row.amount_minor,
+      { currency: (row) => row.currency }
+    );
+    expect(mixed.mixedCurrency).toBe(true);
+    expect(mixed.items).toEqual([]);
+  });
+
+  it('skips empty categories and keeps the tail visible', () => {
+    const { items } = groupSums(
+      [
+        { vendor: 'github', cost: 3_000 },
+        { vendor: 'vercel', cost: 2_000 },
+        { vendor: 'figma', cost: 1_000 },
+        { vendor: 'none', cost: 0 }
+      ],
+      (row) => row.vendor,
+      (row) => row.cost,
+      { limit: 2, otherLabel: 'Other vendors' }
+    );
+    expect(items.map((item) => item.label)).toEqual(['github', 'vercel', 'Other vendors']);
+    expect(items[2].value).toBe(1_000);
+    expect(items[0].ratio).toBeCloseTo(3_000 / 6_000, 5);
+  });
+
+  it('returns nothing for an empty window', () => {
+    expect(groupSums([], (row: { v?: number }) => 'x', (row) => row.v).items).toEqual([]);
   });
 });
 

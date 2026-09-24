@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { DistributionBars, DonutChart, VizPanel, VisualGrid, distribution } from '@ksp/ui';
+import { DistributionBars, DonutChart, VizBoard, VizPanel, VisualGrid, distribution } from '@ksp/ui';
 import { getServerSupabase } from '../../../lib/supabase';
 import { requireSession } from '../../../lib/session';
 import {
@@ -133,18 +133,11 @@ export default async function ExecutiveDashboard() {
         </Panel>
       </div>
 
-      <section aria-label="Executive board" className="space-y-3">
-        <div className="flex min-w-0 flex-wrap items-end justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="font-display text-[15px] font-semibold text-ink">Executive board</h2>
-            <p className="mt-0.5 text-[11px] text-ink-3">
-              Charts built only from the records this page already loaded
-            </p>
-          </div>
-          <span className="shrink-0 text-[10.5px] font-medium text-ink-4">
-            No estimate or projection is shown
-          </span>
-        </div>
+      <VizBoard
+        aside="No estimate or projection is shown"
+        note="Charts built only from the records this page already loaded"
+        title="Executive board"
+      >
         <VisualGrid>
           <VizPanel
             index={0}
@@ -180,7 +173,7 @@ export default async function ExecutiveDashboard() {
             <DistributionBars empty="No task was returned." items={taskStateMix} />
           </VizPanel>
         </VisualGrid>
-      </section>
+      </VizBoard>
 
     </div>
   );

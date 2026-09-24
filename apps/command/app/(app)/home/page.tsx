@@ -9,6 +9,7 @@ import {
   StatCard,
   StatGrid,
   VizPanel,
+  VizBoard,
   VisualEmpty,
   VisualGrid,
   bucketByDay,
@@ -486,16 +487,11 @@ export default async function HomePage() {
         </Panel>
       </div>
 
-      <section aria-label="Operating board" className="space-y-3">
-        <div className="flex min-w-0 flex-wrap items-end justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="font-display text-[15px] font-semibold text-ink">Operating board</h2>
-            <p className="mt-0.5 text-[11px] text-ink-3">
-              Every figure is derived from the rows this session already loaded
-            </p>
-          </div>
-          <span className="shrink-0 text-[10.5px] font-medium text-ink-4">{roleLabel}</span>
-        </div>
+      <VizBoard
+        aside={roleLabel}
+        note="Every figure is derived from the rows this session already loaded"
+        title="Operating board"
+      >
         <VisualGrid>
           <VizPanel
             index={0}
@@ -541,7 +537,7 @@ export default async function HomePage() {
             </VizPanel>
           )}
         </VisualGrid>
-      </section>
+      </VizBoard>
 
       <Panel className="overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">

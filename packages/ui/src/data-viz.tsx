@@ -99,6 +99,37 @@ export function VisualGrid({ children, className }: { children: ReactNode; class
   return <div className={cx('grid min-w-0 gap-4 md:grid-cols-2', className)}>{children}</div>;
 }
 
+/**
+ * Titled section wrapper for a group of visual panels, so every board on every
+ * surface reads with the same heading rhythm.
+ */
+export function VizBoard({
+  title,
+  note,
+  aside,
+  children,
+  className
+}: {
+  title: string;
+  note?: string;
+  aside?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section aria-label={title} className={cx('min-w-0 space-y-3', className)}>
+      <div className="flex min-w-0 flex-wrap items-end justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="font-display text-[15px] font-semibold text-ink">{title}</h2>
+          {note ? <p className="mt-0.5 text-[11px] text-ink-3">{note}</p> : null}
+        </div>
+        {aside ? <span className="shrink-0 text-[10.5px] font-medium text-ink-4">{aside}</span> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export function StatGrid({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className={cx('grid min-w-0 grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4', className)}>{children}</div>
@@ -226,12 +257,14 @@ export function DistributionBars({
   items,
   tone = 'status',
   empty,
-  valueSuffix
+  valueSuffix,
+  valueFormatter
 }: {
   items: Distribution[];
   tone?: VizTone | 'status';
   empty: ReactNode;
   valueSuffix?: string;
+  valueFormatter?: (value: number) => string;
 }) {
   if (items.length === 0) {
     return <VisualEmpty>{empty}</VisualEmpty>;
@@ -249,7 +282,7 @@ export function DistributionBars({
             <div className="mb-1 flex min-w-0 items-baseline justify-between gap-3">
               <span className="min-w-0 truncate text-[12.5px] font-medium text-ink-2">{item.label}</span>
               <span className="shrink-0 text-[12px] font-semibold tabular-nums text-ink">
-                {item.value}
+                {valueFormatter ? valueFormatter(item.value) : item.value}
                 {valueSuffix ? <span className="ml-0.5 text-ink-3">{valueSuffix}</span> : null}{' '}
                 <span className="text-[10.5px] font-medium text-ink-3">{percentLabel(item.ratio)}</span>
               </span>

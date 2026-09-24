@@ -107,6 +107,73 @@ export function maxValue(items: Distribution[]): number {
   return items.reduce((acc, item) => Math.max(acc, item.value), 0);
 }
 
+/**
+ * Sums a numeric field per category (money by status, spend by vendor, …).
+ *
+ * When a `currency` accessor is supplied and the rows span more than one
+ * currency, the totals would be meaningless, so the helper returns no items and
+ * sets `mixedCurrency` — the caller must then show a count instead of a sum.
+ * `ratio` is the category's share of the summed total, not of the row count.
+ */
+export function groupSums<T>(
+  rows: T[],
+  key: (row: T) => string | null | undefined,
+  amount: (row: T) => number | null | undefined,
+  options: { limit?: number; otherLabel?: string; currency?: (row: T) => string | null | undefined } = {}
+): { items: Distribution[]; mixedCurrency: boolean } {
+  const { limit, otherLabel = 'Other' } = options;
+  const currencies = new Set<string>();
+
+  if (options.currency) {
+    for (const row of rows) {
+      const code = (options.currency(row) ?? '').trim().toUpperCase();
+      if (code.length > 0) currencies.add(code);
+    }
+  }
+
+  if (currencies.size > 1) {
+    return { items: [], mixedCurrency: true };
+  }
+
+  const buckets = new Map<string, { label: string; value: number }>();
+  let total = 0;
+
+  for (const row of rows) {
+    const raw = (key(row) ?? '').trim();
+    const label = raw.length > 0 ? readableToken(raw) : NOT_SET;
+    const value = amount(row);
+    const safe = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+    const current = buckets.get(label);
+    if (current) {
+      current.value += safe;
+    } else {
+      buckets.set(label, { label, value: safe });
+    }
+    total += safe;
+  }
+
+  const sorted = [...buckets.values()]
+    .filter((item) => item.value !== 0)
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value) || a.label.localeCompare(b.label));
+
+  const limited =
+    limit != null && sorted.length > limit
+      ? [
+          ...sorted.slice(0, limit),
+          { label: otherLabel, value: sorted.slice(limit).reduce((acc, item) => acc + item.value, 0) }
+        ]
+      : sorted;
+
+  return {
+    items: limited.map((item) => ({
+      label: item.label,
+      value: item.value,
+      ratio: total === 0 ? 0 : Math.abs(item.value) / Math.abs(total)
+    })),
+    mixedCurrency: false
+  };
+}
+
 export type Bucket = {
   /** Stable UTC day key, `YYYY-MM-DD`. */
   key: string;
