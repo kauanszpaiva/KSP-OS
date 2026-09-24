@@ -8,6 +8,8 @@ on:
       - 'packages/domain/**'
       - 'supabase/functions/ksp-portal-invite-signup/**'
       - 'supabase/migrations/**'
+      - 'supabase/tests/task_day_schedule.test.sql'
+      - 'scripts/check-db-tests.mjs'
       - 'vitest.config.ts'
       - '.github/workflows/projects-portal-regression.yml'
 
@@ -35,5 +37,5 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Synthetic component regressions
-        run: pnpm exec vitest run 'apps/command/app/(app)/_components/missions-view.test.tsx' 'apps/portal/app/invite/' 'apps/portal/lib/invite-signup-error.test.tsx'
+      - name: Synthetic component and scheduling regressions
+        run: pnpm exec vitest run 'apps/command/app/(app)/_components/missions-view.test.tsx' 'apps/command/app/(app)/_components/day-scheduler.test.tsx' 'apps/command/app/(app)/day-schedule-actions.test.tsx' 'packages/domain/src/day-schedule.test.ts' 'apps/portal/app/invite/' 'apps/portal/lib/invite-signup-error.test.tsx'

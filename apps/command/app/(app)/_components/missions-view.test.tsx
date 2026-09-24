@@ -50,9 +50,9 @@ function directory(container: HTMLElement) {
 }
 
 describe('project directory regression', () => {
-  it('keeps draft and suspended projects in the editable directory, not archives', () => {
+  it('keeps draft and pending projects in the editable directory, not archives', () => {
     const { container } = render(<MissionsView missions={[
-      project('draft', 'Draft product', 'draft'), project('paused', 'Paused product', 'suspended')
+      project('draft', 'Draft product', 'draft'), project('paused', 'Paused product', 'pending_approval')
     ]} commentsByMission={new Map()} />);
     expect(directory(container).map((button) => button.textContent)).toEqual([
       expect.stringContaining('Draft product'), expect.stringContaining('Paused product')

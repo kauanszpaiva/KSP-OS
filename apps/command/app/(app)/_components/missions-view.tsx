@@ -62,6 +62,11 @@ function MissionDetail({ mission, allMissions, clients, comments }: { mission: M
         </details>
       </div>
 
+      <nav className="flex flex-wrap gap-3 text-sm font-medium text-brand" aria-label="Project work">
+        <a className="inline-flex min-h-11 items-center hover:underline" href={`/workspace?project=${mission.id}`}>Tasks and timeline</a>
+        <a className="inline-flex min-h-11 items-center hover:underline" href={`/schedule?project=${mission.id}`}>Plan my day</a>
+      </nav>
+
       <DetailSection title={`Milestones · ${mission.milestones.length}`}>
         {mission.milestones.length === 0 ? (
           <p className="text-[12.5px] text-ink-4">No milestones yet.</p>
