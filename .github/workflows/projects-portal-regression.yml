@@ -10,6 +10,7 @@ on:
       - 'supabase/migrations/**'
       - 'supabase/tests/task_day_schedule.test.sql'
       - 'scripts/check-db-tests.mjs'
+      - 'scripts/check-day-scheduler-browser.mjs'
       - 'vitest.config.ts'
       - '.github/workflows/projects-portal-regression.yml'
 
@@ -39,3 +40,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Synthetic component and scheduling regressions
         run: pnpm exec vitest run 'apps/command/app/(app)/_components/missions-view.test.tsx' 'apps/command/app/(app)/_components/day-scheduler.test.tsx' 'apps/command/app/(app)/day-schedule-actions.test.tsx' 'packages/domain/src/day-schedule.test.ts' 'apps/portal/app/invite/' 'apps/portal/lib/invite-signup-error.test.tsx'
+      - name: Install browser for isolated UI verification
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Desktop and mobile daily Gantt browser verification (synthetic persistence)
+        run: node scripts/check-day-scheduler-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: day-scheduler-browser-evidence
+          path: artifacts/day-scheduler-browser/
+          retention-days: 7
+          if-no-files-found: warn
