@@ -1,6 +1,7 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { dayInScheduleZone, isScheduleDate, type DaySlot } from '@ksp/domain';
+import { DistributionBars, StatCard, StatGrid, VizBoard, VizPanel, VisualGrid, distribution } from '@ksp/ui';
 import { getCommitments, getMissions, getTasks } from '../data';
 import { EmptyState, PageHeader } from '../_components/ui';
 import { TimelineView, type TimelineItem } from '../_components/schedule-view';
@@ -35,19 +36,46 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
     if (ms.due_date && ms.status !== 'done') items.push({ id: `m-${ms.id}`, title: ms.title, subtitle: `Milestone / ${mission.name}`, start: ms.start_date, end: ms.due_date, state: ms.status, groupLabel: mission.name });
   }
   items.sort((a, b) => (a.groupLabel ?? '').localeCompare(b.groupLabel ?? '') || a.end.localeCompare(b.end));
-  return <div className="min-w-0 space-y-6">
-    <PageHeader eyebrow="Execution" title={selected ? `${selected.name} / Schedule` : 'Schedule'} description="Plan your day with task blocks. Project task dates and milestones remain visible below." />
-    <form key={`${date}:${projectId ?? 'all'}`} action="/schedule" className="flex flex-wrap items-end gap-3">
-      <label className="text-xs text-ink-3">Day<input aria-label="Schedule day" name="date" type="date" required defaultValue={date} className="ml-2 min-h-11 rounded-lg border border-line bg-surface px-3 text-sm text-ink" /></label>
-      <label className="text-xs text-ink-3">Project<select name="project" aria-label="Schedule project" defaultValue={projectId ?? ''} className="ml-2 min-h-11 rounded-lg border border-line bg-surface px-3 text-sm text-ink"><option value="">All accessible projects</option>{missions.map((mission) => <option key={mission.id} value={mission.id}>{mission.name}</option>)}</select></label>
-      <button className="min-h-11 rounded-lg border border-line px-3 text-sm text-ink">Apply</button>
-      <a className="inline-flex min-h-11 items-center text-sm text-brand" href={`/workspace${projectId ? `?project=${encodeURIComponent(projectId)}` : ''}`}>Tasks</a>
+  const scheduledMinutes = slots.reduce((sum, slot) => sum + Math.max(0, slot.endMinute - slot.startMinute), 0);
+  const scheduledHours = scheduledMinutes / 60;
+  const stateMix = distribution(items.map((item) => item.state), { limit: 6, otherLabel: 'Other' });
+  const projectCount = projectId ? (selected ? 1 : 0) : missions.length;
+  return <div className="min-w-0 space-y-5 sm:space-y-6">
+    <PageHeader eyebrow="Execution" title={selected ? `${selected.name} / Schedule` : 'Schedule'} description="Daily plan, workload and project timing in one visual workspace." />
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+      <StatGrid className="sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon="schedule" index={0} label="Blocks" note="Today" tone={result.error ? 'warn' : 'brand'} value={slots.length} />
+        <StatCard icon="focus" index={1} label="Planned time" note="Today" tone="good" valueText={`${scheduledHours.toFixed(scheduledHours % 1 === 0 ? 0 : 1)}h`} />
+        <StatCard icon="horizon" index={2} label="Dated work" note="Tasks + milestones" tone="brand" value={items.length} />
+        <StatCard icon="missions" index={3} label="Projects" note={projectId ? 'Current scope' : 'Accessible'} tone="brand" value={projectCount} />
+      </StatGrid>
+      <a className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface px-4 text-[12px] font-semibold text-brand hover:border-brand" href={`/workspace${projectId ? `?project=${encodeURIComponent(projectId)}` : ''}`}>Open tasks</a>
+    </div>
+
+    <form key={`${date}:${projectId ?? 'all'}`} action="/schedule" className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-2.5">
+      <input aria-label="Schedule day" name="date" type="date" required defaultValue={date} className="min-h-10 rounded-lg border border-line bg-surface-2 px-3 text-[12px] text-ink" />
+      <select name="project" aria-label="Schedule project" defaultValue={projectId ?? ''} className="min-h-10 min-w-[190px] flex-1 rounded-lg border border-line bg-surface-2 px-3 text-[12px] text-ink"><option value="">All accessible projects</option>{missions.map((mission) => <option key={mission.id} value={mission.id}>{mission.name}</option>)}</select>
+      <button className="min-h-10 rounded-lg bg-brand px-4 text-[12px] font-semibold text-on-brand hover:bg-brand-strong">Apply</button>
     </form>
-    {projectId && !selected && <p role="alert" className="text-sm text-warn">This project is unavailable. No other project has been substituted.</p>}
+    {projectId && !selected && <p role="alert" className="rounded-xl border border-warn/30 bg-warn-tint px-4 py-3 text-[12px] font-medium text-warn">Project unavailable. No substitute was selected.</p>}
+    {result.error ? <div role="status" className="flex items-center justify-between gap-3 rounded-xl border border-warn/25 bg-warn-tint/60 px-4 py-2.5"><span className="text-[11.5px] font-medium text-warn">Daily schedule persistence is not active in this environment.</span><span className="text-[10.5px] text-ink-4">Read-only timeline remains available</span></div> : null}
+    <VizBoard aside={selected?.name ?? 'All projects'} note="Real task and milestone dates" title="Schedule dashboard">
+      <VisualGrid>
+        <VizPanel index={0} note="Current state of dated work in this scope" title="Work states">
+          <DistributionBars empty="No dated work returned." items={stateMix} />
+        </VizPanel>
+        <VizPanel index={1} note={`${slots.length} blocks · ${scheduledHours.toFixed(1)} hours planned`} title="Today">
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <div className="rounded-xl bg-surface-2 p-4"><p className="text-[10px] uppercase tracking-[0.12em] text-ink-4">Blocks</p><p className="tnum mt-2 text-3xl font-semibold text-ink">{slots.length}</p></div>
+            <div className="rounded-xl bg-surface-2 p-4"><p className="text-[10px] uppercase tracking-[0.12em] text-ink-4">Hours</p><p className="tnum mt-2 text-3xl font-semibold text-ink">{scheduledHours.toFixed(1)}</p></div>
+          </div>
+        </VizPanel>
+      </VisualGrid>
+    </VizBoard>
     <DayScheduler key={`${ctx.user.id}:${date}:${projectId ?? 'all'}`} date={date} projectId={projectId} initialSlots={slots} unavailable={!!result.error}
       tasks={tasks.map((task) => ({ id: task.id, title: task.title, projectId: task.project_id, projectName: task.projectName, dueDate: task.due_date, schedulable: ['draft', 'active', 'pending_approval', 'approved'].includes(task.status) }))}
       saveSlot={saveDaySlot} removeSlot={removeDaySlot} />
-    <section aria-label="Project dates" className="space-y-3"><h2 className="text-lg font-semibold text-ink">Project dates and milestones</h2>
+    <section aria-label="Project dates" className="space-y-3"><div className="flex items-center justify-between"><h2 className="text-[13px] font-semibold text-ink">Project timeline</h2><span className="tnum text-[10.5px] text-ink-4">{items.length} dated items</span></div>
       {items.length ? <TimelineView items={items} /> : <EmptyState icon="schedule" title="No dated work in this scope." hint="Add task dates or milestones to see the project timeline. Undated work is not assigned artificial dates." />}
     </section>
   </div>;
