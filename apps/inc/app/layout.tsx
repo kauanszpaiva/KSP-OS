@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import "./native.css";
+import "./operating.css";
 
 export const metadata: Metadata = {
   title: "KSP INC — Owner Plane",
