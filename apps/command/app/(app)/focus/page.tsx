@@ -6,51 +6,15 @@ import {
   VizPanel,
   VisualEmpty,
   VisualGrid,
-  distribution,
-  type Distribution
+  distribution
 } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { daysUntil, isOverdue } from '../../../lib/format';
-import { getMyCommitments, type CommitmentView } from '../data';
+import { isOverdue } from '../../../lib/format';
+import { evidenceState, runwayMix } from '../../../lib/commitment-views';
+import { getMyCommitments } from '../data';
 import { PageHeader } from '../_components/ui';
 import { FocusView } from '../_components/focus-view';
-
-/** Runway order — this panel is read top-to-bottom, so it is not count-sorted. */
-const DUE_WINDOWS = ['Overdue', 'Due today', 'Next 7 days', 'Later', 'No due date'] as const;
-
-function dueWindow(commitment: CommitmentView): (typeof DUE_WINDOWS)[number] {
-  const days = daysUntil(commitment.due_date);
-  if (days === null) return 'No due date';
-  if (days < 0) return 'Overdue';
-  if (days === 0) return 'Due today';
-  if (days <= 7) return 'Next 7 days';
-  return 'Later';
-}
-
-/**
- * Counts the runway windows in declared order and keeps only the windows that
- * hold a commitment, so no empty stage is drawn as a value.
- * `ratio` is against every open commitment, so a window cannot overstate its share.
- */
-function runwayMix(commitments: CommitmentView[]): Distribution[] {
-  const counts = new Map<string, number>();
-  for (const commitment of commitments) {
-    const label = dueWindow(commitment);
-    counts.set(label, (counts.get(label) ?? 0) + 1);
-  }
-  return DUE_WINDOWS.filter((label) => (counts.get(label) ?? 0) > 0).map((label) => {
-    const value = counts.get(label) ?? 0;
-    return { label, value, ratio: commitments.length === 0 ? 0 : value / commitments.length };
-  });
-}
-
-/** Evidence state of a commitment flagged as requiring proof. */
-function evidenceState(commitment: CommitmentView): string {
-  if (commitment.proofs.some((proof) => proof.accepted_at !== null)) return 'Proof accepted';
-  if (commitment.proofs.length > 0) return 'Awaiting acceptance';
-  return 'No proof yet';
-}
 
 export default async function FocusPage() {
   const ctx = await requireSession();

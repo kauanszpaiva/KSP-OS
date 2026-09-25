@@ -1,4 +1,5 @@
 import { isExecutive } from '@ksp/auth';
+import { DistributionBars, DonutChart, Meter, VizBoard, VizPanel, VisualEmpty, VisualGrid, distribution, isPastDue } from '@ksp/ui';
 import { getScopedProjectIds, inProjectScope, resolveBusinessUnitScope } from '../../../lib/business-units';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
@@ -52,6 +53,17 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
       ])
     : [new Map<string, CommentView[]>(), new Map<string, TaskDeliveryEvidenceView[]>()];
 
+  const clock = new Date();
+  const taskStateMix = distribution(tasks.map((task) => (task.blocked ? 'blocked' : task.status)), {
+    limit: 6,
+    otherLabel: 'Other states'
+  });
+  const ownerMix = distribution(tasks.map((task) => task.ownerName), { limit: 6, otherLabel: 'Other owners' });
+  const evidenceMix = distribution(
+    [...deliveryEvidenceByTask.values()].flat().map((evidence) => evidence.status)
+  );
+  const pastDue = tasks.filter((task) => isPastDue(task.due_date, task.status, clock)).length;
+
   return (
     <div>
       <PageHeader
@@ -85,6 +97,47 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
             : <p className="text-sm text-ink-3">Create or select an accessible project before adding a task.</p>}
         </div>
       </details>
+
+      <VizBoard
+        aside={`${tasks.length} task${tasks.length === 1 ? '' : 's'} in scope`}
+        className="mb-5"
+        note="Derived from the tasks RLS returned to you on this page — not from every task in the organization"
+        title="Task board"
+      >
+        <VisualGrid>
+          <VizPanel index={0} note="State of each task in scope (blocked overrides status)" title="Task state">
+            <DonutChart
+              caption="Share of scoped tasks by state"
+              centerLabel="tasks"
+              centerValue={String(tasks.length)}
+              empty="No task was returned to you in this scope."
+              items={taskStateMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={1} note="Owner recorded on each task in scope" title="Owner load">
+            <DistributionBars empty="No task was returned to you in this scope." items={ownerMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel index={2} note="Processing state of the delivery evidence attached to these tasks" title="Delivery evidence">
+            <DistributionBars empty="No delivery evidence was returned for these tasks." items={evidenceMix} />
+          </VizPanel>
+
+          <VizPanel index={3} note="A real due_date in the past whose state is not closed" title="Past due">
+            {tasks.length > 0 ? (
+              <Meter
+                detail={`${pastDue} of ${tasks.length} tasks in this scope carry a past due_date.`}
+                label="Past due"
+                max={tasks.length}
+                tone={pastDue > 0 ? 'risk' : 'good'}
+                value={pastDue}
+              />
+            ) : (
+              <VisualEmpty>No task was returned in this scope, so nothing is counted here.</VisualEmpty>
+            )}
+          </VizPanel>
+        </VisualGrid>
+      </VizBoard>
 
       <TaskProjectTimeline tasks={tasks} />
       <WorkspaceView tasks={tasks} members={members} commentsByTask={commentsByTask} deliveryEvidenceByTask={deliveryEvidenceByTask} />
