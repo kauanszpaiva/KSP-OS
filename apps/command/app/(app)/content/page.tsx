@@ -1,3 +1,4 @@
+import { DistributionBars, DonutChart, Meter, VizBoard, VizPanel, VisualEmpty, VisualGrid, distribution } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getCampaigns, getContentItems } from '../data';
@@ -27,6 +28,11 @@ export default async function ContentPage() {
         { clients: [], profiles: [], contentItems: [], distributions: [] }
       ];
 
+  const statusMix = distribution(items.map((item) => item.status), { limit: 6, otherLabel: 'Other statuses' });
+  const channelMix = distribution(items.map((item) => item.channel), { limit: 6, otherLabel: 'Other channels' });
+  const evidenceMix = distribution(social.distributions.map((entry) => entry.evidenceKind));
+  const readyVersions = media.versions.filter((version) => version.uploadState === 'ready').length;
+
   return (
     <div>
       <PageHeader
@@ -34,6 +40,47 @@ export default async function ContentPage() {
         title="Content & Client Media"
         description="Plan content once, route it to the right social profiles, separate publication responsibility, upload real video versions, and keep client delivery distinct from proof of social publication."
       />
+
+      <VizBoard
+        aside={`${items.length} item${items.length === 1 ? '' : 's'} · ${campaigns.length} campaign${campaigns.length === 1 ? '' : 's'}`}
+        className="mb-5"
+        note="Derived from the content, media and distribution records this page already loaded"
+        title="Content board"
+      >
+        <VisualGrid>
+          <VizPanel index={0} note="status recorded on each content item" title="Content status">
+            <DonutChart
+              caption="Share of content items by status"
+              centerLabel="items"
+              centerValue={String(items.length)}
+              empty="No content item was returned."
+              items={statusMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={1} note="channel recorded on each content item" title="Channel mix">
+            <DistributionBars empty="No content item was returned." items={channelMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel index={2} note="How each social distribution's publication was evidenced" title="Publication evidence">
+            <DistributionBars empty="No social distribution was returned." items={evidenceMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel index={3} note="Client delivery versions that finished uploading" title="Delivery versions">
+            {media.versions.length > 0 ? (
+              <Meter
+                detail={`${readyVersions} of ${media.versions.length} client delivery versions report a ready upload state.`}
+                label="Uploaded"
+                max={media.versions.length}
+                tone={readyVersions === media.versions.length ? 'good' : 'warn'}
+                value={readyVersions}
+              />
+            ) : (
+              <VisualEmpty>No client delivery version was returned, so nothing is counted here.</VisualEmpty>
+            )}
+          </VizPanel>
+        </VisualGrid>
+      </VizBoard>
 
       <div className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-2 lg:gap-4">
         <details className="rounded-xl border border-line bg-surface shadow-card">

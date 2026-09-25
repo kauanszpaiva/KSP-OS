@@ -1,3 +1,4 @@
+import { DistributionBars, DonutChart, Meter, VizBoard, VizPanel, VisualEmpty, VisualGrid, distribution } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getProducts } from '../data';
@@ -9,6 +10,17 @@ export default async function ProductsPage() {
   await requireSession();
   const supabase = await getServerSupabase();
   const products = supabase ? await getProducts(supabase) : [];
+
+  const activeMix = distribution(products.map((product) => (product.active ? 'Active' : 'Inactive')));
+  const categoryMix = distribution(products.map((product) => product.category), {
+    limit: 6,
+    otherLabel: 'Other categories'
+  });
+  const currencyMix = distribution(products.map((product) => product.currency), {
+    limit: 6,
+    otherLabel: 'Other currencies'
+  });
+  const priced = products.filter((product) => product.price_minor !== null).length;
 
   return (
     <div>
@@ -22,6 +34,47 @@ export default async function ProductsPage() {
           <ProductForm />
         </div>
       </details>
+
+      <VizBoard
+        aside={`${products.length} product${products.length === 1 ? '' : 's'}`}
+        className="mb-5"
+        note="Derived from the catalog records this page already loaded"
+        title="Catalog board"
+      >
+        <VisualGrid>
+          <VizPanel index={0} note="active flag recorded on each product" title="Catalog state">
+            <DonutChart
+              caption="Share of products by catalog state"
+              centerLabel="products"
+              centerValue={String(products.length)}
+              empty="No product was returned."
+              items={activeMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={1} note="category recorded on each product" title="Category mix">
+            <DistributionBars empty="No product was returned." items={categoryMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel index={2} note="Currency recorded on each price — prices are never totalled across currencies" title="Recorded currency">
+            <DistributionBars empty="No product was returned." items={currencyMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel index={3} note="A product without a price cannot feed pricing or a proposal" title="Pricing coverage">
+            {products.length > 0 ? (
+              <Meter
+                detail={`${priced} of ${products.length} products carry a price_minor.`}
+                label="With a recorded price"
+                max={products.length}
+                tone={priced === products.length ? 'good' : 'warn'}
+                value={priced}
+              />
+            ) : (
+              <VisualEmpty>No product was returned, so no pricing coverage is shown.</VisualEmpty>
+            )}
+          </VizPanel>
+        </VisualGrid>
+      </VizBoard>
 
       <ProductsView products={products} />
     </div>
