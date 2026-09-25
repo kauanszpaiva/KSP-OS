@@ -3,7 +3,8 @@ import { requireSession } from '../../../lib/session';
 import { daysUntil, formatDate } from '../../../lib/format';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getMyCommitments, getTasks } from '../data';
-import { ShapeMark } from '@ksp/ui';
+import { DistributionBars, DonutChart, Meter, ShapeMark, VizBoard, VizPanel, VisualEmpty, VisualGrid, distribution } from '@ksp/ui';
+import { orderedMix } from '../../../lib/visual-mix';
 import { PageHeader, Panel, SectionLabel, StatePill } from '../_components/ui';
 import { ProgressiveList } from '../_components/progressive-list';
 
@@ -95,6 +96,15 @@ export default async function TodayPage() {
     { key: 'week' as const, label: 'This week', note: 'Due within the next 7 days.' },
     { key: 'later' as const, label: 'Later', note: 'Future or undated work.' }
   ];
+  const bandLabelByKey = new Map(groups.map((group) => [group.key, group.label]));
+  const bandMix = orderedMix(
+    work.map((item) => bandLabelByKey.get(itemBand(item)) ?? 'Later'),
+    groups.map((group) => group.label),
+    { total: work.length }
+  );
+  const kindMix = distribution(work.map((item) => item.kind));
+  const stateMix = distribution(work.map((item) => item.state), { limit: 6, otherLabel: 'Other states' });
+  const needsIntervention = work.filter((item) => itemBand(item) === 'now').length;
   const first = ctx.user.displayName.split(' ')[0];
 
   return (
@@ -104,6 +114,46 @@ export default async function TodayPage() {
         title={`Today — ${first}`}
         description="Your work in one reading order. Start at the top; specialist views stay out of the way until you need them."
       />
+
+      {work.length > 0 ? (
+        <VizBoard
+          aside={`${work.length} item${work.length === 1 ? '' : 's'}`}
+          className="mb-6"
+          note="Derived from the work already assigned to you on this page — the same reading order as the groups below"
+          title="Today board"
+        >
+          <VisualGrid>
+            <VizPanel index={0} note="The bands the list below is grouped by, in reading order" title="Reading order">
+              <DistributionBars empty="Nothing active is assigned to you." items={bandMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={1} note="commitments and tasks are read together but stay distinguishable" title="Work kind">
+              <DonutChart
+                caption="Share of your active work by kind"
+                centerLabel="items"
+                centerValue={String(work.length)}
+                empty="Nothing active is assigned to you."
+                items={kindMix}
+                tone="scale"
+              />
+            </VizPanel>
+
+            <VizPanel index={2} note="State recorded on each item" title="Work state">
+              <DistributionBars empty="Nothing active is assigned to you." items={stateMix} />
+            </VizPanel>
+
+            <VizPanel index={3} note="Blocked or already overdue — the Now band" title="Needs intervention">
+              <Meter
+                detail={`${needsIntervention} of ${work.length} active items sit in the Now band.`}
+                label="Blocked or overdue"
+                max={work.length}
+                tone={needsIntervention > 0 ? 'risk' : 'good'}
+                value={needsIntervention}
+              />
+            </VizPanel>
+          </VisualGrid>
+        </VizBoard>
+      ) : null}
 
       {work.length === 0 ? (
         <Panel className="p-5 sm:p-6">

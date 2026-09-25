@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { Icon, ShapeMark, type IconName } from '@ksp/ui';
+import { DistributionBars, Icon, Meter, ShapeMark, VizBoard, VizPanel, VisualEmpty, VisualGrid, type IconName, distribution } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { formatDate } from '../../../lib/format';
+import { orderedMix } from '../../../lib/visual-mix';
 import type { BlueprintView } from '@ksp/database';
 import { getBlueprints } from '../blueprints-data';
 import { PageHeader, StatStrip, type StatCardData } from '../_components/ui';
@@ -14,6 +15,16 @@ const KIND_META: Record<string, { label: string; icon: IconName; tone: 'brand' |
   infrastructure: { label: 'Infrastructure', icon: 'cpu', tone: 'good' }
 };
 
+/** Canvas depth ladder — ordered, because a size band is not a count to sort. */
+const NODE_BANDS = ['No nodes', '1–5 nodes', '6–15 nodes', '16+ nodes'] as const;
+
+function nodeBand(nodeCount: number): string {
+  if (nodeCount <= 0) return 'No nodes';
+  if (nodeCount <= 5) return '1–5 nodes';
+  if (nodeCount <= 15) return '6–15 nodes';
+  return '16+ nodes';
+}
+
 export default async function BlueprintsPage() {
   await requireSession();
   const supabase = await getServerSupabase();
@@ -22,6 +33,18 @@ export default async function BlueprintsPage() {
   const active = blueprints.filter((b) => b.status === 'active');
   const byKind = (kind: string) => blueprints.filter((b) => b.kind === kind).length;
   const totalNodes = blueprints.reduce((sum, b) => sum + (b.canvas?.nodes?.length ?? 0), 0);
+
+  const kindMix = distribution(blueprints.map((blueprint) => blueprint.kind));
+  const statusMix = distribution(blueprints.map((blueprint) => blueprint.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const nodeMix = orderedMix(
+    blueprints.map((blueprint) => nodeBand(blueprint.canvas?.nodes?.length ?? 0)),
+    NODE_BANDS,
+    { total: blueprints.length }
+  );
+  const withCanvas = blueprints.filter((blueprint) => (blueprint.canvas?.nodes?.length ?? 0) > 0).length;
 
   const stats: StatCardData[] = [
     { icon: 'layers', label: 'Blueprints', value: blueprints.length, hint: 'Designs in the library', href: '/blueprints', tone: 'brand' },
@@ -61,6 +84,38 @@ export default async function BlueprintsPage() {
       />
 
       <StatStrip stats={stats} />
+
+      {blueprints.length > 0 ? (
+        <VizBoard
+          aside={`${blueprints.length} blueprint${blueprints.length === 1 ? '' : 's'}`}
+          note="Derived from the blueprint records this page already loaded"
+          title="Blueprint board"
+        >
+          <VisualGrid>
+            <VizPanel index={0} note="kind recorded on each blueprint" title="By kind">
+              <DistributionBars empty="No blueprint was returned." items={kindMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={1} note="status recorded on each blueprint" title="By status">
+              <DistributionBars empty="No blueprint was returned." items={statusMix} />
+            </VizPanel>
+
+            <VizPanel index={2} note="Flowchart nodes drawn on each canvas, in size bands" title="Canvas depth">
+              <DistributionBars empty="No blueprint was returned." items={nodeMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={3} note="A blueprint with no nodes has no drawing yet" title="Canvas coverage">
+              <Meter
+                detail={`${withCanvas} of ${blueprints.length} blueprints carry at least one node.`}
+                label="With a canvas"
+                max={blueprints.length}
+                tone={withCanvas === blueprints.length ? 'good' : 'warn'}
+                value={withCanvas}
+              />
+            </VizPanel>
+          </VisualGrid>
+        </VizBoard>
+      ) : null}
 
       {blueprints.length === 0 ? (
         <div className="animate-fade-in rounded-2xl border border-dashed border-line-2 bg-surface/60 px-4 py-12 text-center sm:rounded-xl">

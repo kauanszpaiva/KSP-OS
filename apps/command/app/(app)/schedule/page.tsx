@@ -1,12 +1,31 @@
+import {
+  DataUnavailable,
+  DistributionBars,
+  Meter,
+  StatCard,
+  StatGrid,
+  VizBoard,
+  VizPanel,
+  VisualEmpty,
+  VisualGrid,
+  distribution
+} from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
-import { dayInScheduleZone, isScheduleDate, type DaySlot } from '@ksp/domain';
-import { DistributionBars, StatCard, StatGrid, VizBoard, VizPanel, VisualGrid, distribution } from '@ksp/ui';
+import { DAY_MINUTES, dayInScheduleZone, isScheduleDate, type DaySlot } from '@ksp/domain';
+import { orderedMix } from '../../../lib/visual-mix';
 import { getCommitments, getMissions, getTasks } from '../data';
 import { EmptyState, PageHeader } from '../_components/ui';
 import { TimelineView, type TimelineItem } from '../_components/schedule-view';
 import { DayScheduler } from '../_components/day-scheduler';
 import { saveDaySlot, removeDaySlot } from '../day-schedule-actions';
+
+/** Hour ladder for the block board, so planned blocks read in clock order. */
+const SCHEDULE_HOURS = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
+
+function hourLabel(startMinute: number): string {
+  return `${String(Math.floor(startMinute / 60)).padStart(2, '0')}:00`;
+}
 
 export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ project?: string; date?: string }> }) {
   const ctx = await requireSession();
@@ -36,9 +55,14 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
     if (ms.due_date && ms.status !== 'done') items.push({ id: `m-${ms.id}`, title: ms.title, subtitle: `Milestone / ${mission.name}`, start: ms.start_date, end: ms.due_date, state: ms.status, groupLabel: mission.name });
   }
   items.sort((a, b) => (a.groupLabel ?? '').localeCompare(b.groupLabel ?? '') || a.end.localeCompare(b.end));
+  const slotsUnavailable = !!result.error;
   const scheduledMinutes = slots.reduce((sum, slot) => sum + Math.max(0, slot.endMinute - slot.startMinute), 0);
   const scheduledHours = scheduledMinutes / 60;
+  const hourMix = orderedMix(slots.map((slot) => hourLabel(slot.startMinute)), SCHEDULE_HOURS, {
+    total: slots.length
+  });
   const stateMix = distribution(items.map((item) => item.state), { limit: 6, otherLabel: 'Other' });
+  const schedulable = tasks.filter((task) => ['draft', 'active', 'pending_approval', 'approved'].includes(task.status)).length;
   const projectCount = projectId ? (selected ? 1 : 0) : missions.length;
   return <div className="min-w-0 space-y-5 sm:space-y-6">
     <PageHeader eyebrow="Execution" title={selected ? `${selected.name} / Schedule` : 'Schedule'} description="Daily plan, workload and project timing in one visual workspace." />
@@ -65,10 +89,58 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
           <DistributionBars empty="No dated work returned." items={stateMix} />
         </VizPanel>
         <VizPanel index={1} note={`${slots.length} blocks · ${scheduledHours.toFixed(1)} hours planned`} title="Today">
-          <div className="grid grid-cols-2 gap-3 py-2">
-            <div className="rounded-xl bg-surface-2 p-4"><p className="text-[10px] uppercase tracking-[0.12em] text-ink-4">Blocks</p><p className="tnum mt-2 text-3xl font-semibold text-ink">{slots.length}</p></div>
-            <div className="rounded-xl bg-surface-2 p-4"><p className="text-[10px] uppercase tracking-[0.12em] text-ink-4">Hours</p><p className="tnum mt-2 text-3xl font-semibold text-ink">{scheduledHours.toFixed(1)}</p></div>
-          </div>
+          {slotsUnavailable ? (
+            <DataUnavailable
+              label="Day schedule unavailable"
+              reason="The planned blocks for this day could not be read, so no block or hour figure is shown. Nothing is assumed to be free."
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3 py-2">
+              <div className="rounded-xl bg-surface-2 p-4"><p className="text-[10px] uppercase tracking-[0.12em] text-ink-4">Blocks</p><p className="tnum mt-2 text-3xl font-semibold text-ink">{slots.length}</p></div>
+              <div className="rounded-xl bg-surface-2 p-4"><p className="text-[10px] uppercase tracking-[0.12em] text-ink-4">Hours</p><p className="tnum mt-2 text-3xl font-semibold text-ink">{scheduledHours.toFixed(1)}</p></div>
+            </div>
+          )}
+        </VizPanel>
+        <VizPanel index={2} note={`Minutes planned against the ${DAY_MINUTES} minutes in the day`} title="Day occupancy">
+          {slotsUnavailable ? (
+            <DataUnavailable
+              label="Occupancy unavailable"
+              reason="Without the day schedule this figure would be invented, so it is withheld."
+            />
+          ) : slots.length > 0 ? (
+            <Meter
+              detail={`${scheduledMinutes} of ${DAY_MINUTES} minutes in this day carry a planned block.`}
+              label="Planned time"
+              max={DAY_MINUTES}
+              tone="brand"
+              value={scheduledMinutes}
+            />
+          ) : (
+            <VisualEmpty>No block is planned for this day yet, so there is no occupancy to show.</VisualEmpty>
+          )}
+        </VizPanel>
+        <VizPanel index={3} note="Planned blocks grouped by the hour they start, and tasks still open to a block" title="Block hours and capacity">
+          {slotsUnavailable ? (
+            <DataUnavailable
+              label="Block hours unavailable"
+              reason="The planned blocks for this day could not be read, so no hourly shape is shown."
+            />
+          ) : slots.length > 0 ? (
+            <DistributionBars empty="No block is planned for this day yet." items={hourMix} tone="scale" />
+          ) : (
+            <VisualEmpty>No block is planned for this day yet.</VisualEmpty>
+          )}
+          {tasks.length > 0 ? (
+            <div className="mt-3 border-t border-line pt-3">
+              <Meter
+                detail={`${schedulable} of ${tasks.length} tasks in this scope can be given a day block.`}
+                label="Schedulable tasks"
+                max={tasks.length}
+                tone="brand"
+                value={schedulable}
+              />
+            </div>
+          ) : null}
         </VizPanel>
       </VisualGrid>
     </VizBoard>

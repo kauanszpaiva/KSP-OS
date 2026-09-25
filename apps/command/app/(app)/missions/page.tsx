@@ -1,4 +1,5 @@
 import { isExecutive } from '@ksp/auth';
+import { DistributionBars, DonutChart, Meter, VizBoard, VizPanel, VisualEmpty, VisualGrid, distribution } from '@ksp/ui';
 import { resolveBusinessUnitScope } from '../../../lib/business-units';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
@@ -32,6 +33,16 @@ export default async function MissionsPage() {
     ? await getCommentsForObjects(supabase, 'projects', missions.map((mission) => mission.id))
     : new Map<string, CommentView[]>();
 
+  const healthMix = distribution(missions.map((mission) => mission.health));
+  const statusMix = distribution(missions.map((mission) => mission.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const milestoneMix = distribution(
+    missions.flatMap((mission) => mission.milestones.map((milestone) => milestone.status))
+  );
+  const withoutNextAction = missions.filter((mission) => !mission.next_action).length;
+
   return (
     <div className="min-w-0">
       <PageHeader
@@ -52,6 +63,45 @@ export default async function MissionsPage() {
           )}
         </div>
       </details>
+
+      {missions.length > 0 ? (
+        <VizBoard
+          aside={`${missions.length} project${missions.length === 1 ? '' : 's'} in scope`}
+          className="mb-5"
+          note="Derived from the projects this page already loaded, after the active division scope"
+          title="Project board"
+        >
+          <VisualGrid>
+            <VizPanel index={0} note="health recorded on each project" title="Project health">
+              <DonutChart
+                caption="Share of projects by recorded health"
+                centerLabel="projects"
+                centerValue={String(missions.length)}
+                empty="No project is in this scope."
+                items={healthMix}
+              />
+            </VizPanel>
+
+            <VizPanel index={1} note="status recorded on each project" title="Project status">
+              <DistributionBars empty="No project is in this scope." items={statusMix} />
+            </VizPanel>
+
+            <VizPanel index={2} note="Status of every milestone on the projects in scope" title="Milestones">
+              <DistributionBars empty="No milestone was returned for these projects." items={milestoneMix} />
+            </VizPanel>
+
+            <VizPanel index={3} note="next_action as recorded on the project" title="Next action">
+              <Meter
+                detail={`${withoutNextAction} of ${missions.length} projects in scope carry no next_action.`}
+                label="With a next action"
+                max={missions.length}
+                tone={withoutNextAction > 0 ? 'warn' : 'good'}
+                value={missions.length - withoutNextAction}
+              />
+            </VizPanel>
+          </VisualGrid>
+        </VizBoard>
+      ) : null}
 
       {missions.length === 0 ? (
         <EmptyState icon="missions" title="No projects in this KSP scope yet." hint="Create one with a clear objective, owner and next action." />

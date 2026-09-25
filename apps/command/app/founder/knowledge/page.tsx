@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Icon } from '@ksp/ui';
+import { DistributionBars, Icon, VizBoard, VizPanel, VisualEmpty, VisualGrid, distribution } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { PageHeader } from '../../(app)/_components/ui';
@@ -32,6 +32,21 @@ export default async function FounderKnowledgePage({ searchParams }: { searchPar
     ? await Promise.all([getTruthItems(supabase), getSources(supabase), getContextPacks(supabase), q.trim().length >= 2 ? searchBrain(supabase, q) : Promise.resolve([])])
     : [[], [], [], []];
 
+  // Layer sizes are real row counts; the ratios are each layer's share of the private brain as loaded here.
+  const activePacks = packs.filter((pack) => pack.status === 'active').length;
+  const layers = [
+    { label: 'Truth', value: truth.length, href: '/founder/truth' },
+    { label: 'Sources', value: sources.length, href: '/founder/sources' },
+    { label: 'Active context packs', value: activePacks, href: '/founder/context' }
+  ];
+  const layerTotal = layers.reduce((acc, layer) => acc + layer.value, 0);
+  const layerMix = layers.map((layer) => ({
+    label: layer.label,
+    value: layer.value,
+    ratio: layerTotal === 0 ? 0 : layer.value / layerTotal
+  }));
+  const resultKindMix = distribution(results.map((result) => result.kind), { limit: 6, otherLabel: 'Other kinds' });
+
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader eyebrow="Private · Second Brain" title="Knowledge" description="Search the private brain, then go deeper only when you need to verify a claim, inspect provenance, or prepare context for another AI." />
@@ -58,6 +73,29 @@ export default async function FounderKnowledgePage({ searchParams }: { searchPar
 
       <section className="mt-7">
         <h2 className="mb-2 text-[13px] font-semibold text-ink">Knowledge layers</h2>
+
+        {layerTotal > 0 ? (
+          <VizBoard
+            className="mb-3"
+            note={`Derived from the ${layerTotal} private rows this page already loaded — a layer with no rows is dropped, never drawn as zero`}
+            title="Brain board"
+          >
+            <VisualGrid>
+              <VizPanel index={0} note="Each layer's share of the private brain as loaded here" title="Layer size">
+                <DistributionBars empty="No private row was returned for any layer." items={layerMix} tone="scale" />
+              </VizPanel>
+
+              <VizPanel index={1} note="Kind of each match in the current search" title="Matches by kind">
+                {q.trim().length >= 2 ? (
+                  <DistributionBars empty="This search returned no match." items={resultKindMix} tone="scale" />
+                ) : (
+                  <VisualEmpty>Search the brain above with at least two characters to see how the matches break down.</VisualEmpty>
+                )}
+              </VizPanel>
+            </VisualGrid>
+          </VizBoard>
+        ) : null}
+
         <div className="grid gap-3 md:grid-cols-3">
           <LayerLink href="/founder/truth" icon="decisions" title="Truth" detail="Claims with verification, confidence and provenance." count={truth.length} />
           <LayerLink href="/founder/sources" icon="knowledge" title="Sources" detail="Where information came from and how much it is trusted." count={sources.length} />

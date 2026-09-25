@@ -1,6 +1,17 @@
+import {
+  DistributionBars,
+  DonutChart,
+  Meter,
+  VizBoard,
+  VizPanel,
+  VisualEmpty,
+  VisualGrid,
+  distribution
+} from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { isOverdue } from '../../../lib/format';
+import { evidenceState, runwayMix } from '../../../lib/commitment-views';
 import { getMyCommitments } from '../data';
 import { PageHeader } from '../_components/ui';
 import { FocusView } from '../_components/focus-view';
@@ -13,6 +24,12 @@ export default async function FocusPage() {
 
   const overdue = mine.filter((c) => isOverdue(c.due_date)).length;
   const awaiting = mine.filter((c) => c.state === 'proof_submitted').length;
+
+  const stateMix = distribution(mine.map((commitment) => commitment.state));
+  const dueMix = runwayMix(mine);
+  const proofRequired = mine.filter((commitment) => commitment.requires_proof);
+  const evidenceMix = distribution(proofRequired.map(evidenceState));
+  const withNextAction = mine.filter((commitment) => commitment.next_action_date !== null).length;
 
   return (
     <div>
@@ -37,6 +54,51 @@ export default async function FocusPage() {
           </div>
         }
       />
+
+      <VizBoard
+        aside={`${mine.length} open`}
+        className="mb-5"
+        note="Derived from the commitments returned to you — nothing is estimated"
+        title="Runway board"
+      >
+        <VisualGrid>
+          <VizPanel index={0} note="State recorded on each open commitment" title="Commitment state">
+            <DonutChart
+              caption="Share of open commitments by state"
+              centerLabel="open"
+              centerValue={String(mine.length)}
+              empty="No open commitment was returned to you."
+              items={stateMix}
+            />
+          </VizPanel>
+
+          <VizPanel index={1} note="Due date read as a runway window" title="Due window">
+            <DistributionBars empty="No open commitment was returned to you." items={dueMix} />
+          </VizPanel>
+
+          <VizPanel
+            index={2}
+            note={`Evidence state of the ${proofRequired.length} commitment${proofRequired.length === 1 ? '' : 's'} flagged as requiring proof`}
+            title="Evidence"
+          >
+            <DistributionBars empty="No open commitment requires proof." items={evidenceMix} />
+          </VizPanel>
+
+          <VizPanel index={3} note="A commitment with no next action has nothing scheduled to move it" title="Next action">
+            {mine.length > 0 ? (
+              <Meter
+                detail={`${withNextAction} of ${mine.length} open commitments carry a next_action_date.`}
+                label="With a next action"
+                max={mine.length}
+                tone={withNextAction === mine.length ? 'good' : 'warn'}
+                value={withNextAction}
+              />
+            ) : (
+              <VisualEmpty>No open commitment was returned to you, so nothing is counted here.</VisualEmpty>
+            )}
+          </VizPanel>
+        </VisualGrid>
+      </VizBoard>
 
       <FocusView mine={mine} />
     </div>
