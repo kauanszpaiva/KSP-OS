@@ -1,5 +1,6 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
+import { DistributionBars, Meter, VizBoard, VizPanel, VisualGrid, distribution } from '@ksp/ui';
 import { PageHeader } from '../../(app)/_components/ui';
 import { SourceForm } from '../brain/_components/forms';
 import { setSourceTrust } from '../brain/actions';
@@ -19,6 +20,12 @@ export default async function FounderSourcesPage() {
   const supabase = await getServerSupabase();
   const sources = supabase ? await getSources(supabase) : [];
 
+  // Trust uses the neutral intensity scale: a trust ladder is not a status the
+  // status palette can rank without inventing meaning.
+  const trustMix = distribution(sources.map((source) => source.trust_status));
+  const typeMix = distribution(sources.map((source) => source.source_type), { limit: 6, otherLabel: 'Other types' });
+  const reviewed = sources.filter((source) => ['primary', 'trusted'].includes(source.trust_status)).length;
+
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
@@ -27,6 +34,35 @@ export default async function FounderSourcesPage() {
         description="A provenance catalog for the things your AIs are allowed to rely on. AI-added sources stay unverified until you review their trust here."
       />
       <SourceForm />
+
+      {sources.length > 0 ? (
+        <VizBoard
+          aside={`${sources.length} source${sources.length === 1 ? '' : 's'}`}
+          className="mt-6"
+          note="Derived from the catalog this page already loaded — an AI-added source stays unverified until you review it here"
+          title="Trust board"
+        >
+          <VisualGrid>
+            <VizPanel index={0} note="trust_status recorded on each source" title="Trust status">
+              <DistributionBars empty="No source was returned." items={trustMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={1} note="source_type recorded on each source" title="Source type">
+              <DistributionBars empty="No source was returned." items={typeMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={2} note="Only primary and trusted count as reviewed for AI reliance" title="Reviewed trust">
+              <Meter
+                detail={`${reviewed} of ${sources.length} sources are primary or trusted.`}
+                label="Reviewed"
+                max={sources.length}
+                tone={reviewed === sources.length ? 'good' : 'warn'}
+                value={reviewed}
+              />
+            </VizPanel>
+          </VisualGrid>
+        </VizBoard>
+      ) : null}
 
       <div className="mt-7 flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-ink">Source library</h2>

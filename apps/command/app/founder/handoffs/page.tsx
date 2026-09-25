@@ -1,5 +1,6 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
+import { DistributionBars, Meter, VizBoard, VizPanel, VisualGrid, distribution } from '@ksp/ui';
 import { PageHeader } from '../../(app)/_components/ui';
 import { HandoffForm, HandoffUpdateForm } from '../brain/_components/forms';
 import { getContextPacks, getHandoffs } from '../brain/data';
@@ -12,6 +13,13 @@ export default async function FounderHandoffsPage() {
   const [handoffs, packs] = supabase ? await Promise.all([getHandoffs(supabase), getContextPacks(supabase)]) : [[], []];
   const packById = new Map(packs.map((pack) => [pack.id, pack]));
 
+  const statusMix = distribution(handoffs.map((handoff) => handoff.status), { limit: 6, otherLabel: 'Other states' });
+  const routeMix = distribution(
+    handoffs.map((handoff) => `${handoff.from_agent} → ${handoff.to_agent}`),
+    { limit: 6, otherLabel: 'Other routes' }
+  );
+  const open = handoffs.filter((handoff) => !['done', 'cancelled'].includes(handoff.status)).length;
+
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
@@ -20,6 +28,35 @@ export default async function FounderHandoffsPage() {
         description="Pass a bounded job from you or one AI to another with a clear objective, optional context pack, status and returned output."
       />
       <HandoffForm packs={packs} />
+
+      {handoffs.length > 0 ? (
+        <VizBoard
+          aside={`${open} open of ${handoffs.length}`}
+          className="mt-6"
+          note="Derived from the handoffs this page already loaded"
+          title="Handoff board"
+        >
+          <VisualGrid>
+            <VizPanel index={0} note="status recorded on each handoff" title="Handoff state">
+              <DistributionBars empty="No handoff was returned." items={statusMix} />
+            </VizPanel>
+
+            <VizPanel index={1} note="Who passed the job to whom" title="Routing">
+              <DistributionBars empty="No handoff was returned." items={routeMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={2} note="Open means not done and not cancelled" title="Open handoffs">
+              <Meter
+                detail={`${open} of ${handoffs.length} handoffs are still open.`}
+                label="Open"
+                max={handoffs.length}
+                tone={open > 0 ? 'warn' : 'good'}
+                value={open}
+              />
+            </VizPanel>
+          </VisualGrid>
+        </VizBoard>
+      ) : null}
 
       <div className="mt-7 flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-ink">Handoff queue</h2>

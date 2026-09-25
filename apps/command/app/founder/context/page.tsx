@@ -1,11 +1,22 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
+import { DistributionBars, Meter, VizBoard, VizPanel, VisualGrid, distribution } from '@ksp/ui';
 import { PageHeader } from '../../(app)/_components/ui';
 import { ContextPackForm } from '../brain/_components/forms';
 import { archiveContextPack } from '../brain/actions';
 import { getContextPacks, getContextPackSources, getSources } from '../brain/data';
+import { orderedMix } from '../../../lib/visual-mix';
 
 export const dynamic = 'force-dynamic';
+
+/** Attachment ladder — ordered, because a source count band is not a count to sort. */
+const ATTACHED_BANDS = ['No sources', '1–3 sources', '4+ sources'] as const;
+
+function attachedBand(count: number): string {
+  if (count <= 0) return 'No sources';
+  if (count <= 3) return '1–3 sources';
+  return '4+ sources';
+}
 
 export default async function FounderContextPage() {
   await requireSession();
@@ -15,6 +26,15 @@ export default async function FounderContextPage() {
     : [[], [], []];
   const sourceById = new Map(sources.map((source) => [source.id, source]));
 
+  const attachedByPack = new Map(packs.map((pack) => [pack.id, links.filter((link) => link.context_pack_id === pack.id).length]));
+  const attachedMix = orderedMix(
+    packs.map((pack) => attachedBand(attachedByPack.get(pack.id) ?? 0)),
+    ATTACHED_BANDS,
+    { total: packs.length }
+  );
+  const packStatusMix = distribution(packs.map((pack) => pack.status));
+  const activePacks = packs.filter((pack) => pack.status === 'active').length;
+
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
@@ -23,6 +43,35 @@ export default async function FounderContextPage() {
         description="Reusable, bounded context for an AI or job. A pack says what is known, what is constrained, and which sources support it — without dumping your whole brain into every model."
       />
       <ContextPackForm sources={sources} />
+
+      {packs.length > 0 ? (
+        <VizBoard
+          aside={`${activePacks} active of ${packs.length}`}
+          className="mt-6"
+          note="Derived from the packs and source links this page already loaded"
+          title="Context board"
+        >
+          <VisualGrid>
+            <VizPanel index={0} note="status recorded on each pack" title="Pack status">
+              <DistributionBars empty="No context pack was returned." items={packStatusMix} />
+            </VizPanel>
+
+            <VizPanel index={1} note="Sources attached to each pack, in bands" title="Provenance depth">
+              <DistributionBars empty="No context pack was returned." items={attachedMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={2} note="A pack is reusable while it is active" title="Active packs">
+              <Meter
+                detail={`${activePacks} of ${packs.length} packs are active.`}
+                label="Active"
+                max={packs.length}
+                tone={activePacks > 0 ? 'good' : 'warn'}
+                value={activePacks}
+              />
+            </VizPanel>
+          </VisualGrid>
+        </VizBoard>
+      ) : null}
 
       <div className="mt-7 flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-ink">Reusable context</h2>

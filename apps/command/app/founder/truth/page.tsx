@@ -1,5 +1,6 @@
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
+import { DistributionBars, Meter, VizBoard, VizPanel, VisualGrid, distribution } from '@ksp/ui';
 import { PageHeader } from '../../(app)/_components/ui';
 import { TruthForm } from '../brain/_components/forms';
 import { setTruthStatus } from '../brain/actions';
@@ -17,6 +18,14 @@ export default async function FounderTruthPage() {
   const items = supabase ? await getTruthItems(supabase) : [];
   const needsReview = items.filter((item) => item.status !== 'verified').length;
 
+  // Status and type use the neutral intensity scale on purpose: `unverified`
+  // contains the good-token substring `verified`, so a status palette would
+  // paint an unverified claim as confirmed.
+  const statusMix = distribution(items.map((item) => item.status));
+  const confidenceMix = distribution(items.map((item) => item.confidence), { limit: 6, otherLabel: 'Other levels' });
+  const typeMix = distribution(items.map((item) => item.item_type), { limit: 6, otherLabel: 'Other types' });
+  const verified = items.length - needsReview;
+
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
@@ -25,6 +34,39 @@ export default async function FounderTruthPage() {
         description="Facts, decisions, assumptions and constraints with explicit confidence and provenance. Nothing here becomes KSP Canon automatically."
       />
       <TruthForm />
+
+      {items.length > 0 ? (
+        <VizBoard
+          aside={`${needsReview} to review of ${items.length}`}
+          className="mt-6"
+          note="Derived from the ledger this page already loaded — an unverified claim is never shown as confirmed"
+          title="Truth board"
+        >
+          <VisualGrid>
+            <VizPanel index={0} note="status recorded on each claim" title="Claim status">
+              <DistributionBars empty="No Truth item was returned." items={statusMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={1} note="confidence recorded on each claim" title="Confidence">
+              <DistributionBars empty="No Truth item was returned." items={confidenceMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={2} note="item_type recorded on each claim" title="Claim type">
+              <DistributionBars empty="No Truth item was returned." items={typeMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={3} note="Only a claim explicitly marked verified counts here" title="Verification">
+              <Meter
+                detail={`${verified} of ${items.length} claims are marked verified.`}
+                label="Verified"
+                max={items.length}
+                tone={needsReview > 0 ? 'warn' : 'good'}
+                value={verified}
+              />
+            </VizPanel>
+          </VisualGrid>
+        </VizBoard>
+      ) : null}
 
       <div className="mt-7 flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-ink">Knowledge ledger</h2>
