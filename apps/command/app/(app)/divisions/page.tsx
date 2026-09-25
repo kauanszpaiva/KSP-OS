@@ -1,3 +1,4 @@
+import { DistributionBars, Meter, VizBoard, VizPanel, VisualEmpty, VisualGrid, distribution } from '@ksp/ui';
 import { redirect } from 'next/navigation';
 import { isExecutive } from '@ksp/auth';
 import { requireSession } from '../../../lib/session';
@@ -82,6 +83,17 @@ export default async function DivisionsPage() {
   const activeUnits = units.filter((unit) => unit.status === 'active');
   const unitNameById = new Map(activeUnits.map((unit) => [unit.id, unit.name]));
   const unclassifiedCount = projects.filter((project) => !project.business_unit_id).length;
+  const unitLabel = (unitId: string | null) =>
+    unitId ? (unitNameById.get(unitId) ?? 'Not in an active division') : 'Unclassified';
+  const projectMix = distribution(projects.map((project) => unitLabel(project.business_unit_id)), {
+    limit: 6,
+    otherLabel: 'Other divisions'
+  });
+  const memberMix = distribution(memberships.map((membership) => unitLabel(membership.business_unit_id)), {
+    limit: 6,
+    otherLabel: 'Other divisions'
+  });
+  const unitStatusMix = distribution(units.map((unit) => unit.status));
 
   return (
     <div className="min-w-0 space-y-6">
@@ -103,6 +115,40 @@ export default async function DivisionsPage() {
           <span className="rounded-full border border-brand/20 bg-brand-tint px-3 py-1 text-[11px] font-semibold text-brand">KSP Inc. · All divisions</span>
         </div>
       </section>
+
+      <VizBoard
+        aside={`${units.length} division${units.length === 1 ? '' : 's'}`}
+        note="Derived from the divisions, projects and memberships this page already loaded"
+        title="Structure board"
+      >
+        <VisualGrid>
+          <VizPanel index={0} note="Projects are counted under their recorded division, never assumed" title="Projects per division">
+            <DistributionBars empty="No project was returned." items={projectMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel index={1} note="Live memberships only — suspended and expired ones are already excluded above" title="Members per division">
+            <DistributionBars empty="No active membership was returned." items={memberMix} tone="scale" />
+          </VizPanel>
+
+          <VizPanel index={2} note="status recorded on every division row" title="Division status">
+            <DistributionBars empty="No division was returned." items={unitStatusMix} />
+          </VizPanel>
+
+          <VizPanel index={3} note="An unclassified project sits outside every division scope" title="Project classification">
+            {projects.length > 0 ? (
+              <Meter
+                detail={`${unclassifiedCount} of ${projects.length} projects carry no business_unit_id yet.`}
+                label="Classified"
+                max={projects.length}
+                tone={unclassifiedCount > 0 ? 'warn' : 'good'}
+                value={projects.length - unclassifiedCount}
+              />
+            ) : (
+              <VisualEmpty>No project was returned, so nothing is counted as classified.</VisualEmpty>
+            )}
+          </VizPanel>
+        </VisualGrid>
+      </VizBoard>
 
       <section className="space-y-3">
         <div>

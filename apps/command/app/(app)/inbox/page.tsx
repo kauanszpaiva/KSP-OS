@@ -3,9 +3,12 @@ import { requireSession } from '../../../lib/session';
 import { formatDate } from '../../../lib/format';
 import { getServerSupabase } from '../../../lib/supabase';
 import { getDecisions, getSignals } from '../data';
-import { ShapeMark } from '@ksp/ui';
+import { ActivityStrip, DistributionBars, Meter, ShapeMark, VizBoard, VizPanel, VisualEmpty, VisualGrid, bucketByDay, distribution } from '@ksp/ui';
 import { PageHeader, Panel, SectionLabel, StatePill } from '../_components/ui';
 import { ProgressiveList } from '../_components/progressive-list';
+
+/** Capture window for the arrangement strip — past days, from records already loaded. */
+const INBOX_VOLUME_DAYS = 14;
 
 export default async function InboxPage() {
   await requireSession();
@@ -15,6 +18,15 @@ export default async function InboxPage() {
   const activeSignals = signals.filter((signal) => ['new', 'triaged'].includes(signal.triage_status));
   const pendingDecisions = decisions.filter((decision) => decision.status === 'pending_approval');
   const total = activeSignals.length + pendingDecisions.length;
+  const loaded = signals.length + decisions.length;
+
+  const triageMix = distribution(signals.map((signal) => signal.triage_status));
+  const riskMix = distribution(decisions.map((decision) => decision.risk_level));
+  const volume = bucketByDay(
+    [...signals.map((signal) => signal.created_at), ...decisions.map((decision) => decision.created_at)],
+    INBOX_VOLUME_DAYS,
+    new Date()
+  );
 
   return (
     <div className="min-w-0">
@@ -29,6 +41,43 @@ export default async function InboxPage() {
           </div>
         }
       />
+
+      {loaded > 0 ? (
+        <VizBoard
+          aside={`${total} waiting of ${loaded} loaded`}
+          className="mb-6"
+          note={`Derived from the signals and approval requests this page already loaded, over the last ${INBOX_VOLUME_DAYS} days`}
+          title="Inbox board"
+        >
+          <VisualGrid>
+            <VizPanel index={0} note="triage_status recorded on each signal" title="Signals">
+              <DistributionBars empty="No signal was returned." items={triageMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={1} note="risk_level recorded on each approval request" title="Request risk">
+              <DistributionBars empty="No approval request was returned." items={riskMix} tone="scale" />
+            </VizPanel>
+
+            <VizPanel index={2} note="Signals and requests created per UTC day" title="Arrivals">
+              <ActivityStrip buckets={volume} caption="Signals and approval requests per day" />
+            </VizPanel>
+
+            <VizPanel index={3} note="A signal needs triage only while it is new or triaged" title="Still waiting">
+              {loaded > 0 ? (
+                <Meter
+                  detail={`${total} of ${loaded} loaded items still need attention.`}
+                  label="Needs attention"
+                  max={loaded}
+                  tone={total > 0 ? 'warn' : 'good'}
+                  value={total}
+                />
+              ) : (
+                <VisualEmpty>No signal or approval request was returned, so nothing is counted here.</VisualEmpty>
+              )}
+            </VizPanel>
+          </VisualGrid>
+        </VizBoard>
+      ) : null}
 
       {total === 0 ? (
         <Panel className="p-5 sm:p-6">

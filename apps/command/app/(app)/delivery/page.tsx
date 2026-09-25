@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Icon } from '@ksp/ui';
+import { DistributionBars, Icon, Meter, VizBoard, VizPanel, VisualEmpty, VisualGrid, distribution } from '@ksp/ui';
 import { requireSession } from '../../../lib/session';
 import { getServerSupabase } from '../../../lib/supabase';
 import { PageHeader, Panel, SectionLabel, Figure } from '../_components/ui';
@@ -51,6 +51,19 @@ export default async function DeliveryPage() {
   const blockedTasks = tasks.filter((t) => t.blocked);
   const reviewTasks = tasks.filter((t) => t.status === 'pending_approval' || t.status === 'draft'); // Using draft/pending as generic reviews here
 
+  const missionStatusMix = distribution(missions.map((mission) => mission.status), {
+    limit: 6,
+    otherLabel: 'Other statuses'
+  });
+  const commitmentStateMix = distribution(commitments.map((commitment) => commitment.state), {
+    limit: 6,
+    otherLabel: 'Other states'
+  });
+  const taskStateMix = distribution(tasks.map((task) => (task.blocked ? 'blocked' : task.status)), {
+    limit: 6,
+    otherLabel: 'Other states'
+  });
+
   return (
     <div>
       <PageHeader
@@ -58,6 +71,41 @@ export default async function DeliveryPage() {
         title="Delivery Operations Hub"
         description="Cross-service operational visibility and execution surfaces."
       />
+
+      <VizBoard
+        aside={`${missions.length} project${missions.length === 1 ? '' : 's'} · ${tasks.length} task${tasks.length === 1 ? '' : 's'}`}
+        className="mb-8"
+        note="Derived from the projects, commitments and tasks this page already loaded"
+        title="Delivery board"
+      >
+        <VisualGrid>
+          <VizPanel index={0} note="status recorded on each project" title="Project status">
+            <DistributionBars empty="No project was returned." items={missionStatusMix} />
+          </VizPanel>
+
+          <VizPanel index={1} note="state recorded on each commitment" title="Commitment state">
+            <DistributionBars empty="No commitment was returned." items={commitmentStateMix} />
+          </VizPanel>
+
+          <VizPanel index={2} note="State of each task (blocked overrides status)" title="Task state">
+            <DistributionBars empty="No task was returned." items={taskStateMix} />
+          </VizPanel>
+
+          <VizPanel index={3} note="A blocked task cannot move without intervention, whatever its lane" title="Blocked">
+            {tasks.length > 0 ? (
+              <Meter
+                detail={`${blockedTasks.length} of ${tasks.length} tasks in this window are blocked.`}
+                label="Blocked tasks"
+                max={tasks.length}
+                tone={blockedTasks.length > 0 ? 'risk' : 'good'}
+                value={blockedTasks.length}
+              />
+            ) : (
+              <VisualEmpty>No task was returned, so nothing is counted as blocked.</VisualEmpty>
+            )}
+          </VizPanel>
+        </VisualGrid>
+      </VizBoard>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4 mb-8">
         <Panel className="p-5 flex flex-col justify-between">
