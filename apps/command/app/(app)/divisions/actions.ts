@@ -1,5 +1,6 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { getAuthContext, isExecutive, type AuthContext } from '@ksp/auth';
 import type { SupabaseClient } from '@ksp/database';
@@ -302,9 +303,15 @@ export async function createMissionInBusinessUnit(_prev: DivisionActionResult, f
     .maybeSingle();
   if (!unit) return { ok: false, error: 'That KSP division is not available to you.' };
 
-  const { data, error } = await supabase
+  // INSERT RETURNING also checks SELECT RLS, whose STABLE project helper cannot
+  // see this new row yet. Keep normal INSERT RLS and return=minimal; later reads
+  // happen after the creator-membership trigger has completed. Generate the ID
+  // here, never from form input, so activity/audit can identify the inserted row.
+  const projectId = randomUUID();
+  const { error } = await supabase
     .from('projects')
     .insert({
+      id: projectId,
       organization_id: ctx.organizationId,
       client_id: parsed.data.clientId ?? null,
       business_unit_id: businessUnitId,
@@ -312,10 +319,8 @@ export async function createMissionInBusinessUnit(_prev: DivisionActionResult, f
       project_type: parsed.data.projectType,
       health: 'unknown',
       status: 'active'
-    })
-    .select('id')
-    .single();
-  if (error || !data) return { ok: false, error: 'Could not create the project.' };
+    });
+  if (error) return { ok: false, error: 'Could not create the project.' };
 
   // The canonical AFTER INSERT trigger creates the creator membership in the
   // same transaction as the project. A second INSERT would violate uniqueness;
@@ -327,7 +332,7 @@ export async function createMissionInBusinessUnit(_prev: DivisionActionResult, f
     ctx,
     'mission.created',
     'projects',
-    data.id,
+    projectId,
     `Created project in ${unit.name}: ${parsed.data.name}`
   );
   revalidatePath('/missions');

@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { createBlueprintForm } from "../blueprints-actions";
+import { createBlueprintForm } from "../../blueprints-actions";
 
 const KINDS = [
   { value: "system", label: "System", hint: "Hardware + software architecture" },
